@@ -1,3 +1,4 @@
 # Matlab
 useful matlab toolboxes
-contains the oiTool toolbox including Neuralynx scripts for electrophysiology and the calcium imaging GUI programmed by Jenny.
+contains the calcium imaging GUI programmed by Jenny consisting of roisub.mat and roisub.fig.
+Furthermore it contains the whle oiTool toolbox which is intended for processing electrophysiological Neuralynx files.
