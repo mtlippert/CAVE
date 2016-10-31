@@ -82,7 +82,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 03-May-2016 15:39:43
+% Last Modified by GUIDE v2.5 31-Aug-2016 10:39:42
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -122,6 +122,7 @@ v.play=0;
 d.thresh=0;
 d.valid=0;
 d.adding = 0;
+d.align=0; %signals whether images were aligned
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -256,7 +257,7 @@ if d.clear>0;
     return;
 end
 
-ms.UseParallel = true; %initializes parallel processing
+% ms.UseParallel = true; %initializes parallel processing
 d.perc=[]; %initializing ROI values in percent as empty
 
 %defining initial folder displayed in dialog window
@@ -270,7 +271,7 @@ end
 d.clear=d.clear+1;
 
 %extracts filename
-filePattern = fullfile(d.pn, '*.tif');
+filePattern = fullfile(d.pn, '*.tif'); % *.tiff for 2-P
 Files = dir(filePattern);
 d.fn = Files(1).name;
 
@@ -280,6 +281,38 @@ x=imfinfo([d.pn '\' d.fn]);
 Width=x(1).Width;
 Height=x(1).Height;
 
+%reading frame rate of the CI video
+try
+   d.framerate=csvread([d.pn '\Framerate.txt']);
+catch ME
+   if (strcmp(ME.identifier,'MATLAB:csvread:FileNotFound'))
+      uiwait(msgbox('You need a text file called Framerate containing the number of frames per second!','Attention'));
+      %clears all global variables
+      clear global d;
+      %reinitializes global variables
+      global d
+      d.clear=0;
+      d.pushed=0;
+      d.bcount=0;
+      d.roisdefined=0;
+      d.play=0;
+      d.thresh=0;
+      d.valid=0;
+      d.adding = 0;
+      d.dF=0;
+      d.load=0;
+      %clears axes
+      cla(handles.axes1,'reset');
+      %resets frame slider
+      handles.slider7.Value=1;
+      %resets values of low in/out, high in/out to start values
+      handles.slider5.Value=0;
+      handles.slider15.Value=1;
+      handles.slider6.Value=0;
+      handles.slider16.Value=1;
+      return;
+   end
+end 
 
 %putting each frame into variable 'Images'
 if length(Files)==1;
@@ -338,13 +371,14 @@ d.pushed=1; %signals that file was selected
 d.roisdefined=0; %no rois defined
 d.b=[];
 d.c=[];
-d.framerate=10;
 d.dF=0;
 d.load=0;
+d.align=0;
+d.origCI=[];
 close(h);
 
 %looking at first original picture
-axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, hot);
+axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
 titleLabel = ['Calcium imaging video: ' d.fn];
 set(handles.text27, 'String', titleLabel);
 textLabel = sprintf('%d / %d', 1,size(d.imd,3));
@@ -367,13 +401,14 @@ global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
-elseif d.dF==1;
-    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
-    return;
 end
 %handles.slider5.Value changes low in value
 if d.pushed==4 || d.roisdefined==1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1;
+        singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    else
+        singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -383,8 +418,12 @@ if d.pushed==4 || d.roisdefined==1;
     d.pushed=4;
 else
     d.pushed=1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    axes(handles.axes1); imshow(singleFrame); %shows image in axes1
+    if d.dF==1;
+            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        else
+            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
+axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 % hObject    handle to slider5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -410,13 +449,14 @@ global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
-elseif d.dF==1;
-    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
-    return;
 end
 %handles.slider6.Value changes low out value
 if d.pushed==4 || d.roisdefined==1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1;
+            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        else
+            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -426,7 +466,11 @@ if d.pushed==4 || d.roisdefined==1;
     d.pushed=4;
 else
     d.pushed=1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1;
+            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        else
+            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 % hObject    handle to slider6 (see GCBO)
@@ -453,13 +497,14 @@ global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
-elseif d.dF==1;
-    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
-    return;
 end
 %handles.slider15.Value changes high in value
 if d.pushed==4 || d.roisdefined==1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1;
+            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        else
+            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -469,7 +514,11 @@ if d.pushed==4 || d.roisdefined==1;
     d.pushed=4;
 else
     d.pushed=1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1;
+            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        else
+            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 % hObject    handle to slider15 (see GCBO)
@@ -496,13 +545,14 @@ global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
-elseif d.dF==1;
-    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
-    return;
 end
 %handles.slider16.Value changes high out value
 if d.pushed==4 || d.roisdefined==1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1;
+            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        else
+            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -512,7 +562,11 @@ if d.pushed==4 || d.roisdefined==1;
     d.pushed=4;
 else
     d.pushed=1;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1;
+            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        else
+            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    end
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 % hObject    handle to slider16 (see GCBO)
@@ -568,7 +622,8 @@ global d
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 x=imresize(singleFrame,handles.slider18.Value); %evt. medfilt2() as median filter
 if d.dF==1;
-    axes(handles.axes1); imagesc(x,d.dFvals);
+    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
+    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
 else
     axes(handles.axes1); imshow(x);
 end
@@ -607,15 +662,19 @@ end
 close(h);
 h=waitbar(0,'Eliminating faulty frames');
 for k=1:size(meanChange,3);
-    if std(meanChange)>60 && (meanChange(1,1,k)>round(max(meanChange),2)*0.66 || meanChange(1,1,k)<round(min(meanChange),2)*0.66);
-        if k+2 <= size(meanChange,3);
-            imd(:,:,k+1)=imd(:,:,k+2);
+    if std(meanChange)>60 && meanChange(1,1,k)<round(min(meanChange),2)*0.66;
+        if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1));
+            imd(:,:,k+1)=imd(:,:,k);
+%         elseif k+1 <= size(meanChange,3) && (meanChange(1,1,k)==meanChange(1,1,k+1));
+%             imd(:,:,k+1)=imd(:,:,k+3); % k+3 when the glitch lasted 2 frames!
         else
             imd(:,:,k+1)=imd(:,:,k-2);
         end
-    elseif d.dF==1 && (meanChange(1,1,k)>round(max(meanChange),2)*0.66 || meanChange(1,1,k)<round(min(meanChange),2)*0.66)
-        if k+2 <= size(meanChange,3);
-            imd(:,:,k+1)=imd(:,:,k+3); % k+2 before, now k+3 because the glitch lasted 2 frames!
+    elseif d.dF==1 && meanChange(1,1,k)<round(min(meanChange),2)*0.66;
+        if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1));
+            imd(:,:,k+1)=imd(:,:,k);
+%         elseif k+2 <= size(meanChange,3) && (meanChange(1,1,k)==meanChange(1,1,k+1));
+%             imd(:,:,k+1)=imd(:,:,k+3); % k+3 when the glitch lasted 2 frames!
         else
             imd(:,:,k+1)=imd(:,:,k-2);
         end
@@ -626,17 +685,14 @@ d.imd=imd;
 close(h);
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 if d.dF==1;
-%     imd=d.imd(:,:,2); %second picture becuase first one is broken from filtfilt!
-%     imdreshape=reshape(imd,252*252,1); %so all values are in one vecotr for prctile
-%     percentil5=prctile(imdreshape,5);
-%     percentil95=prctile(imdreshape,95);
-%     d.dFvals=[percentil5 percentil95];
-    d.dFvals=[-max(max(max(d.imd))) max(max(max(d.imd)))];
-    axes(handles.axes1); imagesc(singleFrame,d.dFvals);
+    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
+    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
 else
     axes(handles.axes1); imshow(singleFrame);
 end
 d.origCI=d.imd;
+meanChange=diff(mean(mean(d.imd,1),2));
+figure(1),plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
 msgbox('Preprocessing done!','Success');
 % hObject    handle to pushbutton23 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -646,24 +702,30 @@ msgbox('Preprocessing done!','Success');
 % --- Executes on button press in pushbutton25.                   DELTA F/F
 function pushbutton25_Callback(hObject, eventdata, handles)
 global d
-%deltaF/F
-h=waitbar(0,'Calculating deltaF/F');
-Fmean=mean(d.imd,3);
-imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean);
-[bFilt,aFilt] = butter(4,.5, 'low'); %filter taken from miniscope msRun
 
-for kr=1:size(imddF,1)
-    for kc=1:size(imddF,2)
-       imddF(kr,kc,:)=filtfilt(bFilt,aFilt,imddF(kr,kc,:)); %temporal low-passing
-    end
-%     disp(kr);
+%setting aligned images as original CI video
+if d.align==1;
+    d.origCI=d.imd;
 end
 
-hhh = fspecial('gaussian', 5, 3);
-SE = strel('disk', 15);
+%deltaF/F
+h=waitbar(0,'Calculating deltaF/F');
+Fmean=mean(d.imd(:,:,1:100:end),3); %% insert slight blurring filter?
+imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean);
+% [bFilt,aFilt] = butter(4,.5, 'low');
+% 
+% for kr=1:size(imddF,1)
+%     for kc=1:size(imddF,2)
+%        imddF(kr,kc,:)=filtfilt(bFilt,aFilt,imddF(kr,kc,:)); %temporal low-passing
+%     end
+% %     disp(kr);
+% end
+
+hhh = fspecial('gaussian', 5, 5);
+%SE = strel('disk', 15);
 
 for k=1:size(d.imd,3);
-    imddF(:,:,k)=imtophat(imddF(:,:,k),SE);
+%    imddF(:,:,k)=imtophat(imddF(:,:,k),SE);
 %     imddF(imddF(:,:,k)<(max(max(imddF(:,:,k)))*0.5))=0;
     imddF(:,:,k)=imfilter(imddF(:,:,k),hhh); %filter taken from miniscope msRun ()
 %     IM=imbothat(imddF(:,:,k),SE);
@@ -673,29 +735,19 @@ for k=1:size(d.imd,3);
 end
 d.imd=imddF;
 close(h);
-%     imd=d.imd(:,:,2); %second picture becuase first one is broken from filtfilt!
-%     imdreshape=reshape(imd,252*252,1); %so all values are in one vecotr for prctile
-%     percentil1=prctile(imdreshape,1);
-%     percentil99=prctile(imdreshape,99);
-%     d.dFvals=[percentil1 percentil99];
-    d.dFvals=[-max(max(max(d.imd))) max(max(max(d.imd)))];
-if d.dFvals==0;
-%     imd=d.imd(:,:,2); %second picture becuase first one is broken from filtfilt!
-%     imdreshape=reshape(imd,252*252,1); %so all values are in one vecotr for prctile
-%     percentil1=prctile(imdreshape,5);
-%     percentil99=prctile(imdreshape,95);
-%     d.dFvals=[percentil1 percentil99];
-    d.dFvals=[-max(max(max(d.imd))) max(max(max(d.imd)))];
-end
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-axes(handles.axes1);imagesc(singleFrame,d.dFvals); colormap(handles.axes1, hot);
+singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
+axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
 d.dF=1;
+MaxIntensProj = max(d.imd, [], 3);
+if handles.radiobutton2.Value==1;
+    figure(1),imagesc(MaxIntensProj,[0 .2]),title('Maximum Intensity Projection');
+else
+    figure(1),imagesc(MaxIntensProj),title('Maximum Intensity Projection');
+end
 msgbox('Calculation done!','Success');
 % hObject    handle to pushbutton25 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
 
 
 % --- Executes on button press in pushbutton9.                ALIGNS IMAGES
@@ -716,65 +768,95 @@ if d.dF==1;
      return
 end
 
-imgA = d.imd(:,:,1);
-imgC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
-imgC(:,:,1) =  d.imd(:,:,1);
-%aligning images to first image
-h=waitbar(0,'Aligning images');
-for k=1:size(d.imd,3)-1;
-    imgB=d.imd(:,:,k+1);
-    % figure(1); imshowpair(imgA,imgB,'ColorChannels','red-cyan');
-    %detecting SURF features in first image and following images
-    pointsA = detectSURFFeatures(imgA);
-    pointsB = detectSURFFeatures(imgB);
-    if isempty(pointsA)==1;
-%         pointsA = detectHarrisFeatures(imgA);
-%         pointsB = detectHarrisFeatures(imgB);
-        [optimizer,metric] = imregconfig('monomodal');
-        for j=1:size(d.imd,3)-1;
-            imgB=d.imd(:,:,j+1);
-            imgC(:,:,j+1) = imregister(imgB,imgA,'rigid',optimizer,metric);
-            waitbar(j/(size(d.imd,3)-1),h);
+if handles.radiobutton1.Value==1;
+    %SURF feature detection to align images
+    imgA = d.imd(:,:,1);
+    imgC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
+    imgC(:,:,1) =  d.imd(:,:,1);
+    %aligning images to first image
+    h=waitbar(0,'Aligning images');
+    for k=1:size(d.imd,3)-1;
+        imgB=d.imd(:,:,k+1);
+        % figure(1); imshowpair(imgA,imgB,'ColorChannels','red-cyan');
+        %detecting SURF features in first image and following images
+        pointsA = detectSURFFeatures(imgA);
+        pointsB = detectSURFFeatures(imgB);
+    %     if isempty(pointsA)==1;
+    % %         pointsA = detectHarrisFeatures(imgA);
+    % %         pointsB = detectHarrisFeatures(imgB);
+    %         [optimizer,metric] = imregconfig('monomodal');
+    %         for j=1:size(d.imd,3)-1;
+    %             imgB=d.imd(:,:,j+1);
+    %             imgC(:,:,j+1) = imregister(imgB,imgA,'rigid',optimizer,metric);
+    %             waitbar(j/(size(d.imd,3)-1),h);
+    %         end
+    %         d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    %         axes(handles.axes1); imshow(singleFrame);
+    %         close(h);
+    %         % d.pushed=2; %signals that images were aligned
+    %         msgbox('Aligning Completed.','Success');
+    %         break
+    %     end
+        %extract FREAK descriptors for the SURF features
+        [featuresA, pointsA] = extractFeatures(imgA, pointsA);
+        [featuresB, pointsB] = extractFeatures(imgB, pointsB);
+        %match features of both pictures
+        indexPairs = matchFeatures(featuresA, featuresB);
+        pointsA = pointsA(indexPairs(:, 1), :);
+        pointsB = pointsB(indexPairs(:, 2), :);
+        %extract location coordinates of matched points
+        pointsA=pointsA.Location;
+        pointsB=pointsB.Location;
+        %if there are no matching points, set the matrix to zeros
+        if isempty(pointsA)==1;
+            pointsA=zeros(1,2);
         end
-        d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        axes(handles.axes1); imshow(singleFrame);
-        close(h);
-        % d.pushed=2; %signals that images were aligned
-        msgbox('Aligning Completed.','Success');
-        break
+        if isempty(pointsB)==1;
+            pointsB=zeros(1,2);
+        end
+        %calculate shifting vector from matched points, how was the points
+        %shifted from A to B
+        tvector=[round(mean(pointsA(:,2)-pointsB(:,2))) round(mean(pointsA(:,1)-pointsB(:,1)))];
+        if sum(tvector)<=5 && sum(tvector)>=-5 || sum(tvector)>=100 || sum(tvector)<=-100; %boundaries for not changing current image
+            imgC(:,:,k+1)=imgB;
+        else
+            imgC(:,:,k+1)=circshift(imgB,tvector);
+        end
+        % figure(1); imshowpair(imgA,imgC(:,:,k+1),'ColorChannels','red-cyan');
+        waitbar(k/(size(d.imd,3)-1),h);
     end
-    %extract FREAK descriptors for the SURF features
-    [featuresA, pointsA] = extractFeatures(imgA, pointsA);
-    [featuresB, pointsB] = extractFeatures(imgB, pointsB);
-    %match features of both pictures
-    indexPairs = matchFeatures(featuresA, featuresB);
-    pointsA = pointsA(indexPairs(:, 1), :);
-    pointsB = pointsB(indexPairs(:, 2), :);
-    %extract location coordinates of matched points
-    pointsA=pointsA.Location;
-    pointsB=pointsB.Location;
-    %if there are no matching points, set the matrix to zeros
-    if isempty(pointsA)==1;
-        pointsA=zeros(1,2);
+    d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    axes(handles.axes1); imshow(singleFrame);
+    close(h);
+else
+    %Lucas Kanade algorithm to align images
+    transform = 'euclidean';
+    % parameters for ECC and Lucas-Kanade 
+    par = [];
+    par.levels =    2;
+    par.iterations = 30;
+    par.transform = transform;
+    tmp= d.imd(:,:,1);
+    imgC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
+    imgC(:,:,1) =  d.imd(:,:,1);
+    h=waitbar(0,'Aligning images');
+    for k=1:size(d.imd,3)-1;
+        img=d.imd(:,:,k+1);
+        [LKWarp]=iat_LucasKanade(img,tmp,par);
+        % Compute the warped image and visualize the error
+        [wimageLK, supportLK] = iat_inverse_warping(img, LKWarp, par.transform, 1:size(tmp,2),1:size(tmp,1));
+%         % draw mosaic
+%         LKMosaic = iat_mosaic(tmp,img,[LKWarp; 0 0 1]);
+        imgC(:,:,k)=wimageLK;
+        waitbar(k/(size(d.imd,3)-1),h);
     end
-    if isempty(pointsB)==1;
-        pointsB=zeros(1,2);
-    end
-    %calculate shifting vector from matched points, how was the points
-    %shifted from A to B
-    tvector=[round(mean(pointsA(:,2)-pointsB(:,2))) round(mean(pointsA(:,1)-pointsB(:,1)))];
-    if sum(tvector)<=5 && sum(tvector)>=-5 || sum(tvector)>=100 || sum(tvector)<=-100; %boundaries for not changing current image
-        imgC(:,:,k+1)=imgB;
-    else
-        imgC(:,:,k+1)=circshift(imgB,tvector);
-    end
-    % figure(1); imshowpair(imgA,imgC(:,:,k+1),'ColorChannels','red-cyan');
-    waitbar(k/(size(d.imd,3)-1),h);
+    d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    axes(handles.axes1); imshow(singleFrame);
+    close(h);
 end
-d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-axes(handles.axes1); imshow(singleFrame);
-close(h);
-% d.pushed=2; %signals that images were aligned
+
+
+d.align=1; %signals that images were aligned
 msgbox('Aligning Completed.','Success');
 if d.pushed==4;
     %resets all varibles needed for selecting ROIs
@@ -797,6 +879,18 @@ end
 % handles    structure with handles and user data (see GUIDATA)
 
 
+% --- Executes on button press in pushbutton28.            RESETS ALIGNMENT
+function pushbutton28_Callback(hObject, eventdata, handles)
+global d
+d.imd=d.origCI;
+d.align=0; %signals that image alignment was reset
+msgbox('Alignment reset!');
+% hObject    handle to pushbutton28 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+
+
+
+
 
 
 % --- Executes on button press in pushbutton3.                         ROIs
@@ -815,7 +909,7 @@ if d.thresh==1;
     % Construct a questdlg with two options
     choice = questdlg('Would you like to add ROIs manually?', ...
         'Attention', ...
-        'YES','NO','NO');
+        'YES','NO','YES');
     % Handle response
     switch choice
         case 'YES'
@@ -840,10 +934,20 @@ if d.thresh==1;
             msgbox('ROIs cleared!','Success');
     end
 end
-if d.bcount>=17;
-    msgbox('PLEASE USE THRESHOLD TO SELECT SO MANY ROIs!','ATTENTION');
-    return;
-end
+% if d.bcount>=17;
+%     msgbox('PLEASE USE THRESHOLD TO SELECT SO MANY ROIs!','ATTENTION');
+%     return;
+% end
+
+
+colors={[0    0.4471    0.7412],...
+    [0.8510    0.3255    0.0980],...
+    [0.9294    0.6941    0.1255],...
+    [0.4941    0.1843    0.5569],...
+    [0.4667    0.6745    0.1882],...
+    [0.3020    0.7451    0.9333],...
+    [0.6353    0.0784    0.1843],...
+    [0.6784    0.9216    1.0000]};
 
 %display instructions only if the button was pressed for the first time or
 %a mistake was made
@@ -852,24 +956,32 @@ if d.bcount==0 || d.valid==1;
     uiwait(msgbox('Please define the region of interest (ROI) by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
 
+if d.align==1 && handles.radiobutton2.Value==1;
+    imdMax=(1/(mean(mean(mean(d.imd))))+1/(max(max(max(d.imd)))))/2;
+else
+    imdMax=1/(max(max(max(d.imd))));
+end
+
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 if d.dF==1;
-   axes(handles.axes1); imagesc(singleFrame,d.dFvals);
+   singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+   axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
 else
     axes(handles.axes1); imshow(singleFrame);
 end
 imdROI=cell(size(d.imd,3),d.bcount);
 
 %select ROI manually with roipoly
-if d.dF==1 && mean(mean(singleFrame))<0.1;
-    singleFrame=singleFrame*15;
-end
+% if d.dF==1 && mean(mean(singleFrame))<0.1;
+%     singleFrame=singleFrame*15;
+% end
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
 %check if ROI was selected correctly
 if numel(find(ROI))==0;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        axes(handles.axes1); imagesc(singleFrame,d.dFvals); hold on;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
@@ -885,24 +997,14 @@ end
 %count times button is pressed
 d.bcount=d.bcount+1;
 
-%combine ROIs of different button presses
-if d.load==1 && d.pushed~=4;
-    d.mask=d.roi;
-    d.roi=[];
-end
 if d.adding==1;
-    if d.load==1;
-        d.mask=d.roi;
-        d.roi=[];
-        d.load=0;
-    end
    d.labeled = d.labeled+(ROI*(size(d.ROIs,2)+1)); %labeling of ROIs
     d.mask = d.mask+ROI;
     %checking if ROIs are superimposed on each other
     if numel(find(d.mask>1))>0;
         choice = questdlg('Would you like to remove this ROI?', ...
         'Attention', ...
-        'YES','NO','NO');
+        'YES','NO','YES');
         % Handle response
         switch choice
             case 'YES'
@@ -930,52 +1032,24 @@ if d.adding==1;
                 end
                 close(h);
                 %plotting ROIs
-                colors={[0    0.4471    0.7412],...
-                    [0.8510    0.3255    0.0980],...
-                    [0.9294    0.6941    0.1255],...
-                    [0.4941    0.1843    0.5569],...
-                    [0.4667    0.6745    0.1882],...
-                    [0.3020    0.7451    0.9333],...
-                    [0.6353    0.0784    0.1843],...
-                    [0.6784    0.9216    1.0000],...
-                    [0    0.4471    0.7412],...
-                    [0.8510    0.3255    0.0980],...
-                    [0.9294    0.6941    0.1255],...
-                    [0.4941    0.1843    0.5569],...
-                    [0.4667    0.6745    0.1882],...
-                    [0.3020    0.7451    0.9333],...
-                    [0.6353    0.0784    0.1843],...
-                    [0.6784    0.9216    1.0000]};
                 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
                 if d.dF==1;
-                    axes(handles.axes1); imagesc(singleFrame,d.dFvals); hold on;
+                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                if d.adding==1;
-                    B=bwboundaries(d.mask); %boundaries of ROIs
-                    stat = regionprops(d.labeled,'Centroid');
-                    d.b=cell(length(B),1);
-                    d.c=cell(length(B),1);
-                    ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                    for j = 1 : size(d.ROIs,2);
-                        d.b{j,1} = B{j};
-                        d.c{j,1} = stat(j).Centroid;
-                        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-                        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-                    end
-                else
-                    B=bwboundaries(d.ROIs); %boundaries of ROIs
-                    stat = regionprops(d.labeled,'Centroid');
-                    d.b=cell(length(B),1);
-                    d.c=cell(length(B),1);
-                    ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                    for j = 1 : d.bcount;
-                        d.b{j,1} = B{j};
-                        d.c{j,1} = stat(j).Centroid;
-                        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-                        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-                    end
+                B=bwboundaries(d.mask); %boundaries of ROIs
+                stat = regionprops(d.labeled,'Centroid');
+                d.b=cell(length(B),1);
+                d.c=cell(length(B),1);
+                ROIorder=unique(d.labeled(d.labeled>0),'stable');
+                colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
+                for j = 1 : size(d.ROIs,2);
+                    d.b{j,1} = B{j};
+                    d.c{j,1} = stat(j).Centroid;
+                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
+                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
                 end
                 hold off;
                 d.pushed=4; %signals that ROIs were selected
@@ -987,19 +1061,25 @@ if d.adding==1;
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-
-                filename=[d.pn '\' d.fn(1:end-4)];
-                if d.adding==1;
-                    ROImask=d.mask;
-                else
-                    ROImask=d.ROIs;
+                % Construct a questdlg with two options
+                choice = questdlg('Would you like to save this ROI mask?', ...
+                    'Attention', ...
+                    'YES','NO','YES');
+                % Handle response
+                switch choice
+                    case 'YES'
+                        filename=[d.pn '\' d.fn(1:end-4)];
+                        ROImask=d.mask;
+                        save(filename, 'ROImask');
+                    case 'NO'
+                        return;
                 end
-                save(filename, 'ROImask');
                 return;
             case 'NO'
                 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
                 if d.dF==1;
-                    axes(handles.axes1); imagesc(singleFrame,d.dFvals); hold on;
+                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
@@ -1023,12 +1103,12 @@ else
     if numel(find(d.ROIs>1))>0;
         choice = questdlg('Would you like to remove this ROI?', ...
         'Attention', ...
-        'YES','NO','NO');
+        'YES','NO','YES');
         % Handle response
         switch choice
             case 'YES'
                 d.ROIs=d.ROIs-(2*ROI);
-                d.ROIS(d.ROIs<0)=0;
+                d.ROIs(d.ROIs<0)=0;
                 d.labeled=bwlabel(d.ROIs);
                 d.adding=0;
                 % relabel ROIs
@@ -1036,7 +1116,7 @@ else
                 CC=bwconncomp(d.ROIs);
                 numROIs=CC.NumObjects; %number of ROIs
                 d.imdrem=cell(size(d.imd,3),numROIs);
-                d.ROIs=cell(size(d.imd,3),numROIs);
+                d.roi=cell(size(d.imd,3),numROIs);
                 h=waitbar(0,'Relabeling ROIs');
                 for j=1:n;
                     for i=1:numROIs;
@@ -1046,58 +1126,30 @@ else
                         % You can only multiply integers if they are of the same type.
                         ROIs = cast(ROIs, class(d.imd(:,:,1)));
                         d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
-                        d.ROIs{j,i}=d.imdrem{j,i}(m);
+                        d.roi{j,i}=d.imdrem{j,i}(m);
                     end
                     waitbar(j/size(d.imd,3),h);
                 end
                 close(h);
                 %plotting ROIs
-                colors={[0    0.4471    0.7412],...
-                    [0.8510    0.3255    0.0980],...
-                    [0.9294    0.6941    0.1255],...
-                    [0.4941    0.1843    0.5569],...
-                    [0.4667    0.6745    0.1882],...
-                    [0.3020    0.7451    0.9333],...
-                    [0.6353    0.0784    0.1843],...
-                    [0.6784    0.9216    1.0000],...
-                    [0    0.4471    0.7412],...
-                    [0.8510    0.3255    0.0980],...
-                    [0.9294    0.6941    0.1255],...
-                    [0.4941    0.1843    0.5569],...
-                    [0.4667    0.6745    0.1882],...
-                    [0.3020    0.7451    0.9333],...
-                    [0.6353    0.0784    0.1843],...
-                    [0.6784    0.9216    1.0000]};
                 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
                 if d.dF==1;
-                    axes(handles.axes1); imagesc(singleFrame,d.dFvals); hold on;
+                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                if d.adding==1;
-                    B=bwboundaries(d.mask); %boundaries of ROIs
-                    stat = regionprops(d.labeled,'Centroid');
-                    d.b=cell(length(B),1);
-                    d.c=cell(length(B),1);
-                    ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                    for j = 1 : size(d.ROIs,2);
-                        d.b{j,1} = B{j};
-                        d.c{j,1} = stat(j).Centroid;
-                        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-                        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-                    end
-                else
-                    B=bwboundaries(d.ROIs); %boundaries of ROIs
-                    stat = regionprops(d.labeled,'Centroid');
-                    d.b=cell(length(B),1);
-                    d.c=cell(length(B),1);
-                    ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                    for j = 1 : d.bcount;
-                        d.b{j,1} = B{j};
-                        d.c{j,1} = stat(j).Centroid;
-                        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-                        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-                    end
+                B=bwboundaries(d.ROIs); %boundaries of ROIs
+                stat = regionprops(d.labeled,'Centroid');
+                d.b=cell(length(B),1);
+                d.c=cell(length(B),1);
+                ROIorder=unique(d.labeled(d.labeled>0),'stable');
+                colors=repmat(colors,1,ceil(size(d.roi,2)/8));
+                for j = 1 : size(d.roi,2);
+                    d.b{j,1} = B{j};
+                    d.c{j,1} = stat(j).Centroid;
+                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
+                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
                 end
                 hold off;
                 d.pushed=4; %signals that ROIs were selected
@@ -1109,19 +1161,25 @@ else
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-
-                filename=[d.pn '\' d.fn(1:end-4)];
-                if d.adding==1;
-                    ROImask=d.mask;
-                else
-                    ROImask=d.ROIs;
+                % Construct a questdlg with two options
+                choice = questdlg('Would you like to save this ROI mask?', ...
+                    'Attention', ...
+                    'YES','NO','YES');
+                % Handle response
+                switch choice
+                    case 'YES'
+                        filename=[d.pn '\' d.fn(1:end-4)];
+                        ROImask=d.mask;
+                        save(filename, 'ROImask');
+                    case 'NO'
+                        return;
                 end
-                save(filename, 'ROImask');
                 return;
             case 'NO'
                 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
                 if d.dF==1;
-                    axes(handles.axes1); imagesc(singleFrame,d.dFvals); hold on;
+                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
@@ -1152,25 +1210,10 @@ for k = 1:size(d.imd,3);
 end
 close(h);
 %plotting ROIs
-colors={[0    0.4471    0.7412],...
-    [0.8510    0.3255    0.0980],...
-    [0.9294    0.6941    0.1255],...
-    [0.4941    0.1843    0.5569],...
-    [0.4667    0.6745    0.1882],...
-    [0.3020    0.7451    0.9333],...
-    [0.6353    0.0784    0.1843],...
-    [0.6784    0.9216    1.0000],...
-    [0    0.4471    0.7412],...
-    [0.8510    0.3255    0.0980],...
-    [0.9294    0.6941    0.1255],...
-    [0.4941    0.1843    0.5569],...
-    [0.4667    0.6745    0.1882],...
-    [0.3020    0.7451    0.9333],...
-    [0.6353    0.0784    0.1843],...
-    [0.6784    0.9216    1.0000]};
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 if d.dF==1;
-    axes(handles.axes1); imagesc(singleFrame,d.dFvals); hold on;
+    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
 else
     axes(handles.axes1); imshow(singleFrame); hold on;
 end
@@ -1180,6 +1223,7 @@ if d.adding==1;
     d.b=cell(length(B),1);
     d.c=cell(length(B),1);
     ROIorder=unique(d.labeled(d.labeled>0),'stable');
+    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     for j = 1 : size(d.ROIs,2);
         d.b{j,1} = B{j};
         d.c{j,1} = stat(j).Centroid;
@@ -1192,6 +1236,7 @@ else
     d.b=cell(length(B),1);
     d.c=cell(length(B),1);
     ROIorder=unique(d.labeled(d.labeled>0),'stable');
+    colors=repmat(colors,1,ceil(d.bcount/8));
     for j = 1 : d.bcount;
         d.b{j,1} = B{j};
         d.c{j,1} = stat(j).Centroid;
@@ -1209,14 +1254,25 @@ end
 d.roisdefined=1; %signals that ROIs were defined
 
 %saving ROI mask
-
-filename=[d.pn '\' d.fn(1:end-4)];
 if d.adding==1;
-    ROImask=d.mask;
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to save this ROI mask?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            filename=[d.pn '\' d.fn(1:end-4)];
+            ROImask=d.mask;
+            save(filename, 'ROImask');
+        case 'NO'
+            return;
+    end
 else
+    filename=[d.pn '\' d.fn(1:end-4)];
     ROImask=d.ROIs;
+    save(filename, 'ROImask');
 end
-save(filename, 'ROImask');
 % hObject    handle to pushbutton3 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -1248,9 +1304,17 @@ d.adding = 0;
 d.thresh=0; %signals no threshold was applied
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
+
+if d.align==1 && handles.radiobutton2.Value==1;
+    imdMax=(1/(mean(mean(mean(d.imd))))+1/(max(max(max(d.imd)))))/2;
+else
+    imdMax=1/(max(max(max(d.imd))));
+end
+
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 if d.dF==1;
-    axes(handles.axes1); imagesc(singleFrame,d.dFvals);
+    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
 else
     axes(handles.axes1); imshow(singleFrame);
 end
@@ -1274,7 +1338,12 @@ if d.pushed==0;
     return;
 end
 d.pushed=3; %signals that threshold was used
-imageThresh = im2bw(d.imd(:,:,round(handles.slider7.Value)), handles.slider17.Value);
+%converting video such that values are between 1 and 0
+% d.imd=d.imd.*(1/max(max(max(d.imd)))); % for 2-P videos
+MaxIntensProj=max(d.imd, [], 3);
+smallestAcceptableArea = 25;
+structuringElement = strel('disk', 2);
+imageThresh = imclose(bwareaopen(im2bw(MaxIntensProj, handles.slider17.Value),smallestAcceptableArea),structuringElement);
 axes(handles.axes1); imshow(imageThresh);
 % hObject    handle to slider17 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -1308,37 +1377,67 @@ if d.play==1 || v.play==1;
     return;
 end
 
-h=waitbar(0,'Setting ROI Threshold for all frames');
-d.mask=zeros(size(d.imd,1),size(d.imd,2));
-imageThresh=cell(size(d.imd,3),1);
-n=size(d.imd,3);
-imd=d.imd;
-slider17=handles.slider17.Value;
-for k=1:n; %parallel processing loop (parfor), waitbar is not working for that!!
-    imageThresh{k,1} = im2bw(imd(:,:,k), slider17);
-    % Filter out small objects.
-    smallestAcceptableArea = 25;
-    % Get rid of small objects.  Note: bwareaopen returns a logical.
-    imageThresh{k,1} = uint8(bwareaopen(imageThresh{k,1}, smallestAcceptableArea));
-    % Smooth the border using a morphological closing operation, imclose().
-    structuringElement = strel('disk', 4);
-    imageThresh{k,1} = imclose(imageThresh{k,1}, structuringElement);
-    % Fill in any holes in the regions, since they are most likely green also.
-    imageThresh{k,1} = imfill(logical(imageThresh{k,1}), 'holes');
-    % Exclude faulty frames
-    if numel(find(imageThresh{k,1})) > numel(imageThresh{k,1})/100*90;
-        imageThresh{k,1} = zeros(size(imageThresh{k,1},1),size(imageThresh{k,1},2));
+uiwait(msgbox('PLEASE SELECT AREAS YOU DO NOT WANT IN YOUR ROI MASK!'));
+
+MaxIntensProj=max(d.imd, [], 3);
+smallestAcceptableArea = 25;
+structuringElement = strel('disk', 2);
+imageThresh = imclearborder(imclose(bwareaopen(im2bw(MaxIntensProj, handles.slider17.Value),smallestAcceptableArea),structuringElement));
+imageThresh = imfill(logical(imageThresh), 'holes');
+c=1;
+while c==1;
+    ROI=roipoly(imageThresh);
+    ROI=ROI*2;
+    Mask=imageThresh-ROI;
+    Mask(Mask<0)=0;
+    axes(handles.axes1); imshow(Mask);
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to remove more areas manually?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            imageThresh=Mask;
+        case 'NO'
+            c=c-1;
     end
-    d.mask=d.mask+imageThresh{k,1};
-    waitbar(k/n,h);
 end
-d.mask(d.mask>0)=1;
-d.mask=imfill(d.mask,'holes');
+
+d.mask=Mask;
+
+% h=waitbar(0,'Setting ROI Threshold for all frames');
+% d.mask=zeros(size(d.imd,1),size(d.imd,2));
+% imageThresh=cell(size(d.imd,3),1);
+n=size(d.imd,3);
+% imd=d.imd;
+% slider17=handles.slider17.Value;
+% for k=1:n; %parallel processing loop (parfor), waitbar is not working for that!!
+%     imageThresh{k,1} = im2bw(imd(:,:,k), slider17);
+%     % Filter out small objects.
+%     smallestAcceptableArea = 25;
+%     % Get rid of small objects.  Note: bwareaopen returns a logical.
+%     imageThresh{k,1} = uint8(bwareaopen(imageThresh{k,1}, smallestAcceptableArea));
+%     % Smooth the border using a morphological closing operation, imclose().
+%     structuringElement = strel('disk', 4);
+%     imageThresh{k,1} = imclose(imageThresh{k,1}, structuringElement);
+%     % Fill in any holes in the regions, since they are most likely green also.
+%     imageThresh{k,1} = imfill(logical(imageThresh{k,1}), 'holes');
+%     % Exclude faulty frames
+%     if numel(find(imageThresh{k,1})) > numel(imageThresh{k,1})/100*90;
+%         imageThresh{k,1} = zeros(size(imageThresh{k,1},1),size(imageThresh{k,1},2));
+%     end
+%     d.mask=d.mask+imageThresh{k,1};
+%     waitbar(k/n,h);
+% end
+% d.mask(d.mask>0)=1;
+% d.mask=imfill(d.mask,'holes');
 background=d.mask;
 background(background==1)=2;
 background(background==0)=1;
 background(background==2)=0;
-close(h);
+% close(h);
+
 % label ROIs
 CC=bwconncomp(d.mask);
 numROIs=CC.NumObjects; %number of ROIs
@@ -1367,7 +1466,8 @@ for j=1:n;
 end
 close(h);
 if d.dF==1;
-    axes(handles.axes1); imagesc(d.imd(:,:,1),d.dFvals); hold on;
+    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
+    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
 else
     axes(handles.axes1); imshow(d.imd(:,:,1)); hold on;
 end
@@ -1383,7 +1483,8 @@ if isequal(size(B,1),max(max(d.labeled)))==0
     d.roisdefined=0; %signals no ROIs were selected
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        axes(handles.axes1); imagesc(singleFrame,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
+        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
     else
         axes(handles.axes1); imshow(singleFrame);
     end
@@ -1403,7 +1504,21 @@ hold off;
 d.pushed=4; %signals that ROIs were selected
 d.thresh=1; %signals that threshold was used
 d.roisdefined=1; %signals that ROIs were defined
-msgbox('Labeling Completed. Please plot the ROI values!','Success');
+uiwait(msgbox('Labeling Completed. Please plot the ROI values!','Success'));
+%saving ROI mask
+% Construct a questdlg with two options
+choice = questdlg('Would you like to save this ROI mask?', ...
+    'Attention', ...
+    'YES','NO','YES');
+% Handle response
+switch choice
+    case 'YES'
+        filename=[d.pn '\' d.fn(1:end-4)];
+        ROImask=d.mask;
+        save(filename, 'ROImask');
+    case 'NO'
+        return;
+end
 
 % hObject    handle to pushbutton13 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -1445,7 +1560,7 @@ if x1~=x2 && y1~=y2;
     msgbox(text,'Attention!');
     return
 end
-d.roi=ROImask;
+d.mask=ROImask;
 %plotting ROIs
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -1454,23 +1569,18 @@ colors={[0    0.4471    0.7412],...
     [0.4667    0.6745    0.1882],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
-    [0.6784    0.9216    1.0000],...
-    [0    0.4471    0.7412],...
-    [0.8510    0.3255    0.0980],...
-    [0.9294    0.6941    0.1255],...
-    [0.4941    0.1843    0.5569],...
-    [0.4667    0.6745    0.1882],...
-    [0.3020    0.7451    0.9333],...
-    [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
+
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 if d.dF==1;
-    axes(handles.axes1); imagesc(singleFrame,d.dFvals); hold on;
+    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
+    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
 else
     axes(handles.axes1); imshow(singleFrame); hold on;
 end
-B=bwboundaries(d.roi); %boundaries of ROIs
-d.labeled=bwlabel(d.roi);
+B=bwboundaries(d.mask); %boundaries of ROIs
+colors=repmat(colors,1,ceil(length(B)/8));
+d.labeled=bwlabel(d.mask);
 stat = regionprops(d.labeled,'Centroid');
 d.b=cell(length(B),1);
 d.c=cell(length(B),1);
@@ -1490,11 +1600,11 @@ end
 d.roisdefined=1; %signals that ROIs were defined
 
 % label ROIs
-background=d.roi;
+background=d.mask;
 background(background==1)=2;
 background(background==0)=1;
 background(background==2)=0;
-CC=bwconncomp(d.roi);
+CC=bwconncomp(d.mask);
 numROIs=CC.NumObjects; %number of ROIs
 d.imdThresh=cell(size(d.imd,3),numROIs);
 d.ROIs=cell(size(d.imd,3),numROIs);
@@ -1546,6 +1656,11 @@ if d.roisdefined==0;
     msgbox('PLEASE LABEL ROIs FIRST!','ERROR');
     return;
 end
+%check whether dF/F was calculated
+if d.dF==0;
+    msgbox('PLEASE CALCULATE DF/F FIRST!','ERROR');
+    return;
+end
 
 
 colors={[0    0.4471    0.7412],...
@@ -1555,131 +1670,12 @@ colors={[0    0.4471    0.7412],...
     [0.4667    0.6745    0.1882],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
-    [0.6784    0.9216    1.0000],...
-    [0    0.4471    0.7412],...
-    [0.8510    0.3255    0.0980],...
-    [0.9294    0.6941    0.1255],...
-    [0.4941    0.1843    0.5569],...
-    [0.4667    0.6745    0.1882],...
-    [0.3020    0.7451    0.9333],...
-    [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
-ROIorder=unique(d.labeled(d.labeled>0),'stable');
 
-%calculation if threshhold was applied
-if d.thresh==1 && d.dF==0;
-    % calculate mean grey value of ROIs
-    d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
-    d.perc=zeros(size(d.ROIs,1),size(d.ROIs,2));
-    d.bgmeans=zeros(size(d.ROIs,1),1);
-    for k=1:size(d.ROIs,2);
-        for i=1:size(d.ROIs,1);
-            d.ROImeans(i,k)=mean(d.ROIs{i,k});
-            d.bgmean(i,1)=mean(d.bg{i,1});
-            d.ROImeans(i,k)=d.ROImeans(i,k)-d.bgmean(i,1);
-        end
-        if numel(find(d.ROImeans(:,k)<0))>0;
-            x=d.ROImeans(:,k)-min(d.ROImeans(:,k));
-            d.perc(:,k)=x./max(x);
-        else
-        d.perc(:,k)=d.ROImeans(:,k)./max(d.ROImeans(:,k));
-        end
-    end
-    % plotting raw ROI values
-    for j=1:size(d.ROIs,2);
-        figure(1);
-        plot(d.ROImeans(:,j));
-        strings{1,j}=sprintf('ROI No.%d',j);
-        hold on;
-    end
-    title('Raw ROI values');
-    xlabel('Number of frames');
-    if isa(d.imd,'uint8')==1;
-        ylabel('Brightness in uint8');
-    else
-        ylabel('Brightness in uint16');
-    end
-    legend(strings,'Location','eastoutside');
-    hold off;
-    % plotting ROI values in percent
-    for j=1:size(d.ROIs,2);
-        figure(2);
-        subplot(size(d.ROIs,2),1,j);
-        plot(d.perc(:,j),'Color',colors{1,j});
-        strings=sprintf('ROI No.%d',j);
-        title('ROI values in percent');
-        xlabel('Number of frames');
-        ylabel('Percentage');
-        legend(strings,'Location','eastoutside');
-        hold on;
-    end
-    hold off;
-    
-    
-elseif d.thresh==0 && d.dF==0; %calculation if manual ROIs were used
-    %background
-    bg=cell(size(d.imd,3),1);
-    d.bg=cell(size(d.imd,3),1);
-    background=d.ROIs;
-    background(background==1)=2;
-    background(background==0)=1;
-    background(background==2)=0;
-    h=waitbar(0,'Labeling background');
-    for k = 1:size(d.imd,3);
-        bg{k,1} = background .* double(d.imd(:,:,k));
-        d.bg{k,1}=bg{k,1}(bg{k,1}>0);
-        waitbar(k/size(d.imd,3),h);
-    end
-    close(h);
-    % calculate mean grey value of ROIs
-    d.ROImeans=zeros(size(d.roi,1),size(d.roi,2));
-    d.perc=zeros(size(d.roi,1),size(d.roi,2));
-    d.bgmeans=zeros(size(d.roi,1),1);
-    for k=1:size(d.roi,2);
-        for i=1:size(d.roi,1);
-            d.ROImeans(i,k)=mean(d.roi{i,k});
-            d.bgmean(i,1)=mean(d.bg{i,1});
-            d.ROImeans(i,k)=d.ROImeans(i,k)-d.bgmean(i,1);
-        end
-        if numel(find(d.ROImeans(:,k)<0))>0;
-            x=d.ROImeans(:,k)-min(d.ROImeans(:,k));
-            d.perc(:,k)=x./max(x);
-        else
-        d.perc(:,k)=d.ROImeans(:,k)./max(d.ROImeans(:,k));
-        end
-    end
-    % plotting raw ROI values
-    for j=1:size(d.roi,2);
-        figure(1);
-        plot(d.ROImeans(:,j));
-        strings{1,j}=sprintf('ROI No.%d',j);
-        hold on;
-    end
-    title('Raw ROI values');
-    xlabel('Number of frames');
-    if isa(d.imd,'uint8')==1;
-        ylabel('Brightness in uint8');
-    else
-        ylabel('Brightness in uint16');
-    end
-    legend(strings,'Location','eastoutside');
-    hold off;
-    % plotting ROI values in percent
-    for j=1:size(d.roi,2);
-        figure(2);
-        subplot(size(d.roi,2),1,j);
-        plot(d.perc(:,j),'Color',colors{1,j});
-        strings=sprintf('ROI No.%d',j);
-        title('ROI values in percent');
-        xlabel('Number of frames');
-        ylabel('Percentage');
-        legend(strings,'Location','eastoutside');
-        hold on;
-    end
-    hold off;
     
     %dF/f and thresholded ROIs
-elseif d.dF==1 && d.thresh==1;
+if d.dF==1 && d.thresh==1;
+    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     % calculate mean grey value of ROIs
     d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
     d.bgmeans=zeros(size(d.ROIs,1),1);
@@ -1691,21 +1687,101 @@ elseif d.dF==1 && d.thresh==1;
         end
     end
     % plotting ROI values in percent
+    NoofSpikes=zeros(size(d.ROIs,2),1);
+    spikes=cell(1,size(d.ROIs,2));
+    figure('color','w');
     for j=1:size(d.ROIs,2);
-        figure(1);
-        subplot(size(d.ROIs,2),1,j);
+        h(j)=subplot(size(d.ROIs,2),1,j);
         plot(d.ROImeans(:,j),'Color',colors{1,j});
         strings=sprintf('ROI No.%d',j);
-        title('ROI values in percent');
-        xlabel('Number of frames');
-        ylabel('Percentage');
+        if j==1;
+           % title('ROI values in percent');
+        end
+        xlabel('Time in seconds');
+        ylabel('%');
         legend(strings,'Location','eastoutside');
+        tlabel=get(gca,'XTickLabel');
+        for k=1:length(tlabel);
+            tlabel{k,1}=str2num(tlabel{k,1});
+        end
+        tlabel=cell2mat(tlabel);
+        tlabel=tlabel./d.framerate;
+        set(gca,'XTickLabel',tlabel);
         hold on;
+        if round(std(d.ROImeans(:,j))*2,1)>=0.3;
+            [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',0.5,'MinPeakDistance',3); % 10 for 2-p video, 0.4 for doric
+            [~,y]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',round(std(d.ROImeans(:,j))*2,1),'MinPeakDistance',3);
+            y=intersect(x,y);
+            spikes{1,j}=y;
+            if isempty(y)==0;
+                plot(y,max(d.ROImeans(:,j))+0.5,'k.');
+            else
+                spikes{1,j}=1;
+            end
+            %calculating number of spikes
+            NoofSpikes(j,1)=length(y);
+        else
+            spikes{1,j}=1;
+            %calculating number of spikes
+            NoofSpikes(j,1)=0;
+        end
     end
+%     set(h, 'box', 'off');
+%     set(h(1:size(d.ROIs,2)-1),'xcolor','w');
+%     linkaxes(h');
     hold off;
+    %calculating firing frequency
+    Frequency=round(NoofSpikes./(size(d.imd,3)/d.framerate),2);
+    %calculating highest amplitude change
+    Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
+    %saving as table
+    ROInumber=cell(size(d.ROImeans,2),1);
+    for k=1:size(d.ROImeans,2);
+        ROInumber{k,1}=sprintf('ROI No.%d',k);
+    end
+    T=table(NoofSpikes,Frequency,Amplitude,...
+        'RowNames',ROInumber);
+    filename=[d.pn '\' d.fn(1:end-4) '.xls'];
+    writetable(T,filename,'WriteRowNames',true);
+    
+    %plotting raster plot
+    b=zeros(size(d.ROImeans,1),1);
+    figure(3);
+    subplot(2,1,1);
+    for j=1:size(d.ROImeans,2);
+        plot(spikes{1,j},j,'k.');
+        hold on;
+        b(spikes{1,j})=b(spikes{1,j})+1;
+        title('Cell activity raster plot');
+        xlabel('Time in seconds');
+        ylabel('Cell number');
+        xlim([0 round(size(d.imd,3))]);
+    end
+    tilabel=get(gca,'XTickLabel');
+    for k=1:length(tilabel);
+        tilabel{k,1}=str2num(tilabel{k,1});
+    end
+    tilabel=cell2mat(tilabel);
+    tilabel=tilabel./d.framerate;
+    set(gca,'XTickLabel',tilabel);
+    hold off;
+    subplot(2,1,2);
+    plot(b);
+    xlabel('Time in seconds');
+    ylabel('Number of spikes');
+    xlim([0 round(size(d.imd,3))]);
+    ticlabel=get(gca,'XTickLabel');
+    for k=1:length(ticlabel);
+        ticlabel{k,1}=str2num(ticlabel{k,1});
+    end
+    ticlabel=cell2mat(ticlabel);
+    ticlabel=ticlabel./d.framerate;
+    set(gca,'XTickLabel',ticlabel);
+    
     
     %dF/F and manual ROIs
 elseif d.dF==1 && d.thresh==0;
+    colors=repmat(colors,1,ceil(size(d.roi,2)/8));
     %background
     bg=cell(size(d.imd,3),1);
     d.bg=cell(size(d.imd,3),1);
@@ -1731,18 +1807,92 @@ elseif d.dF==1 && d.thresh==0;
         end
     end
     % plotting ROI values in percent
+    figure('color','w');
     for j=1:size(d.roi,2);
-        figure(1);
         subplot(size(d.roi,2),1,j);
         plot(d.ROImeans(:,j),'Color',colors{1,j});
         strings=sprintf('ROI No.%d',j);
-        title('ROI values in percent');
-        xlabel('Number of frames');
-        ylabel('Percentage');
+        %title('ROI values in percent');
+        xlabel('Time in seconds');
+        ylabel('%');
         legend(strings,'Location','eastoutside');
+        tlabel=get(gca,'XTickLabel');
+        for k=1:length(tlabel);
+            tlabel{k,1}=str2num(tlabel{k,1});
+        end
+        tlabel=cell2mat(tlabel);
+        tlabel=tlabel./d.framerate;
+        set(gca,'XTickLabel',tlabel);
         hold on;
+        if round(std(d.ROImeans(:,j))*2,1)>=0.3;
+            [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',0.5,'MinPeakDistance',3); % 10 for 2-p video, 0.4 for doric
+            [~,y]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',round(std(d.ROImeans(:,j))*2,1),'MinPeakDistance',3);
+            y=intersect(x,y);
+            spikes{1,j}=y;
+            if isempty(y)==0;
+                plot(y,max(d.ROImeans(:,j))+0.5,'k.');
+            else
+                spikes{1,j}=1;
+            end
+            %calculating number of spikes
+            NoofSpikes(j,1)=length(y);
+        else
+            spikes{1,j}=1;
+            %calculating number of spikes
+            NoofSpikes(j,1)=0;
+        end
     end
+%     set(h, 'box', 'off');
+%     set(h(1:size(d.ROIs,2)-1),'xcolor','w');
+%     linkaxes(h');
     hold off;
+    %calculating firing frequency
+    Frequency=round(NoofSpikes./(size(d.imd,3)/d.framerate),2);
+    %calculating highest amplitude change
+    Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
+    %saving as table
+    ROInumber=cell(size(d.ROImeans,2),1);
+    for k=1:size(d.ROImeans,2);
+        ROInumber{k,1}=sprintf('ROI No.%d',k);
+    end
+    T=table(NoofSpikes,Frequency,Amplitude,...
+        'RowNames',ROInumber);
+    filename=[d.pn '\' d.fn(1:end-4) '.xls'];
+    writetable(T,filename,'WriteRowNames',true);
+    
+    %plotting raster plot
+    b=zeros(size(d.ROImeans,1),1);
+    figure(3);
+    subplot(2,1,1);
+    for j=1:size(d.ROImeans,2);
+        plot(spikes{1,j},j,'k.');
+        hold on;
+        b(spikes{1,j})=b(spikes{1,j})+1;
+        title('Cell activity raster plot');
+        xlabel('Time in seconds');
+        ylabel('Cell number');
+        xlim([0 round(size(d.imd,3))]);
+    end
+    tilabel=get(gca,'XTickLabel');
+    for k=1:length(tilabel);
+        tilabel{k,1}=str2num(tilabel{k,1});
+    end
+    tilabel=cell2mat(tilabel);
+    tilabel=tilabel./d.framerate;
+    set(gca,'XTickLabel',tilabel);
+    hold off;
+    subplot(2,1,2);
+    plot(b);
+    xlabel('Time in seconds');
+    ylabel('Number of spikes');
+    xlim([0 round(size(d.imd,3))]);
+    ticlabel=get(gca,'XTickLabel');
+    for k=1:length(ticlabel);
+        ticlabel{k,1}=str2num(ticlabel{k,1});
+    end
+    ticlabel=cell2mat(ticlabel);
+    ticlabel=ticlabel./d.framerate;
+    set(gca,'XTickLabel',ticlabel);
 end
 
 % hObject    handle to pushbutton14 (see GCBO)
@@ -1758,26 +1908,116 @@ end
 % --- Executes on button press in pushbutton26.               SAVE CI VIDEO
 function pushbutton26_Callback(hObject, eventdata, handles)
 global d
-filename=[d.pn '\' d.fn(1:end-4)];
-v = VideoWriter(filename,'Grayscale AVI');
-v.FrameRate=10;
-open(v);
-h=waitbar(0,'Saving calcium imaging video');
-for k = 1:size(d.imd,3);
-   frame = d.imd(:,:,k)*(floor((1/max(max(max(d.imd)))))); %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1
-   frame(frame<0)=0;
-   writeVideo(v,frame);
-   waitbar(k/size(d.imd,3),h);
+
+if d.align==1 && handles.radiobutton2.Value==1;
+    imdMax=1/(mean(mean(mean(d.imd))));
+else
+    imdMax=1/(max(max(max(d.imd))));
 end
-close(v);
-close(h);
-msgbox('Saving video completed.');
+
+if isempty(d.origCI)==1;
+    d.origCI=d.imd;
+end
+
+h=waitbar(0,'Saving calcium imaging video');
+% Construct a questdlg with two options
+choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
+    'Attention', ...
+    'Original','dF/F','Combined','Original');
+% Handle response
+switch choice
+    case 'Original'
+        %converting original CI video to double precision and to values between 1 and 0
+        origCIconv=double(d.origCI);
+        origCIconv=origCIconv./max(max(max(origCIconv)));
+        
+        filename=[d.pn '\' d.fn(1:end-4)];
+        v = VideoWriter(filename,'Grayscale AVI');
+        v.FrameRate=d.framerate;
+        open(v);
+        for k=1:size(d.imd,3);
+            singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+%             figure(100),imshow(singleFrame);
+            writeVideo(v,singleFrame);
+            waitbar(k/size(d.imd,3),h);
+        end
+        close(v);
+        close(h);
+%         close(gcf);
+        msgbox('Saving video completed.');
+    case 'dF/F'
+        filename=[d.pn '\' d.fn(1:end-4) 'dF'];
+        v = VideoWriter(filename,'Grayscale AVI');
+        v.FrameRate=d.framerate;
+        open(v);
+        for k = 1:size(d.imd,3);
+            frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
+            frame(frame<0)=0;
+    
+            writeVideo(v,frame);
+            waitbar(k/size(d.imd,3),h);
+        end
+        close(v);
+        close(h);
+        msgbox('Saving video completed.');
+    case 'Combined'
+        %converting original CI video to double precision and to values between 1 and 0
+        origCIconv=double(d.origCI);
+        origCIconv=origCIconv./max(max(max(origCIconv)));
+        %converting dF/F video such that all pixels below 50% of absolute maximum
+        %intensity are zero
+        imdconv=zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3));
+        smallestAcceptableArea = 30;
+        structuringElement = strel('disk', 2);
+        hh=waitbar(0,'Converting dF/F calcium imaging video');
+        for k=1:size(d.imd,3);
+            frame=d.imd(:,:,k);
+%             frame(frame<(max(max(max(d.imd)))*0.66))=0;
+%             mask = imclearborder(imclose(bwareaopen(frame,smallestAcceptableArea),structuringElement));
+            if d.thresh==1;
+                frame=frame.*d.mask;
+            else
+                frame=frame.*d.ROIs;
+            end
+            frame(frame<(mean(mean(mean(d.imd)))*2))=0;
+            imdconv(:,:,k)=frame;
+            waitbar(k/size(d.imd,3),hh);
+        end
+        close(hh);
+        %converting video such that values are between 1 and 0
+        if d.align==1 && handles.radiobutton2.Value==1;
+            imdMax=1/(mean(mean(mean(imdconv))));
+        else
+            imdMax=1/(max(max(max(imdconv))));
+        end
+        imdconv=imdconv.*imdMax;
+        
+        filename=[d.pn '\' d.fn(1:end-4) 'combo'];
+        v = VideoWriter(filename,'Uncompressed AVI');
+        v.FrameRate=d.framerate;
+        open(v);
+        for k=1:size(d.imd,3);
+            singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+            figure(100),imshow(singleFrame);
+            red = cat(3, ones(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))));
+            hold on 
+            hh = imshow(red); 
+            hold off
+            set(hh, 'AlphaData', imdconv(:,:,k));
+            f=getframe(gcf);
+            newframe=f.cdata;
+            writeVideo(v,singleFrame);
+            waitbar(k/size(d.imd,3),h);
+        end
+        close(v);
+        close(h);
+        close(gcf);
+        msgbox('Saving video completed.');
+end
+
 % hObject    handle to pushbutton26 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
-
 
 
 
@@ -1797,9 +2037,9 @@ if v.pushed==0;
 elseif v.pushed==1;
     v.hsvP=[];
     v.hsvG=[];
-    nframes=get(v.vid,'NumberOfFrames');
+    nframes=size(v.imd,2);
 elseif v.pushed>=1;
-    nframes=get(v.vid,'NumberOfFrames');
+    nframes=size(v.imd,2);
 end
 if d.pushed==0;
     d.imd=[];
@@ -1810,6 +2050,12 @@ else
     handles.slider7.Max=maxframes;
 end
 
+if d.align==1 && handles.radiobutton2.Value==1;
+    imdMax=(1/(mean(mean(mean(d.imd))))+1/(max(max(max(d.imd)))))/2;
+else
+    imdMax=1/(max(max(max(d.imd))));
+end
+
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
     [0.9294    0.6941    0.1255],...
@@ -1817,21 +2063,15 @@ colors={[0    0.4471    0.7412],...
     [0.4667    0.6745    0.1882],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
-    [0.6784    0.9216    1.0000],...
-    [0    0.4471    0.7412],...
-    [0.8510    0.3255    0.0980],...
-    [0.9294    0.6941    0.1255],...
-    [0.4941    0.1843    0.5569],...
-    [0.4667    0.6745    0.1882],...
-    [0.3020    0.7451    0.9333],...
-    [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
+colors=repmat(colors,1,(ceil(size(d.b,1)/8)));
 ROIorder=unique(d.labeled(d.labeled>0),'stable');
 
 if d.pushed==1;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        axes(handles.axes1); imagesc(singleFrame,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
     else
         axes(handles.axes1); imshow(singleFrame);
     end
@@ -1843,7 +2083,8 @@ if d.pushed==1;
 elseif d.pushed==3;
     imageThresh = im2bw(d.imd(:,:,round(handles.slider7.Value)), handles.slider17.Value);
     if d.dF==1;
-        axes(handles.axes1); imagesc(imageThresh,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
     else
         axes(handles.axes1); imshow(imageThresh);
     end
@@ -1852,7 +2093,8 @@ elseif d.pushed==3;
 elseif d.pushed==4;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        axes(handles.axes1); imagesc(singleFrame,d.dFvals);hold on;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);hold on;
     else
         axes(handles.axes1); imshow(singleFrame);hold on;
     end
@@ -1916,15 +2158,21 @@ elseif v.pushed==0;
 elseif v.pushed==1;
     v.hsvP=[];
     v.hsvG=[];
-    nframes=get(v.vid,'NumberOfFrames');
+    nframes=size(v.imd,2);
 elseif v.pushed>=1;
-    nframes=get(v.vid,'NumberOfFrames');
+    nframes=size(v.imd,2);
 end
 if d.pushed==0;
     d.imd=[];
     maxframes=size(v.imd,2);
 else
     maxframes=size(d.imd,3);
+end
+
+if d.align==1 && handles.radiobutton2.Value==1;
+    imdMax=(1/(mean(mean(mean(d.imd))))+1/(max(max(max(d.imd)))))/2;
+else
+    imdMax=1/(max(max(max(d.imd))));
 end
 
 colors={[0    0.4471    0.7412],...
@@ -1934,15 +2182,8 @@ colors={[0    0.4471    0.7412],...
     [0.4667    0.6745    0.1882],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
-    [0.6784    0.9216    1.0000],...
-    [0    0.4471    0.7412],...
-    [0.8510    0.3255    0.0980],...
-    [0.9294    0.6941    0.1255],...
-    [0.4941    0.1843    0.5569],...
-    [0.4667    0.6745    0.1882],...
-    [0.3020    0.7451    0.9333],...
-    [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
+colors=repmat(colors,1,ceil(size(d.b,1)/8));
 ROIorder=unique(d.labeled(d.labeled>0),'stable');
 
 %if both videos were loaded
@@ -1955,7 +2196,8 @@ if v.pushed==1 && d.pushed==1;
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(singleFrame);
     end
@@ -1980,7 +2222,8 @@ elseif v.pushed==1 && d.pushed==3;
     axes(handles.axes1); %thresholded video
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
     if d.dF==1;
-        imagesc(imageThresh,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(imageThresh);
     end
@@ -2005,7 +2248,8 @@ elseif v.pushed==1 && d.pushed==4;
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);hold on;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2035,7 +2279,8 @@ elseif  v.pushed==2 && d.pushed==1;
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(singleFrame);
     end
@@ -2060,7 +2305,8 @@ elseif v.pushed==2 && d.pushed==3;
     axes(handles.axes1); %thresholded video
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
     if d.dF==1;
-        imagesc(imageThresh,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(imageThresh);
     end
@@ -2085,7 +2331,8 @@ elseif v.pushed==2 && d.pushed==4;
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);hold on;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2115,7 +2362,8 @@ elseif v.pushed==3 && d.pushed==1;
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(singleFrame);
     end
@@ -2140,7 +2388,8 @@ elseif v.pushed==3 && d.pushed==3;
     axes(handles.axes1); %thresholded video
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
     if d.dF==1;
-        imagesc(imageThresh,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(imageThresh);
     end
@@ -2165,7 +2414,8 @@ elseif v.pushed==3 && d.pushed==4;
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);hold on;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2196,7 +2446,8 @@ if d.pushed==1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(singleFrame);
     end
@@ -2227,7 +2478,8 @@ elseif d.pushed==3;
     for k=round(handles.slider7.Value):size(d.imd,3);
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
     if d.dF==1;
-        imagesc(imageThresh,d.dFvals);
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);
     else
         imshow(imageThresh);
     end
@@ -2248,7 +2500,8 @@ elseif d.pushed==4;
     for k=round(handles.slider7.Value):size(d.imd,3);
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1;
-        imagesc(singleFrame,d.dFvals);hold on;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
+        imshow(singleFrame);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2451,6 +2704,10 @@ if v.crop==0;
     msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
     return;
 end
+%checks the size of the video and performs temporal downsampling if the video is too big
+if size(v.imd,2)>7000;
+    v.imd=v.imd(:,1:5:size(v.imd,2)); %taking only every fifth frame
+end
 
 frame = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 hsvImage = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
@@ -2505,7 +2762,7 @@ elseif d.pushed==0;
 end
 
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 
 v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
 %other slider values
@@ -2590,7 +2847,7 @@ elseif d.pushed==0;
 end
 
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 
 v.valueThresholdHigh=handles.slider10.Value; %slider10 value for value threshold high
 %other slider values
@@ -2674,7 +2931,7 @@ elseif d.pushed==0;
     return;
 end
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 v.saturationThresholdHigh = handles.slider11.Value; %slider11 value for saturation threshold high
 %other slider values
 v.hueThresholdLow = handles.slider13.Value;
@@ -2757,7 +3014,7 @@ elseif d.pushed==0;
     return;
 end
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 v.saturationThresholdLow = handles.slider12.Value; %slider12 value for saturation threshold low
 %other slider values
 v.hueThresholdLow = handles.slider13.Value;
@@ -2840,7 +3097,7 @@ elseif d.pushed==0;
     return;
 end
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 v.hueThresholdLow = handles.slider13.Value; %slider13 value for hue threshold low
 %other slider values
 v.hueThresholdHigh = handles.slider14.Value;
@@ -2923,7 +3180,7 @@ elseif d.pushed==0;
     return;
 end
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 v.hueThresholdHigh = handles.slider14.Value; %slider14 value for hue threshold high
 %other slider values
 v.hueThresholdLow = handles.slider13.Value;
@@ -3028,7 +3285,7 @@ v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 
 % Now apply each color band's particular thresholds to the color band
 hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
@@ -3116,7 +3373,7 @@ v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
 maxframes=size(d.imd,3);
-nframes=get(v.vid,'NumberOfFrames');
+nframes=size(v.imd,2);
 
 % Now apply each color band's particular thresholds to the color band
 hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
@@ -3242,6 +3499,36 @@ v.coloredObjectsMaskG =  coloredObjectsMask;
 v.pushed=2; %signals green spot was saved
 v.gspot=1; %signals green spot was saved
 close(h);
+
+nframes=size(v.imd,2);
+x=zeros(nframes,1);
+y=zeros(nframes,1);
+traceg=zeros(nframes,2);
+%tracing center of the extracted green dot
+h=waitbar(0,'Tracing green spot');
+for k=1:nframes;
+    stats=regionprops(v.coloredObjectsMaskG(k).cdata, {'Centroid','Area'});
+    if ~isempty([stats.Area])
+        areaArray = [stats.Area];
+        [junk,idx] = max(areaArray);
+        c = stats(idx).Centroid;
+        x(k,:) = c(1);
+        y(k,:) = c(2);
+    else
+        x(k,:) = 0;
+        y(k,:) = 0;
+    end
+    traceg(:,1)=x; %coordinates of the mouse center
+    traceg(:,2)=y;
+    waitbar(k/nframes,h);
+end
+close(h);
+%plotting green trace
+tracegplot=traceg(traceg>0);
+tracegplot=reshape(tracegplot,[size(tracegplot,1)/2,2]);
+figure(4), image(v.imd(1).cdata); hold on;
+plot(tracegplot(:,1),tracegplot(:,2),'g'); hold off;
+
 msgbox('Saving Completed. Please save pink spot as well!','Success');
 
 % hObject    handle to pushbutton10 (see GCBO)
@@ -3326,6 +3613,37 @@ v.coloredObjectsMaskP = coloredObjectsMask;
 v.pushed=3; %signals pink spot was saved
 v.pspot=1; %signals pink spot was saved
 close(h);
+
+nframes=size(v.imd,2);
+x=zeros(nframes,1);
+y=zeros(nframes,1);
+tracep=zeros(nframes,2);
+%tracing center of the extracted pink dot
+h=waitbar(0,'Tracing pink spot');
+for k=1:nframes;
+    stats=regionprops(v.coloredObjectsMaskP(k).cdata, {'Centroid','Area'});
+    if ~isempty([stats.Area])
+        areaArray = [stats.Area];
+        [junk,idx] = max(areaArray);
+        c = stats(idx).Centroid;
+        x(k,:) = c(1);
+        y(k,:) = c(2);
+    else
+        x(k,:) = 0;
+        y(k,:) = 0;
+    end
+    tracep(:,1)=x; %coordinates of the mouse center
+    tracep(:,2)=y;
+    waitbar(k/nframes,h);
+end
+close(h);
+%plotting pink trace
+tracepplot=tracep(tracep>0);
+tracepplot=reshape(tracepplot,[size(tracepplot,1)/2,2]);
+figure(4), image(v.imd(1).cdata); hold on;
+plot(tracepplot(:,1),tracepplot(:,2),'r'); hold off;
+hold off;
+
 msgbox('Saving Completed. If both spots are saved,please proceed by tracing the animal!','Success');
 
 % hObject    handle to pushbutton11 (see GCBO)
@@ -3388,7 +3706,7 @@ close(h);
 %plotting green trace
 tracegplot=traceg(traceg>0);
 tracegplot=reshape(tracegplot,[size(tracegplot,1)/2,2]);
-figure(3), image(v.imd(1).cdata); hold on;
+figure(4), image(v.imd(1).cdata); hold on;
 plot(tracegplot(:,1),tracegplot(:,2),'g');
 
 
@@ -3422,7 +3740,49 @@ tracepplot=reshape(tracepplot,[size(tracepplot,1)/2,2]);
 plot(tracepplot(:,1),tracepplot(:,2),'r');
 hold off;
 
+%calculating the amount of time the mouse was out of view in percent
+percOutside=round((length(tracep)-length(tracepplot))/length(tracep)*100,1); %tracepplot excludes values of zero, which means mouse was out of view
+
+%calculating traveled distance
+x=diff(tracepplot(:,1));
+x=sqrt(x.^2);
+y=diff(tracepplot(:,2));
+y=sqrt(y.^2);
+dist=sqrt(x.^2+y.^2);
+totalDistIncm=sum(dist(dist>1 & dist<30)); %movement is consider at least 1 pixel and at most 30 pixels at once
+
+%pixel in cm
+factor=30/size(v.imd(1).cdata,2);
+totalDistIncm=round(totalDistIncm*factor,1);
+
+%calculating percent pause
+pause=sum(dist(:) <= 1); % change 1 to any other number if wanted, 1 is one pixel movement
+percPause=round(pause/length(tracep)*100,1); %percent in regards to the whole time
+
+%velocity in cm/s
+VelocityIncms=round(totalDistIncm/(length(tracepplot)/25),1); %mean velocity while it was visible
+
+%calculating amount if time the mouse was in the bowl or in the open compartment in percent
+%selecting bowl area
+figure,image(v.imd(1).cdata);
+uiwait(msgbox('Please define the bowl compartment by clicking around the area!','Attention'));
+ROI=roipoly;
+close(gcf);
+z=find(ROI>=1);
+z(z>size(v.imd(1).cdata,1))=0;
+border=max(z);
+Xvalues=tracepplot(:,2);
+Xvalues(Xvalues>border)=0;
+percBowl=round(numel(find(Xvalues>0))/length(tracep)*100,1); %percent in regards to the whole time
+percOpen=100-percBowl-percOutside;
+
+%saving as table
+T=table(totalDistIncm,VelocityIncms,percPause, percOutside, percBowl, percOpen);
+filename=[d.pn '\' d.fn(1:end-4) 'behavior.xls'];
+writetable(T,filename);
+
 %plotting cell activity
+printyn=1; %for printing figures
 %making sure that the ROIs were plotted
 if isempty(d.perc)==1 && d.dF==0;
     msgbox('ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
@@ -3438,51 +3798,60 @@ end
 if d.dF==1;
     d.perc=d.ROImeans;
 end
-n=0;
-c=0;
-% colors={[0    0.4471    0.7412],...
-%     [0.8510    0.3255    0.0980],...
-%     [0.9294    0.6941    0.1255],...
-%     [0.4941    0.1843    0.5569],...
-%     [0.4667    0.6745    0.1882],...
-%     [0.3020    0.7451    0.9333],...
-%     [0.6353    0.0784    0.1843],...
-%     [0.6784    0.9216    1.0000]};
 x=zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),size(d.perc,2));
-% drawArrow = @(x,y,varargin) quiver( x(1),y(1),x(2)-x(1),y(2)-y(1),0, varargin{:});
 for j=1:size(d.perc,2);
-    for k=1:size(d.perc,1)-2;
+    n=0;
+    c=0;
+    a=0;
+    ArrowCoord=[];
+    for k=1:floor(length(traceg)/round(length(traceg)/size(d.perc,1),2));
         if d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0 && tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0; %>=0.6
-%         drawArrow([traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)],[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',colors{1,j});
-        x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)=x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)+1;
-        x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)=x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)+1;
-        c=c+1;
+            c=c+1;
+            a=a+1;
+            ArrowCoord{a,j}=[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1);traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)];
+            x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)=x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)+1;
+            x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)=x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)+1;
         elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0 && tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)==0; %>=0.6
-%         drawArrow([traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)],[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',colors{1,j});
-        x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)=x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)+1;
-        c=c+1;
+%         drawArrow([traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)],[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)=x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)+1;
+            c=c+1;
+%             ArrowCoord{c,j}=[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1);traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)];
         elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)==0 && tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0; %>=0.6
-%         drawArrow([traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)],[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',colors{1,j});
-        x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)=x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)+1;
-        c=c+1;
+%         drawArrow([traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)],[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)=x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)+1;
+            c=c+1;
+%             ArrowCoord{c,j}=[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1);traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)];
         end
         if d.perc(k,j)>=std(d.ROImeans(:,j))*2 && (tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)==0 && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)==0); %>=0.6
             n=n+1;
         end
     end
+    %position distribution in percent
+    x=x./(c+n);
     %plot cell activity
-    figure(3+j), image(v.imd(1).cdata); hold on;
+    h=figure(4+j), image(v.imd(1).cdata); hold on;
     string=sprintf('ROI No.%d',j);
     title(string);
-    % cellactive=imresize(x,0.25);
-    colormap(jet),grid=imagesc(x(:,:,j)),colorbar;
+    cellactive=imresize(imresize(x,0.25),4);
+    colormap(jet),grid=imagesc(cellactive(:,:,j)),cb=colorbar,cb.Label.String = 'Position distribution in %';
     set(gcf,'renderer','OpenGL');
     alpha(grid,0.75);
     %display how many percent mouse was registered out of bounds
     OoB=round(100*(n/(n+c)));
     str=sprintf('Cell fires when mouse is out of bounds in %d percent of cases',OoB);
     text(20,20,str,'Color','r');
+    % plot direction
+    drawArrow = @(x,y,varargin) quiver( x(1),y(1),x(2)-x(1),y(2)-y(1),0, varargin{:});
+    for  k=1:size(ArrowCoord,1);
+        drawArrow([ArrowCoord{k,j}(1,1) ArrowCoord{k,j}(1,2)],[ArrowCoord{k,j}(2,1) ArrowCoord{k,j}(2,2)],'MaxHeadSize',5,'LineWidth',1,'Color',[1 0 0]);
+    end
     hold off;
+    if printyn==1
+        name=sprintf('ROI%d_trace',j);
+        path=[d.pn '/',name,' .png'];
+        path=regexprep(path,'\','/');
+        print(h,'-dpng','-r100',path); %-depsc for vector graphic 
+    end
 end
 v.pushed=1; %signals to show original video again
 msgbox('Tracing Completed','Success');
@@ -3493,18 +3862,6 @@ msgbox('Tracing Completed','Success');
 
 %%
 
-
-
-
-% % --- Executes on key press with focus on pushbutton3 and none of its controls.
-% function pushbutton3_KeyPressFcn(hObject, eventdata, handles)
-% % hObject    handle to pushbutton3 (see GCBO)
-% % eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
-% %	Key: name of the key that was pressed, in lower case
-% %	Character: character interpretation of the key(s) that was pressed
-% %	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
-% % handles    structure with handles and user data (see GUIDATA)
-% % handles    structure with handles and user data (see GUIDATA)
 
 
 
@@ -3526,6 +3883,7 @@ d.valid=0;
 d.adding = 0;
 d.dF=0;
 d.load=0;
+d.align=0; %signals whether images were aligned
 %clears axes
 cla(handles.axes1,'reset');
 %resets frame slider
@@ -3559,3 +3917,94 @@ msgbox('Cache cleared!','Success');
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 % handles    structure with handles and user data (see GUIDATA)
+
+
+
+%% BEHAVIORAL DETECTION
+
+
+% --- Executes on button press in pushbutton29.
+function pushbutton29_Callback(hObject, eventdata, handles)
+global d
+global v
+d.stop=0;
+%checks if a video file was selected
+if v.pushed==0;
+    msgbox('PLEASE SELECT FOLDER FIRST!','ERROR');
+    return;
+elseif v.pushed==0;
+    v.imd=[];
+    nframes=[];
+elseif v.pushed==1;
+    v.hsvP=[];
+    v.hsvG=[];
+    nframes=size(v.imd,2);
+elseif v.pushed>=1;
+    nframes=size(v.imd,2);
+end
+
+if  v.pushed==1;
+    v.play=1;
+    axes(handles.axes2);
+    for k=round(handles.slider7.Value):size(v.imd,2);
+    image(v.imd(k).cdata); %original video
+    handles.slider7.Value=k;
+    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+    set(handles.text36, 'String', textLabel);
+    pause(0.05);
+    if d.stop==1;
+        return;
+    end
+    if k==size(v.imd,2);
+        v.play=0;
+    end
+    end
+end
+% hObject    handle to pushbutton29 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+
+% --- Executes on key press with focus on pushbutton29 and none of its controls.
+function pushbutton29_KeyPressFcn(hObject, eventdata, handles)
+% determine the key that was pressed 
+ keyPressed = eventdata.Key;
+
+ if strcmpi(keyPressed,'s')
+     % set focus to the button
+     uicontrol(handles.pushbutton29);
+
+     % call the callback
+     pushbutton29_Callback(handles.pushbutton29,[],handles);
+ end
+% hObject    handle to pushbutton29 (see GCBO)
+% eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
+%	Key: name of the key that was pressed, in lower case
+%	Character: character interpretation of the key(s) that was pressed
+%	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- If Enable == 'on', executes on mouse press in 5 pixel border.
+% --- Otherwise, executes on mouse press in 5 pixel border or over pushbutton25.
+function pushbutton25_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to pushbutton25 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in FlatField.
+function FlatField_Callback(hObject, eventdata, handles)
+% hObject    handle to FlatField (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+%flatfield correction
+
+H = fspecial('average',round(.08*size(d.imd,1))); %8 % blur
+a=(imfilter(d.imd(:,:,1),H,'replicate')); %blur frame totally
+
+d.imd=uint16(single(max(max(d.imd(:,:,1))))*bsxfun(@rdivide,single(d.imd),single(a)));
+s=size(d.imd); %cut middle 80 % of image
+d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
