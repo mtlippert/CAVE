@@ -82,7 +82,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 31-Aug-2016 10:39:42
+% Last Modified by GUIDE v2.5 01-Nov-2016 13:42:58
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -111,8 +111,6 @@ clear global v;
 global d
 global v
 %initializing variables needed before hand
-d.clear=0; %cache cleared
-v.clear=0; %cache cleared
 v.pushed=0; %no video loaded
 d.pushed=0; %no video loaded
 d.bcount=0; %no. of rois selected equals zero
@@ -151,92 +149,6 @@ varargout{1} = handles.output;
 
 % --------------------------------------------------------------------
 
-%% ANDOR CAMERA CODE
-
-% % --- Executes on button press in pushbutton1.                   LOAD ANDOR
-% function pushbutton1_Callback(hObject, eventdata, handles)
-% global d
-% d.pn=[];
-% d.fn=[];
-% [d.pn]=uigetdir('F:\jenni\Documents\PhD\Calcium Imaging\andor\');
-% 
-% filePattern = fullfile(d.pn, '*.tif');
-% Files = dir(filePattern);
-% d.fn = Files(1).name;
-% 
-% %defining dimensions of video
-% frames=size(imfinfo([d.pn '\' d.fn]),1);
-% dim=size(imread([d.pn '\' d.fn],1));
-% d.imd=uint16(zeros(dim(1),dim(2),frames));
-% 
-% %putting each frame into variable 'images'
-% h=waitbar(0,'Loading');
-% for k = 1:length(Files);
-%     waitbar(k/length(Files),h);
-%     baseFileName = Files(k).name;
-%     fullFileName = fullfile([d.pn '\' baseFileName]);
-%     d.imd(:,:,k) = imread(fullFileName);
-% end
-% close(h);
-% 
-% %looking at first original picture
-% axes(handles.axes1); imagesc(d.imd(:,:,1),[handles.slider1.Value, handles.slider1.Value]);
-% % hObject    handle to pushbutton1 (see GCBO)
-% % eventdata  reserved - to be defined in a future version of MATLAB
-% % handles    structure with handles and user data (see GUIDATA)
-
-
-% % --- Executes on button press in pushbutton2.                   BACKGROUND
-% function pushbutton2_Callback(hObject, eventdata, handles)
-% global d
-% d.bg=[];
-% singleFrame=imadjust(d.imd{round(handles.slider7.Value),1}, [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-% axes(handles.axes1); imshow(singleFrame);
-% ROIc = roipoly(d.imd{round(handles.slider7.Value),1});    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
-% for k = 1:size(d.imd,3);
-% imdROI(:,:,k) = ROIc.*double(d.imd(:,:,k));
-% lROI=imdROI(:,:,k);
-% % d.bg(:,k) = lROI(lROI>0);
-% try
-% d.bg(:,k) = lROI(lROI>0);                 % for doric!
-% catch size(d.bg,1)~= size(lROI(lROI>0),1);
-%     d.bg(:,k)=d.bg(:,k-1);
-% end
-% end
-% % hObject    handle to pushbutton2 (see GCBO)
-% % eventdata  reserved - to be defined in a future version of MATLAB
-% % handles    structure with handles and user data (see GUIDATA)
-
-
-% % --- Executes on button press in pushbutton4.         CALCULATE DIFFERENCE
-% function pushbutton4_Callback(hObject, eventdata, handles)
-% global d
-% d.diffc=[];
-% %calculate difference between Background and ROI
-% d.diffc = mean(d.roi,1) - mean(d.bg,1);
-% % d1 = designfilt('lowpassiir','FilterOrder',12, ...
-% %     'HalfPowerFrequency',0.15,'DesignMethod','butter');
-% % d.diffc=filtfilt(d1,d.diffc);
-% % d.diffc=d.diffc(d.diffc<=mean(d.diffc)+3*std(d.diffc));
-% figure(1); plot(d.diffc);
-% title('Difference between background and ROI');
-% % hObject    handle to pushbutton4 (see GCBO)
-% % eventdata  reserved - to be defined in a future version of MATLAB
-% % handles    structure with handles and user data (see GUIDATA)
-% 
-% 
-% % % --- Executes on button press in pushbutton6.                  SAVE FIGURE
-% % function pushbutton6_Callback(hObject, eventdata, handles)
-% % global d
-% % figure(1);
-% % plot(d.diffc);
-% % title('Difference between background and ROI');
-% % % hObject    handle to pushbutton6 (see GCBO)
-% % % eventdata  reserved - to be defined in a future version of MATLAB
-% % % handles    structure with handles and user data (see GUIDATA)
-
-% --------------------------------------------------------------------
-
 %% DORIC CAMERA CODE
 
 
@@ -244,16 +156,40 @@ varargout{1} = handles.output;
 
 % --- Executes on button press in pushbutton5.                   LOAD DORIC
 function pushbutton5_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+%clears cache
+%clears all global variables
+clear global d;
+%reinitializes global variables
+global d
+d.pushed=0;
+d.bcount=0;
+d.roisdefined=0;
+d.play=0;
+d.thresh=0;
+d.valid=0;
+d.adding = 0;
+d.dF=0;
+d.load=0;
+d.align=0; %signals whether images were aligned
+d.flat=0;
+d.pre=0;
+%clears axes
+cla(handles.axes1,'reset');
+%resets frame slider
+handles.slider7.Value=1;
+%resets values of low in/out, high in/out to start values
+handles.slider5.Value=0;
+handles.slider15.Value=1;
+handles.slider6.Value=0;
+handles.slider16.Value=1;
+
 if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
-    return;
-end
-%counts times button is pressed and gives warning to clear cache before
-%loading a new file
-if d.clear>0;
-    msgbox('PLEASE CLEAR CACHE BEFORE YOU SELECT A NEW FOLDER!','ATTENTION');
     return;
 end
 
@@ -268,7 +204,6 @@ if v.pushed==1 && strcmp(v.pn,d.pn)==0;
     msgbox('PLEASE SELECT SAME FOLDER AS FOR THE BEHAVIORAL VIDEO!','ATTENTION');
     return;
 end
-d.clear=d.clear+1;
 
 %extracts filename
 filePattern = fullfile(d.pn, '*.tif'); % *.tiff for 2-P
@@ -291,7 +226,6 @@ catch ME
       clear global d;
       %reinitializes global variables
       global d
-      d.clear=0;
       d.pushed=0;
       d.bcount=0;
       d.roisdefined=0;
@@ -301,6 +235,8 @@ catch ME
       d.adding = 0;
       d.dF=0;
       d.load=0;
+      d.flat=0;
+      d.pre=0;
       %clears axes
       cla(handles.axes1,'reset');
       %resets frame slider
@@ -374,6 +310,8 @@ d.c=[];
 d.dF=0;
 d.load=0;
 d.align=0;
+d.flat=0;
+d.pre=0;
 d.origCI=[];
 close(h);
 
@@ -386,9 +324,6 @@ set(handles.text36, 'String', textLabel);
 
 
 msgbox('Loading Completed.','Success');
-% hObject    handle to pushbutton5 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
 
 
@@ -397,6 +332,12 @@ msgbox('Loading Completed.','Success');
 
 % --- Executes on slider movement.                           CHANGES LOW IN
 function slider5_Callback(hObject, eventdata, handles)
+% hObject    handle to slider5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
@@ -425,12 +366,6 @@ else
     end
 axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
-% hObject    handle to slider5 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
 % --- Executes during object creation, after setting all properties.
 function slider5_CreateFcn(hObject, eventdata, handles)
@@ -443,8 +378,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                          CHANGES LOW OUT
 function slider6_Callback(hObject, eventdata, handles)
+% hObject    handle to slider6 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
@@ -473,12 +415,6 @@ else
     end
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
-% hObject    handle to slider6 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
 % --- Executes during object creation, after setting all properties.
 function slider6_CreateFcn(hObject, eventdata, handles)
@@ -491,8 +427,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                          CHANGES HIGH IN
 function slider15_Callback(hObject, eventdata, handles)
+% hObject    handle to slider15 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
@@ -521,12 +464,6 @@ else
     end
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
-% hObject    handle to slider15 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
 % --- Executes during object creation, after setting all properties.
 function slider15_CreateFcn(hObject, eventdata, handles)
@@ -539,8 +476,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                         CHANGES HIGH OUT
 function slider16_Callback(hObject, eventdata, handles)
+% hObject    handle to slider16 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
@@ -569,12 +513,6 @@ else
     end
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
-% hObject    handle to slider16 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
 % --- Executes during object creation, after setting all properties.
 function slider16_CreateFcn(hObject, eventdata, handles)
@@ -591,6 +529,9 @@ end
 
 % --- Executes on button press in pushbutton22.                       RESET
 function pushbutton22_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton22 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
@@ -606,60 +547,33 @@ handles.slider6.Value=0;
 handles.slider16.Value=1;
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 axes(handles.axes1); imshow(singleFrame); %shows image in axes1
-% hObject    handle to pushbutton22 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
 
 
 
-
-
-
-% --- Executes on slider movement.                 DOWNSAMPLING SCALE VALUE
-function slider18_Callback(hObject, eventdata, handles)
-global d
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-x=imresize(singleFrame,handles.slider18.Value); %evt. medfilt2() as median filter
-if d.dF==1;
-    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
-    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
-else
-    axes(handles.axes1); imshow(x);
-end
-% hObject    handle to slider18 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
-
-% --- Executes during object creation, after setting all properties.
-function slider18_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to slider18 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
 
 
 % --- Executes on button press in pushbutton23.               PREPROCESSING
 function pushbutton23_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton23 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
-imd=cast(zeros(ceil(size(d.imd,1)*handles.slider18.Value),ceil(size(d.imd,2)*handles.slider18.Value),size(d.imd,3)),class(d.imd));
-d.ROIs=zeros(ceil(size(d.imd,1)*handles.slider18.Value),ceil(size(d.imd,2)*handles.slider18.Value));
-d.labeled =zeros(ceil(size(d.imd,1)*handles.slider18.Value),ceil(size(d.imd,2)*handles.slider18.Value));
+%variable initialization
+imd=cast(zeros(ceil(size(d.imd,1)*0.4),ceil(size(d.imd,2)*0.4),size(d.imd,3)),class(d.imd));
+d.ROIs=zeros(ceil(size(d.imd,1)*0.4),ceil(size(d.imd,2)*0.4));
+d.labeled =zeros(ceil(size(d.imd,1)*0.4),ceil(size(d.imd,2)*0.4));
 meanChange=diff(mean(mean(d.imd,1),2));
+
+%Downsampling
 h=waitbar(0,'Downsampling');
 for k=1:size(d.imd,3);
-    imd(:,:,k)=imresize(d.imd(:,:,k),handles.slider18.Value); %evt. medfilt2() as median filter
+    imd(:,:,k)=imresize(d.imd(:,:,k),0.4); %evt. medfilt2() as median filter, downsampling fixed with 0.4
     waitbar(k/size(d.imd,3),h);
 end
 close(h);
+
+%Eliminating faulty frames
 h=waitbar(0,'Eliminating faulty frames');
 for k=1:size(meanChange,3);
     if std(meanChange)>60 && meanChange(1,1,k)<round(min(meanChange),2)*0.66;
@@ -683,6 +597,8 @@ for k=1:size(meanChange,3);
 end
 d.imd=imd;
 close(h);
+
+%showing result
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 if d.dF==1;
     singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
@@ -690,68 +606,43 @@ if d.dF==1;
 else
     axes(handles.axes1); imshow(singleFrame);
 end
-d.origCI=d.imd;
+d.origCI=d.imd; %keeping this file stored as original video
+d.pre=1;
+%plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
 figure(1),plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
 msgbox('Preprocessing done!','Success');
-% hObject    handle to pushbutton23 (see GCBO)
+
+
+% --- Executes on button press in FlatField.          FLAT FIELD CORRECTION
+function FlatField_Callback(hObject, eventdata, handles)
+% hObject    handle to FlatField (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in pushbutton25.                   DELTA F/F
-function pushbutton25_Callback(hObject, eventdata, handles)
 global d
-
-%setting aligned images as original CI video
-if d.align==1;
-    d.origCI=d.imd;
+if d.pre==0;
+    msgbox('PLEASE DO PREPROCESSING BEFORE PROCEEDING!','ATTENTION');
+    return;
 end
+%flatfield correction
 
-%deltaF/F
-h=waitbar(0,'Calculating deltaF/F');
-Fmean=mean(d.imd(:,:,1:100:end),3); %% insert slight blurring filter?
-imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean);
-% [bFilt,aFilt] = butter(4,.5, 'low');
-% 
-% for kr=1:size(imddF,1)
-%     for kc=1:size(imddF,2)
-%        imddF(kr,kc,:)=filtfilt(bFilt,aFilt,imddF(kr,kc,:)); %temporal low-passing
-%     end
-% %     disp(kr);
-% end
+H = fspecial('average',round(.08*size(d.imd,1))); %8 % blur
+a=(imfilter(d.imd(:,:,1),H,'replicate')); %blur frame totally
 
-hhh = fspecial('gaussian', 5, 5);
-%SE = strel('disk', 15);
-
-for k=1:size(d.imd,3);
-%    imddF(:,:,k)=imtophat(imddF(:,:,k),SE);
-%     imddF(imddF(:,:,k)<(max(max(imddF(:,:,k)))*0.5))=0;
-    imddF(:,:,k)=imfilter(imddF(:,:,k),hhh); %filter taken from miniscope msRun ()
-%     IM=imbothat(imddF(:,:,k),SE);
-%     imddF(:,:,k)=imsubtract(imddF(:,:,k),IM);
-%     imddF(:,:,k)=imclearborder(imddF(:,:,k),8);
-    waitbar(k/size(d.imd,3),h);
-end
-d.imd=imddF;
-close(h);
-singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
-axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
-d.dF=1;
-MaxIntensProj = max(d.imd, [], 3);
-if handles.radiobutton2.Value==1;
-    figure(1),imagesc(MaxIntensProj,[0 .2]),title('Maximum Intensity Projection');
-else
-    figure(1),imagesc(MaxIntensProj),title('Maximum Intensity Projection');
-end
-msgbox('Calculation done!','Success');
-% hObject    handle to pushbutton25 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+d.imd=uint16(single(max(max(d.imd(:,:,1))))*bsxfun(@rdivide,single(d.imd),single(a)));
+s=size(d.imd); %cut middle 80 % of image
+d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
+d.flat=1;
+%showing resulting frame
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 
 
 % --- Executes on button press in pushbutton9.                ALIGNS IMAGES
 function pushbutton9_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton9 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if d.pushed==0;
@@ -760,6 +651,10 @@ if d.pushed==0;
 end
 if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    return;
+end
+if d.flat==0;
+    msgbox('PLEASE DO FLAT FIELD CORRECTION BEFORE PROCEEDING!','ATTENTION');
     return;
 end
 % adapted from source: http://de.mathworks.com/help/vision/examples/video-stabilization-using-point-feature-matching.html
@@ -825,8 +720,10 @@ if handles.radiobutton1.Value==1;
         % figure(1); imshowpair(imgA,imgC(:,:,k+1),'ColorChannels','red-cyan');
         waitbar(k/(size(d.imd,3)-1),h);
     end
-    d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    axes(handles.axes1); imshow(singleFrame);
+    d.imd=imgC;
+    %showing resulting frame
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     close(h);
 else
     %Lucas Kanade algorithm to align images
@@ -850,8 +747,10 @@ else
         imgC(:,:,k)=wimageLK;
         waitbar(k/(size(d.imd,3)-1),h);
     end
-    d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    axes(handles.axes1); imshow(singleFrame);
+    d.imd=imgC;
+    %showing resulting frame
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     close(h);
 end
 
@@ -874,19 +773,75 @@ if d.pushed==4;
     return;
 end
 
-% hObject    handle to pushbutton9 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
 
 % --- Executes on button press in pushbutton28.            RESETS ALIGNMENT
 function pushbutton28_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton28 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
 global d
 d.imd=d.origCI;
 d.align=0; %signals that image alignment was reset
 msgbox('Alignment reset!');
-% hObject    handle to pushbutton28 (see GCBO)
+
+
+% --- Executes on button press in pushbutton25.                   DELTA F/F
+function pushbutton25_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton25 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+
+if d.flat==0;
+    msgbox('PLEASE DO FLAT FIELD CORRECTION BEFORE PROCEEDING!','ATTENTION');
+    return;
+end
+%setting aligned images as original CI video
+if d.align==1;
+    d.origCI=d.imd;
+end
+
+%deltaF/F
+h=waitbar(0,'Calculating deltaF/F');
+Fmean=mean(d.imd(:,:,1:100:end),3); %% insert slight blurring filter?
+imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean);
+%temporal filter below was removed because of artifacts
+% [bFilt,aFilt] = butter(4,.5, 'low');
+% 
+% for kr=1:size(imddF,1)
+%     for kc=1:size(imddF,2)
+%        imddF(kr,kc,:)=filtfilt(bFilt,aFilt,imddF(kr,kc,:)); %temporal low-passing
+%     end
+% %     disp(kr);
+% end
+
+hhh = fspecial('gaussian', 5, 5);
+%SE = strel('disk', 15);
+
+for k=1:size(d.imd,3);
+%    imddF(:,:,k)=imtophat(imddF(:,:,k),SE);
+%     imddF(imddF(:,:,k)<(max(max(imddF(:,:,k)))*0.5))=0;
+    imddF(:,:,k)=imfilter(imddF(:,:,k),hhh); %filter taken from miniscope msRun ()
+%     IM=imbothat(imddF(:,:,k),SE);
+%     imddF(:,:,k)=imsubtract(imddF(:,:,k),IM);
+%     imddF(:,:,k)=imclearborder(imddF(:,:,k),8);
+    waitbar(k/size(d.imd,3),h);
+end
+d.imd=imddF;
+close(h);
+d.ROIs=zeros(size(d.imd,1),size(d.imd,2));
+d.labeled = zeros(size(d.imd,1),size(d.imd,2));
+%showing resulting frame
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+d.dF=1;
+MaxIntensProj = max(d.imd, [], 3);
+if handles.radiobutton2.Value==1;
+    figure(1),imagesc(MaxIntensProj),title('Maximum Intensity Projection');
+else
+    figure(1),imagesc(MaxIntensProj),title('Maximum Intensity Projection');
+end
+msgbox('Calculation done!','Success');
+
 
 
 
@@ -895,6 +850,9 @@ msgbox('Alignment reset!');
 
 % --- Executes on button press in pushbutton3.                         ROIs
 function pushbutton3_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if d.pushed==0;
@@ -949,6 +907,7 @@ colors={[0    0.4471    0.7412],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
 
+
 %display instructions only if the button was pressed for the first time or
 %a mistake was made
 if d.bcount==0 || d.valid==1;
@@ -962,26 +921,38 @@ else
     imdMax=1/(max(max(max(d.imd))));
 end
 
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-if d.dF==1;
-   singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-   axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
+if d.bcount==0;
+    MaxIntensProj = max(d.imd, [], 3);
+    singleFrame=MaxIntensProj./max(max(MaxIntensProj));
 else
-    axes(handles.axes1); imshow(singleFrame);
+    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
+    ROIorder=unique(d.labeled(d.labeled>0),'stable');
+    MaxIntensProj = max(d.imd, [], 3);
+    singleFrame=MaxIntensProj./max(max(MaxIntensProj));
+    axes(handles.axes1); imshow(singleFrame);hold on;
+    for k=1:size(d.b,1);
+    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(k)});
+    text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
+    end
+    hold off;
+    f=getframe(handles.axes1);
+    singleFrame=f.cdata;
 end
-imdROI=cell(size(d.imd,3),d.bcount);
 
 %select ROI manually with roipoly
 % if d.dF==1 && mean(mean(singleFrame))<0.1;
 %     singleFrame=singleFrame*15;
 % end
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
+if d.bcount>0;
+    ROI=imresize(ROI,size(MaxIntensProj,1)/size(ROI,1));
+end
 %check if ROI was selected correctly
 if numel(find(ROI))==0;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
+    MaxIntensProj = max(d.imd, [], 3);
+    singleFrame=MaxIntensProj;
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
@@ -996,6 +967,7 @@ if numel(find(ROI))==0;
 end
 %count times button is pressed
 d.bcount=d.bcount+1;
+imdROI=cell(size(d.imd,3),d.bcount);
 
 if d.adding==1;
    d.labeled = d.labeled+(ROI*(size(d.ROIs,2)+1)); %labeling of ROIs
@@ -1032,10 +1004,10 @@ if d.adding==1;
                 end
                 close(h);
                 %plotting ROIs
-                singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-                if d.dF==1;
-                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
+                MaxIntensProj = max(d.imd, [], 3);
+                singleFrame=MaxIntensProj;
+                if d.dF==1 || d.flat==1;
+                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
@@ -1076,10 +1048,10 @@ if d.adding==1;
                 end
                 return;
             case 'NO'
-                singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-                if d.dF==1;
-                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
+                MaxIntensProj = max(d.imd, [], 3);
+                singleFrame=MaxIntensProj;
+                if d.dF==1 || d.flat==1;
+                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
@@ -1132,10 +1104,10 @@ else
                 end
                 close(h);
                 %plotting ROIs
-                singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-                if d.dF==1;
-                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
+                MaxIntensProj = max(d.imd, [], 3);
+                singleFrame=MaxIntensProj;
+                if d.dF==1 || d.flat==1;
+                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
@@ -1176,10 +1148,10 @@ else
                 end
                 return;
             case 'NO'
-                singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-                if d.dF==1;
-                    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-                    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
+                MaxIntensProj = max(d.imd, [], 3);
+                singleFrame=MaxIntensProj;
+                if d.dF==1 || d.flat==1;
+                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
@@ -1210,10 +1182,10 @@ for k = 1:size(d.imd,3);
 end
 close(h);
 %plotting ROIs
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-if d.dF==1;
-    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
+MaxIntensProj = max(d.imd, [], 3);
+singleFrame=MaxIntensProj;
+if d.dF==1 || d.flat==1;
+    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
 else
     axes(handles.axes1); imshow(singleFrame); hold on;
 end
@@ -1273,14 +1245,14 @@ else
     ROImask=d.ROIs;
     save(filename, 'ROImask');
 end
-% hObject    handle to pushbutton3 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+
 
 
 
 % --- Executes on button press in pushbutton16.              CLEAR ALL ROIS
 function pushbutton16_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton16 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
 global d
 global v
 if d.pushed==0;
@@ -1311,7 +1283,8 @@ else
     imdMax=1/(max(max(max(d.imd))));
 end
 
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+MaxIntensProj = max(d.imd, [], 3);
+singleFrame=MaxIntensProj;
 if d.dF==1;
     singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
     axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
@@ -1319,15 +1292,18 @@ else
     axes(handles.axes1); imshow(singleFrame);
 end
 msgbox('ROIs cleared!','Success');
-% hObject    handle to pushbutton16 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-
 
 
 
 
 % --- Executes on slider movement.                  SETTING ROI THRESHOLD
 function slider17_Callback(hObject, eventdata, handles)
+% hObject    handle to slider17 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
@@ -1345,12 +1321,6 @@ smallestAcceptableArea = 25;
 structuringElement = strel('disk', 2);
 imageThresh = imclose(bwareaopen(im2bw(MaxIntensProj, handles.slider17.Value),smallestAcceptableArea),structuringElement);
 axes(handles.axes1); imshow(imageThresh);
-% hObject    handle to slider17 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
 % --- Executes during object creation, after setting all properties.
 function slider17_CreateFcn(hObject, eventdata, handles)
@@ -1366,6 +1336,9 @@ end
 
 % --- Executes on button press in pushbutton13.       SETTING ROI THRESHOLD FOR ALL FRAMES
 function pushbutton13_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton13 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if d.pushed==0;
@@ -1520,16 +1493,13 @@ switch choice
         return;
 end
 
-% hObject    handle to pushbutton13 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
 
 
 
 % --- Executes on button press in pushbutton27.          LOAD EXISTING ROIs
 function pushbutton27_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton27 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
 global d
 %resets all varibles needed for selecting ROIs
 d.bcount=0; %signals ROI button was not pressed
@@ -1632,8 +1602,7 @@ d.thresh=1; %signals that threshold was used
 d.load=1; %signals that a ROI mask was loaded
 close(h);
 msgbox('Loading complete!');
-% hObject    handle to pushbutton27 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
+
 
 
 
@@ -1641,6 +1610,9 @@ msgbox('Loading complete!');
 
 % --- Executes on button press in pushbutton14.             PLOT ROI VALUES
 function pushbutton14_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton14 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if d.pushed==0;
@@ -1895,11 +1867,6 @@ elseif d.dF==1 && d.thresh==0;
     set(gca,'XTickLabel',ticlabel);
 end
 
-% hObject    handle to pushbutton14 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
 
 
 
@@ -1907,6 +1874,9 @@ end
 
 % --- Executes on button press in pushbutton26.               SAVE CI VIDEO
 function pushbutton26_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton26 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 
 if d.align==1 && handles.radiobutton2.Value==1;
@@ -2015,9 +1985,6 @@ switch choice
         msgbox('Saving video completed.');
 end
 
-% hObject    handle to pushbutton26 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
 
 
@@ -2025,6 +1992,12 @@ end
 
 % --- Executes on slider movement.                            CHANGES FRAME
 function slider7_Callback(hObject, eventdata, handles)
+% hObject    handle to slider7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 global v
 if d.pushed==0 && v.pushed==0;
@@ -2069,9 +2042,8 @@ ROIorder=unique(d.labeled(d.labeled>0),'stable');
 
 if d.pushed==1;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         axes(handles.axes1); imshow(singleFrame);
     end
@@ -2082,19 +2054,13 @@ if d.pushed==1;
 %     axes(handles.axes1); imshow(singleFrame);
 elseif d.pushed==3;
     imageThresh = im2bw(d.imd(:,:,round(handles.slider7.Value)), handles.slider17.Value);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
-    else
-        axes(handles.axes1); imshow(imageThresh);
-    end
+    axes(handles.axes1); imshow(imageThresh);
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif d.pushed==4;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);hold on;
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         axes(handles.axes1); imshow(singleFrame);hold on;
     end
@@ -2123,12 +2089,7 @@ elseif v.pushed==3;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
-% hObject    handle to slider7 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
 % --- Executes during object creation, after setting all properties.
 function slider7_CreateFcn(hObject, eventdata, handles)
@@ -2145,6 +2106,9 @@ end
 
 % --- Executes on button press in pushbutton18.                  PLAY VIDEO
 function pushbutton18_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton18 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 d.stop=0;
@@ -2195,9 +2159,8 @@ if v.pushed==1 && d.pushed==1;
     image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
     end
@@ -2221,12 +2184,7 @@ elseif v.pushed==1 && d.pushed==3;
     image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
     axes(handles.axes1); %thresholded video
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
-    else
-        imshow(imageThresh);
-    end
+    imshow(imageThresh);
     handles.slider7.Value=k;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
@@ -2247,9 +2205,8 @@ elseif v.pushed==1 && d.pushed==4;
     image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);hold on;
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2278,9 +2235,8 @@ elseif  v.pushed==2 && d.pushed==1;
     imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
     end
@@ -2304,12 +2260,7 @@ elseif v.pushed==2 && d.pushed==3;
     imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
     axes(handles.axes1); %thresholded video
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
-    else
-        imshow(imageThresh);
-    end
+    imshow(imageThresh);
     handles.slider7.Value=k;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
@@ -2330,9 +2281,8 @@ elseif v.pushed==2 && d.pushed==4;
     imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);hold on;
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2361,9 +2311,8 @@ elseif v.pushed==3 && d.pushed==1;
     imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
     end
@@ -2387,12 +2336,7 @@ elseif v.pushed==3 && d.pushed==3;
     imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
     axes(handles.axes1); %thresholded video
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
-    else
-        imshow(imageThresh);
-    end
+    imshow(imageThresh);
     handles.slider7.Value=k;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
@@ -2413,9 +2357,8 @@ elseif v.pushed==3 && d.pushed==4;
     imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);hold on;
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2445,9 +2388,8 @@ if d.pushed==1;
     axes(handles.axes1); %original video
     for k=round(handles.slider7.Value):size(d.imd,3);
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
     end
@@ -2477,12 +2419,7 @@ elseif d.pushed==3;
     axes(handles.axes1);
     for k=round(handles.slider7.Value):size(d.imd,3);
     imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);
-    else
-        imshow(imageThresh);
-    end
+    imshow(imageThresh);
     handles.slider7.Value=k;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
@@ -2499,9 +2436,8 @@ elseif d.pushed==4;
     axes(handles.axes1); %video with ROIs
     for k=round(handles.slider7.Value):size(d.imd,3);
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-        imshow(singleFrame);hold on;
+    if d.dF==1 || d.flat==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
     end
@@ -2542,14 +2478,13 @@ if  v.pushed==1;
     end
     end
 end
-% hObject    handle to pushbutton18 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
 
 
 % --- Executes on button press in pushbutton21.                        STOP
 function pushbutton21_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton21 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if d.pushed==0;
@@ -2559,9 +2494,7 @@ end
 d.stop=1;
 d.play=0;
 v.play=0;
-% hObject    handle to pushbutton21 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+
 
 
 
@@ -2573,18 +2506,29 @@ v.play=0;
 
 % --- Executes on button press in pushbutton7.       LOADS BEHAVIORAL VIDEO
 function pushbutton7_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global v
 global d
+%clears cache
+%clears all global variables
+clear global v;
+%reinitializes global variables
+global v
+v.pushed=0;
+v.play=0;
+%clears axes
+cla(handles.axes2,'reset');
+%resets frame slider
+handles.slider7.Value=1;
+
 if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
-%count times button is pressed and gives warning to clear cache before
-%loading a new file
-if v.clear>0;
-    msgbox('PLEASE CLEAR CACHE BEFORE YOU SELECT A NEW FOLDER!','ATTENTION');
-    return;
-end
+
+
 v.pn=[];
 v.fn=[];
 v.crop=0; %signals video is not cropped
@@ -2598,7 +2542,6 @@ if d.pushed==1 && strcmp(v.pn,d.pn)==0;
     msgbox('PLEASE SELECT SAME FOLDER AS FOR THE CALCIUM IMAGING VIDEO!','ATTENTION');
     return;
 end
-v.clear=v.clear+1; %signals one video file was already loaded
 
 filePattern = fullfile(v.pn, '*.mp4');
 Files = dir(filePattern);
@@ -2628,16 +2571,15 @@ close(h);
 %looking at first original picture
 axes(handles.axes2); image(v.imd(1).cdata);
 msgbox('Loading Completed.','Success');
-% hObject    handle to pushbutton7 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
 
 
 
 
 % --- Executes on button press in pushbutton15.                  CROP VIDEO
 function pushbutton15_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton15 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global v
 global d
 if v.pushed==0;
@@ -2679,16 +2621,15 @@ v.imd=imd;
 close(h);
 axes(handles.axes2); image(v.imd(1).cdata);
 msgbox('Cropping Completed.','Success');
-% hObject    handle to pushbutton15 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
 
 
 
 
 % --- Executes on button press in pushbutton8.         CONVERT IMAGE TO HSV
 function pushbutton8_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton8 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global v
 global d
 if v.pushed==0;
@@ -2734,14 +2675,19 @@ v.hsv=1; %signals that video was converted
 close(h);
 msgbox('Conversion Completed. Please use the green and pink presets to view only the respective spot. If needed adjust thresholds manually! If satisfied save the green spot by clicking SAVE GREEN SPOT and the pink spot by clicking SAVE PINK SPOT.','Success');
 
-% hObject    handle to pushbutton8 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+
+
 
 
 
 % --- Executes on slider movement.                      VALUE THRESHOLD LOW
 function slider9_Callback(hObject, eventdata, handles)
+% hObject    handle to slider9 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
 if v.pushed==0;
@@ -2807,13 +2753,6 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 %showing thresholded image in GUI
 axes(handles.axes2); imshow(maskedRGBImage);
 
-% hObject    handle to slider9 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
 % --- Executes during object creation, after setting all properties.
 function slider9_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slider9 (see GCBO)
@@ -2825,8 +2764,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                     VALUE THRESHOLD HIGH
 function slider10_Callback(hObject, eventdata, handles)
+% hObject    handle to slider10 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
 if v.pushed==0;
@@ -2892,13 +2838,6 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 %showing thresholded image in GUI
 axes(handles.axes2); imshow(maskedRGBImage);
 
-% hObject    handle to slider10 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
 % --- Executes during object creation, after setting all properties.
 function slider10_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slider10 (see GCBO)
@@ -2910,8 +2849,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                SATURATION THRESHOLD HIGH
 function slider11_Callback(hObject, eventdata, handles)
+% hObject    handle to slider11 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
 if v.pushed==0;
@@ -2975,13 +2921,6 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 %showing thresholded image in GUI
 axes(handles.axes2); imshow(maskedRGBImage);
 
-% hObject    handle to slider11 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
 % --- Executes during object creation, after setting all properties.
 function slider11_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slider11 (see GCBO)
@@ -2993,8 +2932,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                 SATURATION THRESHOLD LOW
 function slider12_Callback(hObject, eventdata, handles)
+% hObject    handle to slider12 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
 if v.pushed==0;
@@ -3058,13 +3004,6 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 %showing thresholded image in GUI
 axes(handles.axes2); imshow(maskedRGBImage);
 
-% hObject    handle to slider12 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
 % --- Executes during object creation, after setting all properties.
 function slider12_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slider12 (see GCBO)
@@ -3076,8 +3015,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                        HUE THRESHOLD LOW
 function slider13_Callback(hObject, eventdata, handles)
+% hObject    handle to slider13 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
 if v.pushed==0;
@@ -3141,13 +3087,6 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 %showing thresholded image in GUI
 axes(handles.axes2); imshow(maskedRGBImage);
 
-% hObject    handle to slider13 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
 % --- Executes during object creation, after setting all properties.
 function slider13_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slider13 (see GCBO)
@@ -3159,8 +3098,15 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
+
 % --- Executes on slider movement.                       HUE THRESHOLD HIGH
 function slider14_Callback(hObject, eventdata, handles)
+% hObject    handle to slider14 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
 if v.pushed==0;
@@ -3224,13 +3170,6 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 %showing thresholded image in GUI
 axes(handles.axes2); imshow(maskedRGBImage);
 
-% hObject    handle to slider14 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
 % --- Executes during object creation, after setting all properties.
 function slider14_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slider14 (see GCBO)
@@ -3246,6 +3185,9 @@ end
 
 % --- Executes on button press in pushbutton19.               GREEN PRESETS
 function pushbutton19_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton19 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if v.pushed==0;
@@ -3328,13 +3270,14 @@ else
     axes(handles.axes2); imshow(maskedRGBImage);
 end
 hold off;
-% hObject    handle to pushbutton19 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+
 
 
 % --- Executes on button press in pushbutton20.                PINK PRESETS
 function pushbutton20_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton20 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if v.pushed==0;
@@ -3416,14 +3359,15 @@ else
     axes(handles.axes2); imshow(maskedRGBImage);
 end
 hold off;
-% hObject    handle to pushbutton20 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+
 
 
 
 % --- Executes on button press in pushbutton10.             SAVE GREEN SPOT
 function pushbutton10_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton10 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global v
 global d
 if v.pushed==0;
@@ -3531,13 +3475,13 @@ plot(tracegplot(:,1),tracegplot(:,2),'g'); hold off;
 
 msgbox('Saving Completed. Please save pink spot as well!','Success');
 
-% hObject    handle to pushbutton10 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
 
 % --- Executes on button press in pushbutton11.              SAVE PINK SPOT
 function pushbutton11_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton11 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global v
 global d
 if v.pushed==0;
@@ -3646,9 +3590,6 @@ hold off;
 
 msgbox('Saving Completed. If both spots are saved,please proceed by tracing the animal!','Success');
 
-% hObject    handle to pushbutton11 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
 
 
@@ -3656,6 +3597,9 @@ msgbox('Saving Completed. If both spots are saved,please proceed by tracing the 
 
 % --- Executes on button press in pushbutton12.                TRACE ANIMAL
 function pushbutton12_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton12 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 if v.pushed==0;
@@ -3856,67 +3800,9 @@ end
 v.pushed=1; %signals to show original video again
 msgbox('Tracing Completed','Success');
     
-% hObject    handle to pushbutton12 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-%%
 
 
 
-
-
-
-% --- Executes on button press in pushbutton17.              CLEAR CACHE CI
-function pushbutton17_Callback(hObject, eventdata, handles)
-%clears all global variables
-clear global d;
-%reinitializes global variables
-global d
-d.clear=0;
-d.pushed=0;
-d.bcount=0;
-d.roisdefined=0;
-d.play=0;
-d.thresh=0;
-d.valid=0;
-d.adding = 0;
-d.dF=0;
-d.load=0;
-d.align=0; %signals whether images were aligned
-%clears axes
-cla(handles.axes1,'reset');
-%resets frame slider
-handles.slider7.Value=1;
-%resets values of low in/out, high in/out to start values
-handles.slider5.Value=0;
-handles.slider15.Value=1;
-handles.slider6.Value=0;
-handles.slider16.Value=1;
-msgbox('Cache cleared!','Success');
-% hObject    handle to pushbutton17 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in pushbutton24.              CLEAR CACHE BV
-function pushbutton24_Callback(hObject, eventdata, handles)
-%clears all global variables
-clear global v;
-%reinitializes global variables
-global v
-v.clear=0;
-v.pushed=0;
-v.play=0;
-%clears axes
-cla(handles.axes2,'reset');
-%resets frame slider
-handles.slider7.Value=1;
-msgbox('Cache cleared!','Success');
-% hObject    handle to pushbutton24 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-% handles    structure with handles and user data (see GUIDATA)
 
 
 
@@ -3925,6 +3811,9 @@ msgbox('Cache cleared!','Success');
 
 % --- Executes on button press in pushbutton29.
 function pushbutton29_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton29 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
 global v
 d.stop=0;
@@ -3960,14 +3849,19 @@ if  v.pushed==1;
     end
     end
 end
-% hObject    handle to pushbutton29 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+
 
 
 
 % --- Executes on key press with focus on pushbutton29 and none of its controls.
 function pushbutton29_KeyPressFcn(hObject, eventdata, handles)
+% hObject    handle to pushbutton29 (see GCBO)
+% eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
+%	Key: name of the key that was pressed, in lower case
+%	Character: character interpretation of the key(s) that was pressed
+%	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
+% handles    structure with handles and user data (see GUIDATA)
+
 % determine the key that was pressed 
  keyPressed = eventdata.Key;
 
@@ -3978,12 +3872,7 @@ function pushbutton29_KeyPressFcn(hObject, eventdata, handles)
      % call the callback
      pushbutton29_Callback(handles.pushbutton29,[],handles);
  end
-% hObject    handle to pushbutton29 (see GCBO)
-% eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
-%	Key: name of the key that was pressed, in lower case
-%	Character: character interpretation of the key(s) that was pressed
-%	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
-% handles    structure with handles and user data (see GUIDATA)
+
 
 
 % --- If Enable == 'on', executes on mouse press in 5 pixel border.
@@ -3992,19 +3881,3 @@ function pushbutton25_ButtonDownFcn(hObject, eventdata, handles)
 % hObject    handle to pushbutton25 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in FlatField.
-function FlatField_Callback(hObject, eventdata, handles)
-% hObject    handle to FlatField (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-global d
-%flatfield correction
-
-H = fspecial('average',round(.08*size(d.imd,1))); %8 % blur
-a=(imfilter(d.imd(:,:,1),H,'replicate')); %blur frame totally
-
-d.imd=uint16(single(max(max(d.imd(:,:,1))))*bsxfun(@rdivide,single(d.imd),single(a)));
-s=size(d.imd); %cut middle 80 % of image
-d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
