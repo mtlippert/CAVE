@@ -119,7 +119,6 @@ d.play=0;
 v.play=0;
 d.thresh=0;
 d.valid=0;
-d.adding = 0;
 d.align=0; %signals whether images were aligned
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
@@ -172,12 +171,11 @@ d.roisdefined=0;
 d.play=0;
 d.thresh=0;
 d.valid=0;
-d.adding = 0;
 d.dF=0;
 d.load=0;
 d.align=0; %signals whether images were aligned
-d.flat=0;
 d.pre=0;
+d.mip=0;
 %clears axes
 cla(handles.axes1,'reset');
 %resets frame slider
@@ -222,30 +220,6 @@ try
 catch ME
    if (strcmp(ME.identifier,'MATLAB:csvread:FileNotFound'))
       uiwait(msgbox('You need a text file called Framerate containing the number of frames per second!','Attention'));
-      %clears all global variables
-      clear global d;
-      %reinitializes global variables
-      global d
-      d.pushed=0;
-      d.bcount=0;
-      d.roisdefined=0;
-      d.play=0;
-      d.thresh=0;
-      d.valid=0;
-      d.adding = 0;
-      d.dF=0;
-      d.load=0;
-      d.flat=0;
-      d.pre=0;
-      %clears axes
-      cla(handles.axes1,'reset');
-      %resets frame slider
-      handles.slider7.Value=1;
-      %resets values of low in/out, high in/out to start values
-      handles.slider5.Value=0;
-      handles.slider15.Value=1;
-      handles.slider6.Value=0;
-      handles.slider16.Value=1;
       return;
    end
 end 
@@ -256,20 +230,18 @@ if length(Files)==1;
     for k = 1:frames;
         % Read in image into an array.
         fullFileName = fullfile([d.pn '\' d.fn]);
-        [rgbImage, storedColorMap] = imread(fullFileName,k); 
-        [~, ~, numberOfColorBands] = size(rgbImage); 
-        % If it's monochrome (indexed), convert it to color. 
+        Image = imread(fullFileName,k);
         % Check to see if it's an 8-bit image needed later for scaling).
-        if strcmpi(class(rgbImage), 'uint8')
+        if strcmpi(class(Image), 'uint8')
             % Flag for 256 gray levels.
             eightBit = true;
         else
             eightBit = false;
         end
         if eightBit
-            Images = rgbImage;
+            Images = Image;
         else
-        Imaged=double(rgbImage);
+        Imaged=double(Image);
         Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
         end
         d.imd(:,:,k) = Images;
@@ -282,19 +254,18 @@ else
         waitbar(k/length(Files),h);
         baseFileName = Files(k).name;
         fullFileName = fullfile([d.pn '\' baseFileName]);
-        [rgbImage, storedColorMap] = imread(fullFileName);
-        % If it's monochrome (indexed), convert it to color. 
+        Image = imread(fullFileName); 
         % Check to see if it's an 8-bit image needed later for scaling).
-        if strcmpi(class(rgbImage), 'uint8')
+        if strcmpi(class(Image), 'uint8')
             % Flag for 256 gray levels.
             eightBit = true;
         else
             eightBit = false;
         end
         if eightBit
-            Images = rgbImage;
+            Images = Image;
         else
-        Imaged=double(rgbImage);
+        Imaged=double(Image);
         Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
         end
         d.imd(:,:,k) = Images;
@@ -310,8 +281,8 @@ d.c=[];
 d.dF=0;
 d.load=0;
 d.align=0;
-d.flat=0;
 d.pre=0;
+d.mip=0;
 d.origCI=[];
 close(h);
 
@@ -598,32 +569,6 @@ end
 d.imd=imd;
 close(h);
 
-%showing result
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-if d.dF==1;
-    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
-    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
-else
-    axes(handles.axes1); imshow(singleFrame);
-end
-d.origCI=d.imd; %keeping this file stored as original video
-d.pre=1;
-%plotting mean change along the video
-meanChange=diff(mean(mean(d.imd,1),2));
-figure(1),plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
-msgbox('Preprocessing done!','Success');
-
-
-% --- Executes on button press in FlatField.          FLAT FIELD CORRECTION
-function FlatField_Callback(hObject, eventdata, handles)
-% hObject    handle to FlatField (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-global d
-if d.pre==0;
-    msgbox('PLEASE DO PREPROCESSING BEFORE PROCEEDING!','ATTENTION');
-    return;
-end
 %flatfield correction
 
 H = fspecial('average',round(.08*size(d.imd,1))); %8 % blur
@@ -632,10 +577,16 @@ a=(imfilter(d.imd(:,:,1),H,'replicate')); %blur frame totally
 d.imd=uint16(single(max(max(d.imd(:,:,1))))*bsxfun(@rdivide,single(d.imd),single(a)));
 s=size(d.imd); %cut middle 80 % of image
 d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
-d.flat=1;
 %showing resulting frame
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+
+d.origCI=d.imd; %keeping this file stored as original video
+d.pre=1;
+%plotting mean change along the video
+meanChange=diff(mean(mean(d.imd,1),2));
+figure(1),plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
+msgbox('Preprocessing done!','Success');
 
 
 % --- Executes on button press in pushbutton9.                ALIGNS IMAGES
@@ -653,8 +604,8 @@ if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
-if d.flat==0;
-    msgbox('PLEASE DO FLAT FIELD CORRECTION BEFORE PROCEEDING!','ATTENTION');
+if d.pre==0;
+    msgbox('PLEASE DO PREPROCESSING BEFORE PROCEEDING!','ATTENTION');
     return;
 end
 % adapted from source: http://de.mathworks.com/help/vision/examples/video-stabilization-using-point-feature-matching.html
@@ -767,7 +718,6 @@ if d.pushed==4;
     d.bg=[];
     d.b=[];
     d.c=[];
-    d.thresh=0; %signals no threshold was applied
     d.roisdefined=0; %signals no ROIs were selected
     msgbox('PLEASE RESELECT ROIs!','ATTENTION');
     return;
@@ -791,8 +741,8 @@ function pushbutton25_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 
-if d.flat==0;
-    msgbox('PLEASE DO FLAT FIELD CORRECTION BEFORE PROCEEDING!','ATTENTION');
+if d.pre==0;
+    msgbox('PLEASE DO PREPROCESSING BEFORE PROCEEDING!','ATTENTION');
     return;
 end
 %setting aligned images as original CI video
@@ -834,11 +784,14 @@ d.labeled = zeros(size(d.imd,1),size(d.imd,2));
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 d.dF=1;
+%finding cells with maximum intensity projection and standard deviation
 MaxIntensProj = max(d.imd, [], 3);
+stdIm = std(d.imd,0,3);
+d.mip=MaxIntensProj./stdIm;
 if handles.radiobutton2.Value==1;
-    figure(1),imagesc(MaxIntensProj),title('Maximum Intensity Projection');
+    figure(1),imagesc(d.mip),title('Maximum Intensity Projection');
 else
-    figure(1),imagesc(MaxIntensProj),title('Maximum Intensity Projection');
+    figure(1),imagesc(d.mip),title('Maximum Intensity Projection');
 end
 msgbox('Calculation done!','Success');
 
@@ -863,40 +816,6 @@ if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
-if d.thresh==1;
-    % Construct a questdlg with two options
-    choice = questdlg('Would you like to add ROIs manually?', ...
-        'Attention', ...
-        'YES','NO','YES');
-    % Handle response
-    switch choice
-        case 'YES'
-            d.adding = 1;
-        case 'NO'
-            d.adding = 0;
-            %resets all varibles needed for selecting ROIs
-            d.bcount=0; %signals ROI button was not pressed
-            d.pushed=1; %signals video was loaded
-            d.ROIs=zeros(size(d.imd,1),size(d.imd,2));
-            d.labeled = zeros(size(d.imd,1),size(d.imd,2));
-            d.roi=[];
-            d.bg=[];
-            d.b=[];
-            d.c=[];
-            d.adding = 0;
-            d.thresh=0; %signals no threshold was applied
-            d.load=0; %signals no ROI mask was loaded
-            d.roisdefined=0; %signals no ROIs were selected
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-            axes(handles.axes1); imshow(singleFrame);
-            msgbox('ROIs cleared!','Success');
-    end
-end
-% if d.bcount>=17;
-%     msgbox('PLEASE USE THRESHOLD TO SELECT SO MANY ROIs!','ATTENTION');
-%     return;
-% end
-
 
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -922,13 +841,11 @@ else
 end
 
 if d.bcount==0;
-    MaxIntensProj = max(d.imd, [], 3);
-    singleFrame=MaxIntensProj./max(max(MaxIntensProj));
+    singleFrame=d.mip./max(max(d.mip));
 else
     colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    MaxIntensProj = max(d.imd, [], 3);
-    singleFrame=MaxIntensProj./max(max(MaxIntensProj));
+    singleFrame=d.mip./max(max(d.mip));
     axes(handles.axes1); imshow(singleFrame);hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(k)});
@@ -945,13 +862,12 @@ end
 % end
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
 if d.bcount>0;
-    ROI=imresize(ROI,size(MaxIntensProj,1)/size(ROI,1));
+    ROI=imresize(ROI,size(d.mip,1)/size(ROI,1));
 end
 %check if ROI was selected correctly
 if numel(find(ROI))==0;
-    MaxIntensProj = max(d.imd, [], 3);
-    singleFrame=MaxIntensProj;
-    if d.dF==1 || d.flat==1;
+    singleFrame=d.mip;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
@@ -969,205 +885,100 @@ end
 d.bcount=d.bcount+1;
 imdROI=cell(size(d.imd,3),d.bcount);
 
-if d.adding==1;
-   d.labeled = d.labeled+(ROI*(size(d.ROIs,2)+1)); %labeling of ROIs
-    d.mask = d.mask+ROI;
-    %checking if ROIs are superimposed on each other
-    if numel(find(d.mask>1))>0;
-        choice = questdlg('Would you like to remove this ROI?', ...
-        'Attention', ...
-        'YES','NO','YES');
-        % Handle response
-        switch choice
-            case 'YES'
-                d.mask=d.mask-(2*ROI);
-                d.mask(d.mask<0)=0;
-                d.labeled=bwlabel(d.mask);
-                % relabel ROIs
-                n=size(d.imd,3);
-                CC=bwconncomp(d.mask);
-                numROIs=CC.NumObjects; %number of ROIs
-                d.imdrem=cell(size(d.imd,3),numROIs);
-                d.ROIs=cell(size(d.imd,3),numROIs);
-                h=waitbar(0,'Relabeling ROIs');
-                for j=1:n;
-                    for i=1:numROIs;
-                        ROIs=zeros(size(d.imd,1),size(d.imd,2));
-                        m = find(d.labeled==i);
-                        ROIs(m)=1;
-                        % You can only multiply integers if they are of the same type.
-                        ROIs = cast(ROIs, class(d.imd(:,:,1)));
-                        d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
-                        d.ROIs{j,i}=d.imdrem{j,i}(m);
-                    end
-                    waitbar(j/size(d.imd,3),h);
-                end
-                close(h);
-                %plotting ROIs
-                MaxIntensProj = max(d.imd, [], 3);
-                singleFrame=MaxIntensProj;
-                if d.dF==1 || d.flat==1;
-                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-                else
-                    axes(handles.axes1); imshow(singleFrame); hold on;
-                end
-                B=bwboundaries(d.mask); %boundaries of ROIs
-                stat = regionprops(d.labeled,'Centroid');
-                d.b=cell(length(B),1);
-                d.c=cell(length(B),1);
-                ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
-                for j = 1 : size(d.ROIs,2);
-                    d.b{j,1} = B{j};
-                    d.c{j,1} = stat(j).Centroid;
-                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-                end
-                hold off;
-                d.pushed=4; %signals that ROIs were selected
-                if d.adding==1;
-                    d.thresh=1;
-                else
-                    d.thresh=0; %signals that ROIs were selected manually and not with a threshold
-                end
-                d.roisdefined=1; %signals that ROIs were defined
 
-                %saving ROI mask
-                % Construct a questdlg with two options
-                choice = questdlg('Would you like to save this ROI mask?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                switch choice
-                    case 'YES'
-                        filename=[d.pn '\' d.fn(1:end-4)];
-                        ROImask=d.mask;
-                        save(filename, 'ROImask');
-                    case 'NO'
-                        return;
+d.labeled = d.labeled+ROI*d.bcount; %labeling of ROIs
+d.ROIs = d.ROIs+ROI;
+%checking if ROIs are superimposed on each other
+if numel(find(d.ROIs>1))>0;
+    choice = questdlg('Would you like to remove this ROI?', ...
+    'Attention', ...
+    'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            d.ROIs=d.ROIs-(2*ROI);
+            d.ROIs(d.ROIs<0)=0;
+            d.labeled=bwlabel(d.ROIs);
+            % relabel ROIs
+            n=size(d.imd,3);
+            CC=bwconncomp(d.ROIs);
+            numROIs=CC.NumObjects; %number of ROIs
+            d.imdrem=cell(size(d.imd,3),numROIs);
+            d.roi=cell(size(d.imd,3),numROIs);
+            h=waitbar(0,'Relabeling ROIs');
+            for j=1:n;
+                for i=1:numROIs;
+                    ROIs=zeros(size(d.imd,1),size(d.imd,2));
+                    m = find(d.labeled==i);
+                    ROIs(m)=1;
+                    % You can only multiply integers if they are of the same type.
+                    ROIs = cast(ROIs, class(d.imd(:,:,1)));
+                    d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
+                    d.roi{j,i}=d.imdrem{j,i}(m);
                 end
-                return;
-            case 'NO'
-                MaxIntensProj = max(d.imd, [], 3);
-                singleFrame=MaxIntensProj;
-                if d.dF==1 || d.flat==1;
-                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-                else
-                    axes(handles.axes1); imshow(singleFrame); hold on;
-                end
-                for k=1:size(d.b,1);
-                plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
-                text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
-                end
-                hold off;
-                msgbox('PLEASE DO NOT SUPERIMPOSE ROIs!','ERROR');
-                d.mask = d.mask-ROI;
-                d.bcount=d.bcount-1;
-                return;
-        end
-    else
-        d.mask(d.mask>0)=1;
+                waitbar(j/size(d.imd,3),h);
+            end
+            close(h);
+            %plotting ROIs
+            singleFrame=d.mip;
+            if d.dF==1 || d.pre==1;
+                imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+            else
+                axes(handles.axes1); imshow(singleFrame); hold on;
+            end
+            B=bwboundaries(d.ROIs); %boundaries of ROIs
+            stat = regionprops(d.labeled,'Centroid');
+            d.b=cell(length(B),1);
+            d.c=cell(length(B),1);
+            ROIorder=unique(d.labeled(d.labeled>0),'stable');
+            colors=repmat(colors,1,ceil(size(d.roi,2)/8));
+            for j = 1 : size(d.roi,2);
+                d.b{j,1} = B{j};
+                d.c{j,1} = stat(j).Centroid;
+                plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
+                text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
+            end
+            hold off;
+            d.pushed=4; %signals that ROIs were selected
+            d.bcount=d.bcount-2;
+            d.roisdefined=1; %signals that ROIs were defined
+
+            %saving ROI mask & ROI order
+            % Construct a questdlg with two options
+            choice = questdlg('Would you like to save this ROI mask?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            switch choice
+                case 'YES'
+                    %saving ROI mask
+                    filename=[d.pn '\' d.fn(1:end-4)];
+                    ROImask=d.mask;
+                    save(filename, 'ROImask','ROIorder');
+                case 'NO'
+                    return;
+            end
+            return;
+        case 'NO'
+            singleFrame=d.mip;
+            if d.dF==1 || d.pre==1;
+                imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+            else
+                axes(handles.axes1); imshow(singleFrame); hold on;
+            end
+            for k=1:size(d.b,1);
+            plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
+            text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
+            end
+            hold off;
+            msgbox('PLEASE DO NOT SUPERIMPOSE ROIs!','ERROR');
+            d.labeled = d.labeled-ROI*d.bcount;
+            d.ROIs = d.ROIs-ROI;
+            d.bcount=d.bcount-1;
+            return;
     end
 else
-    d.labeled = d.labeled+ROI*d.bcount; %labeling of ROIs
-    d.ROIs = d.ROIs+ROI;
-    %checking if ROIs are superimposed on each other
-    if numel(find(d.ROIs>1))>0;
-        choice = questdlg('Would you like to remove this ROI?', ...
-        'Attention', ...
-        'YES','NO','YES');
-        % Handle response
-        switch choice
-            case 'YES'
-                d.ROIs=d.ROIs-(2*ROI);
-                d.ROIs(d.ROIs<0)=0;
-                d.labeled=bwlabel(d.ROIs);
-                d.adding=0;
-                % relabel ROIs
-                n=size(d.imd,3);
-                CC=bwconncomp(d.ROIs);
-                numROIs=CC.NumObjects; %number of ROIs
-                d.imdrem=cell(size(d.imd,3),numROIs);
-                d.roi=cell(size(d.imd,3),numROIs);
-                h=waitbar(0,'Relabeling ROIs');
-                for j=1:n;
-                    for i=1:numROIs;
-                        ROIs=zeros(size(d.imd,1),size(d.imd,2));
-                        m = find(d.labeled==i);
-                        ROIs(m)=1;
-                        % You can only multiply integers if they are of the same type.
-                        ROIs = cast(ROIs, class(d.imd(:,:,1)));
-                        d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
-                        d.roi{j,i}=d.imdrem{j,i}(m);
-                    end
-                    waitbar(j/size(d.imd,3),h);
-                end
-                close(h);
-                %plotting ROIs
-                MaxIntensProj = max(d.imd, [], 3);
-                singleFrame=MaxIntensProj;
-                if d.dF==1 || d.flat==1;
-                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-                else
-                    axes(handles.axes1); imshow(singleFrame); hold on;
-                end
-                B=bwboundaries(d.ROIs); %boundaries of ROIs
-                stat = regionprops(d.labeled,'Centroid');
-                d.b=cell(length(B),1);
-                d.c=cell(length(B),1);
-                ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                colors=repmat(colors,1,ceil(size(d.roi,2)/8));
-                for j = 1 : size(d.roi,2);
-                    d.b{j,1} = B{j};
-                    d.c{j,1} = stat(j).Centroid;
-                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-                end
-                hold off;
-                d.pushed=4; %signals that ROIs were selected
-                if d.adding==1;
-                    d.thresh=1;
-                else
-                    d.thresh=0; %signals that ROIs were selected manually and not with a threshold
-                end
-                d.roisdefined=1; %signals that ROIs were defined
-
-                %saving ROI mask
-                % Construct a questdlg with two options
-                choice = questdlg('Would you like to save this ROI mask?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                switch choice
-                    case 'YES'
-                        filename=[d.pn '\' d.fn(1:end-4)];
-                        ROImask=d.mask;
-                        save(filename, 'ROImask');
-                    case 'NO'
-                        return;
-                end
-                return;
-            case 'NO'
-                MaxIntensProj = max(d.imd, [], 3);
-                singleFrame=MaxIntensProj;
-                if d.dF==1 || d.flat==1;
-                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-                else
-                    axes(handles.axes1); imshow(singleFrame); hold on;
-                end
-                for k=1:size(d.b,1);
-                plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
-                text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
-                end
-                hold off;
-                msgbox('PLEASE DO NOT SUPERIMPOSE ROIs!','ERROR');
-                d.mask = d.mask-ROI;
-                d.bcount=d.bcount-1;
-                return;
-        end
-    else
-        d.ROIs(d.ROIs>0)=1;
-    end
+    d.ROIs(d.ROIs>0)=1;
 end
 %values from video in ROIs
 ROIs=size(d.ROIs,2);
@@ -1175,76 +986,36 @@ h=waitbar(0,'Labeling ROIs');
 for k = 1:size(d.imd,3);
     imdROI{k,d.bcount} = ROI.*double(d.imd(:,:,k)); %applying ROI mask to real values
     d.roi{k,d.bcount}= imdROI{k,d.bcount}(imdROI{k,d.bcount}>0); %extract only values and discard zeros from mask
-    if d.adding==1;
-        d.ROIs{k,ROIs+1}=d.roi{k,d.bcount};
-    end
     waitbar(k/size(d.imd,3),h);
 end
 close(h);
 %plotting ROIs
-MaxIntensProj = max(d.imd, [], 3);
-singleFrame=MaxIntensProj;
-if d.dF==1 || d.flat==1;
+singleFrame=d.mip;
+if d.dF==1 || d.pre==1;
     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
 else
     axes(handles.axes1); imshow(singleFrame); hold on;
 end
-if d.adding==1;
-    B=bwboundaries(d.mask); %boundaries of ROIs
-    stat = regionprops(d.labeled,'Centroid');
-    d.b=cell(length(B),1);
-    d.c=cell(length(B),1);
-    ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
-    for j = 1 : size(d.ROIs,2);
-        d.b{j,1} = B{j};
-        d.c{j,1} = stat(j).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-    end
-else
-    B=bwboundaries(d.ROIs); %boundaries of ROIs
-    stat = regionprops(d.labeled,'Centroid');
-    d.b=cell(length(B),1);
-    d.c=cell(length(B),1);
-    ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    colors=repmat(colors,1,ceil(d.bcount/8));
-    for j = 1 : d.bcount;
-        d.b{j,1} = B{j};
-        d.c{j,1} = stat(j).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
-    end
+B=bwboundaries(d.ROIs); %boundaries of ROIs
+stat = regionprops(d.labeled,'Centroid');
+d.b=cell(length(B),1);
+d.c=cell(length(B),1);
+ROIorder=unique(d.labeled(d.labeled>0),'stable');
+colors=repmat(colors,1,ceil(d.bcount/8));
+for j = 1 : d.bcount;
+    d.b{j,1} = B{j};
+    d.c{j,1} = stat(j).Centroid;
+    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
+    text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
 end
 hold off;
 d.pushed=4; %signals that ROIs were selected
-if d.adding==1;
-    d.thresh=1;
-else
-    d.thresh=0; %signals that ROIs were selected manually and not with a threshold
-end
 d.roisdefined=1; %signals that ROIs were defined
 
 %saving ROI mask
-if d.adding==1;
-    % Construct a questdlg with two options
-    choice = questdlg('Would you like to save this ROI mask?', ...
-        'Attention', ...
-        'YES','NO','YES');
-    % Handle response
-    switch choice
-        case 'YES'
-            filename=[d.pn '\' d.fn(1:end-4)];
-            ROImask=d.mask;
-            save(filename, 'ROImask');
-        case 'NO'
-            return;
-    end
-else
-    filename=[d.pn '\' d.fn(1:end-4)];
-    ROImask=d.ROIs;
-    save(filename, 'ROImask');
-end
+filename=[d.pn '\' d.fn(1:end-4)];
+ROImask=d.ROIs;
+save(filename, 'ROImask','ROIorder');
 
 
 
@@ -1272,8 +1043,6 @@ d.roi=[];
 d.bg=[];
 d.b=[];
 d.c=[];
-d.adding = 0;
-d.thresh=0; %signals no threshold was applied
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 
@@ -1283,8 +1052,7 @@ else
     imdMax=1/(max(max(max(d.imd))));
 end
 
-MaxIntensProj = max(d.imd, [], 3);
-singleFrame=MaxIntensProj;
+singleFrame=d.mip;
 if d.dF==1;
     singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
     axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
@@ -1293,205 +1061,6 @@ else
 end
 msgbox('ROIs cleared!','Success');
 
-
-
-
-% --- Executes on slider movement.                  SETTING ROI THRESHOLD
-function slider17_Callback(hObject, eventdata, handles)
-% hObject    handle to slider17 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-global d
-if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
-    return;
-end
-if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
-    return;
-end
-d.pushed=3; %signals that threshold was used
-%converting video such that values are between 1 and 0
-% d.imd=d.imd.*(1/max(max(max(d.imd)))); % for 2-P videos
-MaxIntensProj=max(d.imd, [], 3);
-smallestAcceptableArea = 25;
-structuringElement = strel('disk', 2);
-imageThresh = imclose(bwareaopen(im2bw(MaxIntensProj, handles.slider17.Value),smallestAcceptableArea),structuringElement);
-axes(handles.axes1); imshow(imageThresh);
-
-% --- Executes during object creation, after setting all properties.
-function slider17_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to slider17 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
-% --- Executes on button press in pushbutton13.       SETTING ROI THRESHOLD FOR ALL FRAMES
-function pushbutton13_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton13 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-global d
-global v
-if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
-    return;
-end
-if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
-    return;
-end
-
-uiwait(msgbox('PLEASE SELECT AREAS YOU DO NOT WANT IN YOUR ROI MASK!'));
-
-MaxIntensProj=max(d.imd, [], 3);
-smallestAcceptableArea = 25;
-structuringElement = strel('disk', 2);
-imageThresh = imclearborder(imclose(bwareaopen(im2bw(MaxIntensProj, handles.slider17.Value),smallestAcceptableArea),structuringElement));
-imageThresh = imfill(logical(imageThresh), 'holes');
-c=1;
-while c==1;
-    ROI=roipoly(imageThresh);
-    ROI=ROI*2;
-    Mask=imageThresh-ROI;
-    Mask(Mask<0)=0;
-    axes(handles.axes1); imshow(Mask);
-    % Construct a questdlg with two options
-    choice = questdlg('Would you like to remove more areas manually?', ...
-        'Attention', ...
-        'YES','NO','YES');
-    % Handle response
-    switch choice
-        case 'YES'
-            imageThresh=Mask;
-        case 'NO'
-            c=c-1;
-    end
-end
-
-d.mask=Mask;
-
-% h=waitbar(0,'Setting ROI Threshold for all frames');
-% d.mask=zeros(size(d.imd,1),size(d.imd,2));
-% imageThresh=cell(size(d.imd,3),1);
-n=size(d.imd,3);
-% imd=d.imd;
-% slider17=handles.slider17.Value;
-% for k=1:n; %parallel processing loop (parfor), waitbar is not working for that!!
-%     imageThresh{k,1} = im2bw(imd(:,:,k), slider17);
-%     % Filter out small objects.
-%     smallestAcceptableArea = 25;
-%     % Get rid of small objects.  Note: bwareaopen returns a logical.
-%     imageThresh{k,1} = uint8(bwareaopen(imageThresh{k,1}, smallestAcceptableArea));
-%     % Smooth the border using a morphological closing operation, imclose().
-%     structuringElement = strel('disk', 4);
-%     imageThresh{k,1} = imclose(imageThresh{k,1}, structuringElement);
-%     % Fill in any holes in the regions, since they are most likely green also.
-%     imageThresh{k,1} = imfill(logical(imageThresh{k,1}), 'holes');
-%     % Exclude faulty frames
-%     if numel(find(imageThresh{k,1})) > numel(imageThresh{k,1})/100*90;
-%         imageThresh{k,1} = zeros(size(imageThresh{k,1},1),size(imageThresh{k,1},2));
-%     end
-%     d.mask=d.mask+imageThresh{k,1};
-%     waitbar(k/n,h);
-% end
-% d.mask(d.mask>0)=1;
-% d.mask=imfill(d.mask,'holes');
-background=d.mask;
-background(background==1)=2;
-background(background==0)=1;
-background(background==2)=0;
-% close(h);
-
-% label ROIs
-CC=bwconncomp(d.mask);
-numROIs=CC.NumObjects; %number of ROIs
-d.imdThresh=cell(size(d.imd,3),numROIs);
-d.ROIs=cell(size(d.imd,3),numROIs);
-d.background=cell(size(d.imd,3),1);
-d.bg=cell(size(d.imd,3),1);
-d.labeled = bwlabel(d.mask);
-h=waitbar(0,'Labeling ROIs');
-for j=1:n;
-    for i=1:numROIs;
-        ROIs=zeros(size(d.imd,1),size(d.imd,2));
-        m = find(d.labeled==i);
-        ROIs(m)=1;
-        % You can only multiply integers if they are of the same type.
-        ROIs = cast(ROIs, class(d.imd(:,:,1)));
-        d.imdThresh{j,i} = ROIs .* d.imd(:,:,j);
-        d.ROIs{j,i}=d.imdThresh{j,i}(m);
-    end
-    % You can only multiply integers if they are of the same type.
-    nn = find(background==1);
-    background = cast(background, class(d.imd(:,:,1)));
-    d.background{j,1} = background .* d.imd(:,:,j);
-    d.bg{j,1}=d.background{j,1}(nn);
-    waitbar(j/size(d.imd,3),h);
-end
-close(h);
-if d.dF==1;
-    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
-    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
-else
-    axes(handles.axes1); imshow(d.imd(:,:,1)); hold on;
-end
-B=bwboundaries(d.mask);
-if isequal(size(B,1),max(max(d.labeled)))==0
-    %resets all varibles needed for selecting ROIs
-    d.bcount=0; %signals ROI button was not pressed
-    d.pushed=1; %signals video was loaded
-    d.ROIs=zeros(size(d.imd,1),size(d.imd,2));
-    d.roi=[];
-    d.bg=[];
-    d.thresh=0; %signals no threshold was applied
-    d.roisdefined=0; %signals no ROIs were selected
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
-        axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
-    else
-        axes(handles.axes1); imshow(singleFrame);
-    end
-    msgbox('Please redefine threshold!','Error');
-    return;
-end
-stat = regionprops(d.labeled,'Centroid');
-d.b=cell(length(B),1);
-d.c=cell(length(B),1);
-for k = 1 : length(B)
-    d.b{k,1} = B{k};
-    d.c{k,1} = stat(k).Centroid;
-    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
-    text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
-end
-hold off;
-d.pushed=4; %signals that ROIs were selected
-d.thresh=1; %signals that threshold was used
-d.roisdefined=1; %signals that ROIs were defined
-uiwait(msgbox('Labeling Completed. Please plot the ROI values!','Success'));
-%saving ROI mask
-% Construct a questdlg with two options
-choice = questdlg('Would you like to save this ROI mask?', ...
-    'Attention', ...
-    'YES','NO','YES');
-% Handle response
-switch choice
-    case 'YES'
-        filename=[d.pn '\' d.fn(1:end-4)];
-        ROImask=d.mask;
-        save(filename, 'ROImask');
-    case 'NO'
-        return;
-end
 
 
 
@@ -1510,8 +1079,6 @@ d.roi=[];
 d.bg=[];
 d.b=[];
 d.c=[];
-d.adding = 0;
-d.thresh=0; %signals no threshold was applied
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 
@@ -1522,14 +1089,6 @@ filePattern = fullfile(pn, '*.mat');
 Files = dir(filePattern);
 fn = Files(1).name;
 load([pn '\' fn]);
-%checking if mask and video have same dimensions
-[x1,y1,~]=size(d.imd);
-[x2,y2]=size(ROImask);
-text=sprintf('ROI mask and CI video must have the same dimensions! ROImask: %d x %d',x2,y2);
-if x1~=x2 && y1~=y2;
-    msgbox(text,'Attention!');
-    return
-end
 d.mask=ROImask;
 %plotting ROIs
 colors={[0    0.4471    0.7412],...
@@ -1542,31 +1101,26 @@ colors={[0    0.4471    0.7412],...
     [0.6784    0.9216    1.0000]};
 
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-if d.dF==1;
-    singleFrame=d.imd(:,:,round(handles.slider7.Value))*(1/max(max(max(d.imd))));
-    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray); hold on;
+if d.dF==1 || d.pre==1;
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
 else
     axes(handles.axes1); imshow(singleFrame); hold on;
 end
 B=bwboundaries(d.mask); %boundaries of ROIs
-colors=repmat(colors,1,ceil(length(B)/8));
 d.labeled=bwlabel(d.mask);
 stat = regionprops(d.labeled,'Centroid');
 d.b=cell(length(B),1);
 d.c=cell(length(B),1);
+colors=repmat(colors,1,ceil(length(B)/8));
 for j = 1 : length(B);
     d.b{j,1} = B{j};
     d.c{j,1} = stat(j).Centroid;
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,j});
-%     text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
+    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,ROIorder(j)});
+    text(d.c{j,1}(1),d.c{j,1}(2),num2str(ROIorder(j)));
 end
 hold off;
 d.pushed=4; %signals that ROIs were selected
-if d.adding==1;
-    d.thresh=1;
-else
-    d.thresh=0; %signals that ROIs were selected manually and not with a threshold
-end
 d.roisdefined=1; %signals that ROIs were defined
 
 % label ROIs
@@ -1589,7 +1143,7 @@ for j=1:size(d.imd,3);
         % You can only multiply integers if they are of the same type.
         ROIs = cast(ROIs, class(d.imd(:,:,1)));
         d.imdThresh{j,i} = ROIs .* d.imd(:,:,j);
-        d.ROIs{j,i}=d.imdThresh{j,i}(m);
+        d.ROIs{j,ROIorder(i)}=d.imdThresh{j,i}(m);
     end
     % You can only multiply integers if they are of the same type.
     nn = find(background==1);
@@ -1598,7 +1152,6 @@ for j=1:size(d.imd,3);
     d.bg{j,1}=d.background{j,1}(nn);
     waitbar(j/size(d.imd,3),h);
 end
-d.thresh=1; %signals that threshold was used
 d.load=1; %signals that a ROI mask was loaded
 close(h);
 msgbox('Loading complete!');
@@ -2042,7 +1595,7 @@ ROIorder=unique(d.labeled(d.labeled>0),'stable');
 
 if d.pushed==1;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         axes(handles.axes1); imshow(singleFrame);
@@ -2059,7 +1612,7 @@ elseif d.pushed==3;
     set(handles.text36, 'String', textLabel);
 elseif d.pushed==4;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         axes(handles.axes1); imshow(singleFrame);hold on;
@@ -2159,7 +1712,7 @@ if v.pushed==1 && d.pushed==1;
     image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
@@ -2205,7 +1758,7 @@ elseif v.pushed==1 && d.pushed==4;
     image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
@@ -2235,7 +1788,7 @@ elseif  v.pushed==2 && d.pushed==1;
     imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
@@ -2281,7 +1834,7 @@ elseif v.pushed==2 && d.pushed==4;
     imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
@@ -2311,7 +1864,7 @@ elseif v.pushed==3 && d.pushed==1;
     imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
@@ -2357,7 +1910,7 @@ elseif v.pushed==3 && d.pushed==4;
     imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
@@ -2388,7 +1941,7 @@ if d.pushed==1;
     axes(handles.axes1); %original video
     for k=round(handles.slider7.Value):size(d.imd,3);
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
@@ -2436,7 +1989,7 @@ elseif d.pushed==4;
     axes(handles.axes1); %video with ROIs
     for k=round(handles.slider7.Value):size(d.imd,3);
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.flat==1;
+    if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
