@@ -573,6 +573,8 @@ end
 d.imd=imd;
 close(h);
 
+d.origCI=d.imd; %keeping this file stored as original video
+
 %flatfield correction
 
 H = fspecial('average',round(.08*size(d.imd,1))); %8 % blur
@@ -585,7 +587,6 @@ d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 
-d.origCI=d.imd; %keeping this file stored as original video
 d.pre=1;
 %plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
@@ -758,15 +759,15 @@ end
 h=waitbar(0,'Calculating deltaF/F');
 Fmean=mean(d.imd(:,:,1:100:end),3); %% insert slight blurring filter?
 imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean);
-%temporal filter below was removed because of artifacts
-% [bFilt,aFilt] = butter(4,.5, 'low');
-% 
-% for kr=1:size(imddF,1)
-%     for kc=1:size(imddF,2)
-%        imddF(kr,kc,:)=filtfilt(bFilt,aFilt,imddF(kr,kc,:)); %temporal low-passing
-%     end
-% %     disp(kr);
-% end
+    %temporal filter below was removed because of artifacts
+    % [bFilt,aFilt] = butter(4,.5, 'low');
+    % 
+    % for kr=1:size(imddF,1)
+    %     for kc=1:size(imddF,2)
+    %        imddF(kr,kc,:)=filtfilt(bFilt,aFilt,imddF(kr,kc,:)); %temporal low-passing
+    %     end
+    % %     disp(kr);
+    % end
 
 hhh = fspecial('gaussian', 5, 5);
 %SE = strel('disk', 15);
@@ -848,9 +849,11 @@ if d.bcount>0;
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
     singleFrame=d.mip./max(max(d.mip));
     axes(handles.axes1); imshow(singleFrame);hold on;
+    stat = regionprops(d.labeled,'Centroid');
     for k=1:size(d.b,1);
-    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-    text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
+        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
     end
     hold off;
     f=getframe(handles.axes1);
@@ -859,9 +862,11 @@ elseif d.load==1;
     colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     singleFrame=d.mip./max(max(d.mip));
     axes(handles.axes1); imshow(singleFrame);hold on;
+    stat = regionprops(d.labeled,'Centroid');
     for k=1:size(d.b,1);
-    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
     end
     hold off;
     f=getframe(handles.axes1);
@@ -883,9 +888,11 @@ if numel(find(ROI))==0;
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
+    stat = regionprops(d.labeled,'Centroid');
     for k=1:size(d.b,1);
-    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
-    text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
+        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
     end
     hold off;
     d.valid=1;
@@ -894,7 +901,6 @@ if numel(find(ROI))==0;
 end
 %count times button is pressed
 d.bcount=d.bcount+1;
-imdROI=cell(size(d.imd,3),d.bcount);
 
 if d.load==1;
    d.labeled = d.labeled+(ROI*(max(max(d.labeled))+1)); %labeling of ROIs
@@ -952,13 +958,14 @@ if d.load==1;
                 colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
                 for j = 1 : size(d.ROIs,2);
                     d.b{j,1} = B{j};
-                    d.c{j,1} = stat(j).Centroid;
+                    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
                     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
                     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
                 hold off;
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
+                d.bcount=d.bcount-1;
 
                 %saving ROI mask
                 % Construct a questdlg with two options
@@ -971,7 +978,8 @@ if d.load==1;
                         %saving ROI mask
                         filename=[d.pn '\' d.fn(1:end-4)];
                         ROImask=d.mask;
-                        save(filename, 'ROImask','d.ROIorder');
+                        ROIorder=d.ROIorder;
+                        save(filename, 'ROImask','ROIorder');
                     case 'NO'
                         return;
                 end
@@ -986,9 +994,11 @@ if d.load==1;
                 d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
                 d.labeled(d.labeled<0)=0;
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
+                stat = regionprops(d.labeled,'Centroid');
                 for k=1:size(d.b,1);
-                plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-                text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+                    d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+                    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+                    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
                 end
                 hold off;
                 msgbox('PLEASE DO NOT SUPERIMPOSE ROIs!','ERROR');
@@ -1001,6 +1011,7 @@ if d.load==1;
     end
     %values from video in ROIs
     h=waitbar(0,'Labeling ROIs');
+    imdROI=cell(size(d.imd,3),d.bcount);
     for k = 1:size(d.imd,3);
         m = find(d.labeled==d.bcount);
         ROI = cast(ROI, class(d.imd(:,:,1)));
@@ -1026,9 +1037,9 @@ if d.load==1;
     colors=repmat(colors,1,ceil(d.bcount/8));
     for j = 1 : length(B);
         d.b{j,1} = B{j};
-        d.c{j,1} = stat(j).Centroid;
+        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
         plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
     d.pushed=4; %signals that ROIs were selected
@@ -1037,7 +1048,8 @@ if d.load==1;
     %saving ROI mask
     filename=[d.pn '\' d.fn(1:end-4)];
     ROImask=d.mask;
-    save(filename, 'ROImask','d.ROIorder');
+    ROIorder=d.ROIorder;
+    save(filename, 'ROImask','ROIorder');
 else
     d.labeled = d.labeled+ROI*d.bcount; %labeling of ROIs
     d.ROIs = d.ROIs+ROI;
@@ -1087,9 +1099,9 @@ else
                 colors=repmat(colors,1,ceil(size(d.roi,2)/8));
                 for j = 1 : size(d.roi,2);
                     d.b{j,1} = B{j};
-                    d.c{j,1} = stat(j).Centroid;
+                    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
                     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
+                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
                 hold off;
                 d.pushed=4; %signals that ROIs were selected
@@ -1107,27 +1119,30 @@ else
                         %saving ROI mask
                         filename=[d.pn '\' d.fn(1:end-4)];
                         ROImask=d.mask;
-                        save(filename, 'ROImask','d.ROIorder');
+                        ROIorder=d.ROIorder;
+                        save(filename, 'ROImask','ROIorder');
                     case 'NO'
                         return;
                 end
                 return;
             case 'NO'
+                d.labeled = d.labeled-ROI*d.bcount;
+                d.ROIs = d.ROIs-ROI;
+                d.bcount=d.bcount-1;
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1;
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
+                stat = regionprops(d.labeled,'Centroid');
                 for k=1:size(d.b,1);
-                plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
-                text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
+                    d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+                    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+                    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
                 end
                 hold off;
                 msgbox('PLEASE DO NOT SUPERIMPOSE ROIs!','ERROR');
-                d.labeled = d.labeled-ROI*d.bcount;
-                d.ROIs = d.ROIs-ROI;
-                d.bcount=d.bcount-1;
                 return;
         end
     else
@@ -1160,9 +1175,9 @@ else
     colors=repmat(colors,1,ceil(d.bcount/8));
     for j = 1 : d.bcount;
         d.b{j,1} = B{j};
-        d.c{j,1} = stat(j).Centroid;
+        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
         plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(j));
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
     d.pushed=4; %signals that ROIs were selected
@@ -1171,7 +1186,8 @@ else
     %saving ROI mask
     filename=[d.pn '\' d.fn(1:end-4)];
     ROImask=d.ROIs;
-    save(filename, 'ROImask','d.ROIorder');
+    ROIorder=d.ROIorder;
+    save(filename, 'ROImask','ROIorder');
 end
 
 
@@ -1821,9 +1837,11 @@ elseif d.pushed==4;
     else
         axes(handles.axes1); imshow(singleFrame);hold on;
     end
+    stat = regionprops(d.labeled,'Centroid');
     for k=1:size(d.b,1);
-    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
     end
     hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
@@ -1967,9 +1985,11 @@ elseif v.pushed==1 && d.pushed==4;
     else
         imshow(singleFrame);hold on;
     end
+    stat = regionprops(d.labeled,'Centroid');
     for j=1:size(d.b,1);
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
     handles.slider7.Value=k;
@@ -2043,9 +2063,11 @@ elseif v.pushed==2 && d.pushed==4;
     else
         imshow(singleFrame);hold on;
     end
+    stat = regionprops(d.labeled,'Centroid');
     for j=1:size(d.b,1);
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
     handles.slider7.Value=k;
@@ -2119,9 +2141,11 @@ elseif v.pushed==3 && d.pushed==4;
     else
         imshow(singleFrame);hold on;
     end
+    stat = regionprops(d.labeled,'Centroid');
     for j=1:size(d.b,1);
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
     handles.slider7.Value=k;
@@ -2198,9 +2222,11 @@ elseif d.pushed==4;
     else
         imshow(singleFrame);hold on;
     end
+    stat = regionprops(d.labeled,'Centroid');
     for j=1:size(d.b,1);
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
     handles.slider7.Value=k;
