@@ -271,9 +271,6 @@ else
         d.imd(:,:,k) = Images;
     end
 end
-%defining dimensions of ROI matrix for later functions 'ROIs'
-d.ROIs=zeros(Height,Width);
-d.labeled = zeros(Height,Width);
 d.pushed=1; %signals that file was selected
 d.roisdefined=0; %no rois defined
 d.b=[];
@@ -314,13 +311,14 @@ if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
 end
+if d.pre==1 || d.dF==1;
+    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
+    return;
+end
+
 %handles.slider5.Value changes low in value
 if d.pushed==4 || d.roisdefined==1;
-    if d.dF==1;
-        singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    else
-        singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
+    singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -329,13 +327,8 @@ if d.pushed==4 || d.roisdefined==1;
     hold off;
     d.pushed=4;
 else
-    d.pushed=1;
-    if d.dF==1;
-            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        else
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
-axes(handles.axes1); imshow(singleFrame); %shows image in axes1
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 
 % --- Executes during object creation, after setting all properties.
@@ -363,13 +356,14 @@ if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
 end
+if d.pre==1 || d.dF==1;
+    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
+    return;
+end
+
 %handles.slider6.Value changes low out value
 if d.pushed==4 || d.roisdefined==1;
-    if d.dF==1;
-            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        else
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
+    singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -378,12 +372,7 @@ if d.pushed==4 || d.roisdefined==1;
     hold off;
     d.pushed=4;
 else
-    d.pushed=1;
-    if d.dF==1;
-            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        else
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 
@@ -412,13 +401,14 @@ if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
 end
+if d.pre==1 || d.dF==1;
+    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
+    return;
+end
+
 %handles.slider15.Value changes high in value
 if d.pushed==4 || d.roisdefined==1;
-    if d.dF==1;
-            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        else
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
+    singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -427,12 +417,7 @@ if d.pushed==4 || d.roisdefined==1;
     hold off;
     d.pushed=4;
 else
-    d.pushed=1;
-    if d.dF==1;
-            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        else
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 
@@ -461,13 +446,14 @@ if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
     return;
 end
+if d.pre==1 || d.dF==1;
+    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
+    return;
+end
+
 %handles.slider16.Value changes high out value
 if d.pushed==4 || d.roisdefined==1;
-    if d.dF==1;
-            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        else
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
+    singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
@@ -477,11 +463,7 @@ if d.pushed==4 || d.roisdefined==1;
     d.pushed=4;
 else
     d.pushed=1;
-    if d.dF==1;
-            singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        else
-            singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    end
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 end
 
@@ -506,9 +488,6 @@ function pushbutton22_Callback(hObject, eventdata, handles)
 global d
 if d.pushed==0;
     msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
-    return;
-elseif d.dF==1;
-    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
     return;
 end
 %resets values of low in/out, high in/out to start values
@@ -536,8 +515,6 @@ if d.pre==1;
 end
 %variable initialization
 imd=cast(zeros(ceil(size(d.imd,1)*0.4),ceil(size(d.imd,2)*0.4),size(d.imd,3)),class(d.imd));
-d.ROIs=zeros(ceil(size(d.imd,1)*0.4),ceil(size(d.imd,2)*0.4));
-d.labeled =zeros(ceil(size(d.imd,1)*0.4),ceil(size(d.imd,2)*0.4));
 meanChange=diff(mean(mean(d.imd,1),2));
 
 %Downsampling
@@ -573,7 +550,7 @@ end
 d.imd=imd;
 close(h);
 
-d.origCI=d.imd; %keeping this file stored as original video
+d.origCI=imresize(d.imd,0.805); %keeping this file stored as original video
 
 %flatfield correction
 
@@ -584,7 +561,7 @@ d.imd=uint16(single(max(max(d.imd(:,:,1))))*bsxfun(@rdivide,single(d.imd),single
 s=size(d.imd); %cut middle 80 % of image
 d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
 %showing resulting frame
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+singleFrame=d.imd(:,:,round(handles.slider7.Value));
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 
 d.pre=1;
@@ -717,9 +694,8 @@ if d.pushed==4;
     %resets all varibles needed for selecting ROIs
     d.bcount=0; %signals ROI button was not pressed
     d.pushed=1; %signals video was loaded
-    d.ROIs=zeros(size(d.imd,1),size(d.imd,2));
+    d.ROIs=[];
     d.labeled = zeros(size(d.imd,1),size(d.imd,2));
-    d.roi=[];
     d.bg=[];
     d.b=[];
     d.c=[];
@@ -783,10 +759,13 @@ for k=1:size(d.imd,3);
 end
 d.imd=imddF;
 close(h);
-d.ROIs=zeros(size(d.imd,1),size(d.imd,2));
+%variable initialization for ROI processing
+d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.labeled = zeros(size(d.imd,1),size(d.imd,2));
+d.ROIs=[];
+
 %showing resulting frame
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+singleFrame=d.imd(:,:,round(handles.slider7.Value));
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 d.dF=1;
 %finding cells with maximum intensity projection and standard deviation
@@ -937,7 +916,7 @@ if d.load==1;
                 end
                 close(h);
                 %plotting ROIs
-                singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+                singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 if d.dF==1 || d.pre==1;
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
@@ -1002,12 +981,12 @@ if d.load==1;
     end
     %values from video in ROIs
     h=waitbar(0,'Labeling ROIs');
-    imdROI=cell(size(d.imd,3),(max(max(d.labeled))+1));
+    imdROI=cell(size(d.imd,3),(max(max(d.labeled))));
     for k = 1:size(d.imd,3);
-        m = find(d.labeled==(max(max(d.labeled))+1));
+        m = find(d.labeled==(max(max(d.labeled))));
         ROI = cast(ROI, class(d.imd(:,:,1)));
-        imdROI{k,(max(max(d.labeled))+1)} = ROI.*d.imd(:,:,k); %applying ROI mask to real values
-        d.roi{k,(max(max(d.labeled))+1)}= imdROI{k,(max(max(d.labeled))+1)}(m);
+        imdROI{k,(max(max(d.labeled)))} = ROI.*d.imd(:,:,k); %applying ROI mask to real values
+        d.ROIs{k,(max(max(d.labeled)))}= imdROI{k,(max(max(d.labeled)))}(m);
         waitbar(k/size(d.imd,3),h);
     end
     close(h);
@@ -1043,24 +1022,24 @@ if d.load==1;
     save(filename, 'ROImask','ROIorder');
 else
     d.labeled = d.labeled+ROI*(max(max(d.labeled))+1); %labeling of ROIs
-    d.ROIs = d.ROIs+ROI;
+    d.mask = d.mask+ROI;
     %checking if ROIs are superimposed on each other
-    if numel(find(d.ROIs>1))>0;
+    if numel(find(d.mask>1))>0;
         choice = questdlg('Would you like to remove this ROI?', ...
         'Attention', ...
         'YES','NO','YES');
         % Handle response
         switch choice
             case 'YES'
-                d.ROIs=d.ROIs-(2*ROI);
-                d.ROIs(d.ROIs<0)=0;
-                d.labeled=bwlabel(d.ROIs);
+                d.mask=d.mask-(2*ROI);
+                d.mask(d.mask<0)=0;
+                d.labeled=bwlabel(d.mask);
                 % relabel ROIs
                 n=size(d.imd,3);
-                CC=bwconncomp(d.ROIs);
+                CC=bwconncomp(d.mask);
                 numROIs=CC.NumObjects; %number of ROIs
                 d.imdrem=cell(size(d.imd,3),numROIs);
-                d.roi=cell(size(d.imd,3),numROIs);
+                d.ROIs=cell(size(d.imd,3),numROIs);
                 h=waitbar(0,'Relabeling ROIs');
                 for j=1:n;
                     for i=1:numROIs;
@@ -1070,7 +1049,7 @@ else
                         % You can only multiply integers if they are of the same type.
                         ROIs = cast(ROIs, class(d.imd(:,:,1)));
                         d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
-                        d.roi{j,i}=d.imdrem{j,i}(m);
+                        d.ROIs{j,i}=d.imdrem{j,i}(m);
                     end
                     waitbar(j/size(d.imd,3),h);
                 end
@@ -1082,13 +1061,13 @@ else
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                B=bwboundaries(d.ROIs); %boundaries of ROIs
+                B=bwboundaries(d.mask); %boundaries of ROIs
                 stat = regionprops(d.labeled,'Centroid');
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                colors=repmat(colors,1,ceil(size(d.roi,2)/8));
-                for j = 1 : size(d.roi,2);
+                colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
+                for j = 1 : size(d.ROIs,2);
                     d.b{j,1} = B{j};
                     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
                     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
@@ -1117,7 +1096,7 @@ else
                 return;
             case 'NO'
                 d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
-                d.ROIs = d.ROIs-ROI;
+                d.mask = d.mask-ROI;
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1;
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
@@ -1135,15 +1114,15 @@ else
                 return;
         end
     else
-        d.ROIs(d.ROIs>0)=1;
+        d.mask(d.mask>0)=1;
     end
     %values from video in ROIs
     h=waitbar(0,'Labeling ROIs');
     for k = 1:size(d.imd,3);
-        m = find(d.labeled==(max(max(d.labeled))+1));
+        m = find(d.labeled==(max(max(d.labeled))));
         ROI = cast(ROI, class(d.imd(:,:,1)));
-        imdROI{k,(max(max(d.labeled))+1)} = ROI.*d.imd(:,:,k); %applying ROI mask to real values
-        d.roi{k,(max(max(d.labeled))+1)}= imdROI{k,(max(max(d.labeled))+1)}(m);
+        imdROI{k,(max(max(d.labeled)))} = ROI.*d.imd(:,:,k); %applying ROI mask to real values
+        d.ROIs{k,(max(max(d.labeled)))}= imdROI{k,(max(max(d.labeled)))}(m);
         waitbar(k/size(d.imd,3),h);
     end
     close(h);
@@ -1156,7 +1135,7 @@ else
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
-    B=bwboundaries(d.ROIs); %boundaries of ROIs
+    B=bwboundaries(d.mask); %boundaries of ROIs
     stat = regionprops(d.labeled,'Centroid');
     d.b=cell(length(B),1);
     d.c=cell(length(B),1);
@@ -1174,7 +1153,7 @@ else
 
     %saving ROI mask
     filename=[d.pn '\' d.fn(1:end-4)];
-    ROImask=d.ROIs;
+    ROImask=d.mask;
     ROIorder=d.ROIorder;
     save(filename, 'ROImask','ROIorder');
 end
@@ -1199,12 +1178,13 @@ end
 %resets all varibles needed for selecting ROIs
 d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
-d.ROIs=zeros(size(d.imd,1),size(d.imd,2));
+d.ROIs=[];
+d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.labeled = zeros(size(d.imd,1),size(d.imd,2));
-d.roi=[];
 d.bg=[];
 d.b=[];
 d.c=[];
+d.ROIorder=[];
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 
@@ -1235,12 +1215,13 @@ global d
 %resets all varibles needed for selecting ROIs
 d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
-d.ROIs=zeros(size(d.imd,1),size(d.imd,2));
+d.ROIs=[];
+d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.labeled = zeros(size(d.imd,1),size(d.imd,2));
-d.roi=[];
 d.bg=[];
 d.b=[];
 d.c=[];
+d.ROIorder=[];
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 
@@ -1263,7 +1244,7 @@ colors={[0    0.4471    0.7412],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
 
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+singleFrame=d.imd(:,:,round(handles.slider7.Value));
 if d.dF==1 || d.pre==1;
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
@@ -1369,7 +1350,7 @@ colors={[0    0.4471    0.7412],...
 
     
     %dF/f and thresholded ROIs
-if d.dF==1 && d.load==1;
+if d.load==1;
     colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     % calculate mean grey value of ROIs in percent
     d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
@@ -1493,12 +1474,12 @@ if d.dF==1 && d.load==1;
     
     
     %dF/F and manual ROIs
-elseif d.dF==1 && d.load==0;
-    colors=repmat(colors,1,ceil(size(d.roi,2)/8));
+elseif d.load==0;
+    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     %background
     bg=cell(size(d.imd,3),1);
     d.bg=cell(size(d.imd,3),1);
-    background=d.ROIs;
+    background=d.mask;
     background(background==1)=2;
     background(background==0)=1;
     background(background==2)=0;
@@ -1513,26 +1494,26 @@ elseif d.dF==1 && d.load==0;
     close(h);
     
     % calculate mean grey value of ROIs in percent
-    d.ROImeans=zeros(size(d.roi,1),size(d.roi,2));
-    d.bgmeans=zeros(size(d.roi,1),1);
-    for k=1:size(d.roi,2);
-        for i=1:size(d.roi,1);
-            d.ROImeans(i,k)=mean(d.roi{i,k});
+    d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
+    d.bgmeans=zeros(size(d.ROIs,1),1);
+    for k=1:size(d.ROIs,2);
+        for i=1:size(d.ROIs,1);
+            d.ROImeans(i,k)=mean(d.ROIs{i,k});
             d.bgmean(i,1)=mean(d.bg{i,1});
             d.ROImeans(i,k)=(d.ROImeans(i,k)-d.bgmean(i,1))*100;
         end
     end
     % plotting ROI values
-    NoofSpikes=zeros(size(d.roi,2),1);
-    spikes=cell(1,size(d.roi,2));
+    NoofSpikes=zeros(size(d.ROIs,2),1);
+    spikes=cell(1,size(d.ROIs,2));
     %initializing that only 8 subplots will be in one figure
     onesub=(1:8);
-    anysub=repmat(onesub,1,ceil(size(d.roi,2)/8));
+    anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
     check=(9:8:100);
     check2=(8:8:100);
 
     figure('color','w');
-    for j=1:size(d.roi,2);
+    for j=1:size(d.ROIs,2);
         if ismember(j,check)==1;
             figure('color','w');
         end
@@ -1540,7 +1521,7 @@ elseif d.dF==1 && d.load==0;
         plot(d.ROImeans(:,j),'Color',colors{1,j});
         strings=sprintf('ROI No.%d',j);
         %title('ROI values in percent');
-        if ismember(j,check2)==1 || j==size(d.roi,2);
+        if ismember(j,check2)==1 || j==size(d.ROIs,2);
             xlabel('Time in seconds');
         end
         ylabel('%');
@@ -1708,10 +1689,10 @@ switch choice
         hh=waitbar(0,'Converting dF/F calcium imaging video');
         for k=1:size(d.imd,3);
             frame=d.imd(:,:,k);
-%             frame(frame<(max(max(max(d.imd)))*0.66))=0;
+%             frame(frame<(mean(mean(mean(d.imd)))*2))=0;
 %             mask = imclearborder(imclose(bwareaopen(frame,smallestAcceptableArea),structuringElement));
-            frame=frame.*d.ROIs; %d.mask?
-            frame(frame<(mean(mean(mean(d.imd)))*2))=0;
+            frame=frame.*d.mask;
+            frame(frame<(max(max(max(d.imd)))*0.25))=0;
             imdconv(:,:,k)=frame;
             waitbar(k/size(d.imd,3),hh);
         end
@@ -1800,9 +1781,20 @@ colors={[0    0.4471    0.7412],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
 colors=repmat(colors,1,(ceil(size(d.b,1)/8)));
-d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
+if d.pushed==4;
+    d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
+end
 
-if d.pushed==1;
+if d.pre==1;
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        axes(handles.axes1); imshow(singleFrame);
+    end
+    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+    set(handles.text36, 'String', textLabel);
+elseif d.pushed==1;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
@@ -1811,16 +1803,8 @@ if d.pushed==1;
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-% elseif d.pushed==2;
-%     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-%     axes(handles.axes1); imshow(singleFrame);
-elseif d.pushed==3;
-    imageThresh = im2bw(d.imd(:,:,round(handles.slider7.Value)), handles.slider17.Value);
-    axes(handles.axes1); imshow(imageThresh);
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
 elseif d.pushed==4;
-    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
@@ -1912,10 +1896,36 @@ colors={[0    0.4471    0.7412],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
 colors=repmat(colors,1,ceil(size(d.b,1)/8));
-d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
+if d.pushed==4;
+    d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
+end
 
 %if both videos were loaded
-if v.pushed==1 && d.pushed==1;
+if v.pushed==1 && d.pre==1;
+    d.play=1;
+    v.play=1;
+    for k=round(handles.slider7.Value):size(d.imd,3);
+    axes(handles.axes2);
+    image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+    axes(handles.axes1); %thresholded video
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        axes(handles.axes1); imshow(singleFrame);
+    end
+    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+    set(handles.text36, 'String', textLabel);
+    pause(0.1);
+    if d.stop==1;
+        return;
+    end
+    if k==size(d.imd,3);
+        d.play=0;
+        v.play=0;
+    end
+    end
+elseif v.pushed==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
@@ -1940,27 +1950,6 @@ if v.pushed==1 && d.pushed==1;
         v.play=0;
     end
     end
-elseif v.pushed==1 && d.pushed==3;
-    d.play=1;
-    v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
-    axes(handles.axes1); %thresholded video
-    imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    imshow(imageThresh);
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if d.stop==1;
-        return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
-    end
-    end
 elseif v.pushed==1 && d.pushed==4;
     d.play=1;
     v.play=1;
@@ -1968,7 +1957,7 @@ elseif v.pushed==1 && d.pushed==4;
     axes(handles.axes2);
     image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
     axes(handles.axes1); %ROIs with video
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
@@ -1982,6 +1971,30 @@ elseif v.pushed==1 && d.pushed==4;
     end
     hold off;
     handles.slider7.Value=k;
+    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+    set(handles.text36, 'String', textLabel);
+    pause(0.1);
+    if d.stop==1;
+        return;
+    end
+    if k==size(d.imd,3);
+        d.play=0;
+        v.play=0;
+    end
+    end
+elseif v.pushed==2 && d.pre==1;
+    d.play=1;
+    v.play=1;
+    for k=round(handles.slider7.Value):size(d.imd,3);
+    axes(handles.axes2);
+    imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
+    axes(handles.axes1); %thresholded video
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        axes(handles.axes1); imshow(singleFrame);
+    end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
@@ -2018,27 +2031,6 @@ elseif  v.pushed==2 && d.pushed==1;
         v.play=0;
     end
     end
-elseif v.pushed==2 && d.pushed==3;
-    d.play=1;
-    v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
-    axes(handles.axes1); %thresholded video
-    imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    imshow(imageThresh);
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if d.stop==1;
-        return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
-    end
-    end
 elseif v.pushed==2 && d.pushed==4;
     d.play=1;
     v.play=1;
@@ -2046,7 +2038,7 @@ elseif v.pushed==2 && d.pushed==4;
     axes(handles.axes2);
     imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
     axes(handles.axes1); %ROIs with video
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
@@ -2060,6 +2052,30 @@ elseif v.pushed==2 && d.pushed==4;
     end
     hold off;
     handles.slider7.Value=k;
+    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+    set(handles.text36, 'String', textLabel);
+    pause(0.1);
+    if d.stop==1;
+        return;
+    end
+    if k==size(d.imd,3);
+        d.play=0;
+        v.play=0;
+    end
+    end
+elseif v.pushed==3 && d.pre==1;
+    d.play=1;
+    v.play=1;
+    for k=round(handles.slider7.Value):size(d.imd,3);
+    axes(handles.axes2);
+    imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
+    axes(handles.axes1); %thresholded video
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        axes(handles.axes1); imshow(singleFrame);
+    end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
@@ -2096,27 +2112,6 @@ elseif v.pushed==3 && d.pushed==1;
         v.play=0;
     end
     end
-elseif v.pushed==3 && d.pushed==3;
-    d.play=1;
-    v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
-    axes(handles.axes1); %thresholded video
-    imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    imshow(imageThresh);
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if d.stop==1;
-        return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
-    end
-    end
 elseif v.pushed==3 && d.pushed==4;
     d.play=1;
     v.play=1;
@@ -2124,7 +2119,7 @@ elseif v.pushed==3 && d.pushed==4;
     axes(handles.axes2);
     imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
     axes(handles.axes1); %ROIs with video
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
@@ -2153,7 +2148,28 @@ end
 
 
 %if only calcium video was loaded
-if d.pushed==1;
+if d.pre==1;
+    d.play=1;
+    axes(handles.axes1);
+    for k=round(handles.slider7.Value):size(d.imd,3);
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        axes(handles.axes1); imshow(singleFrame);
+    end
+    handles.slider7.Value=k;
+    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+    set(handles.text36, 'String', textLabel);
+    pause(0.1);
+    if d.stop==1;
+        return;
+    end
+    if k==size(d.imd,3);
+        d.play=0;
+    end
+    end
+elseif d.pushed==1;
     d.play=1;
     axes(handles.axes1); %original video
     for k=round(handles.slider7.Value):size(d.imd,3);
@@ -2174,38 +2190,11 @@ if d.pushed==1;
         d.play=0;
     end
     end
-% elseif d.pushed==2;
-%     axes(handles.axes1);
-%     for k=round(handles.slider7.Value):size(d.imd,3);
-%     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-%     imshow(singleFrame);
-%     pause(0.1);
-%     if d.stop==1;
-%         return;
-%     end
-%     end
-elseif d.pushed==3;
-    d.play=1;
-    axes(handles.axes1);
-    for k=round(handles.slider7.Value):size(d.imd,3);
-    imageThresh=im2bw(d.imd(:,:,k), handles.slider17.Value);
-    imshow(imageThresh);
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if d.stop==1;
-        return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-    end
-    end
 elseif d.pushed==4;
     d.play=1;
     axes(handles.axes1); %video with ROIs
     for k=round(handles.slider7.Value):size(d.imd,3);
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
@@ -3507,7 +3496,7 @@ end
 if d.thresh==1 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
     msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
     return;
-elseif d.thresh==0 && size(d.roi,2)~=size(d.perc,2) && d.dF==0;
+elseif d.thresh==0 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
     msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
     return;
 end
