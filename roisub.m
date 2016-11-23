@@ -82,7 +82,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 01-Nov-2016 13:42:58
+% Last Modified by GUIDE v2.5 23-Nov-2016 22:27:24
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -3640,5 +3640,50 @@ function pushbutton29_KeyPressFcn(hObject, eventdata, handles)
 % --- Otherwise, executes on mouse press in 5 pixel border or over pushbutton25.
 function pushbutton25_ButtonDownFcn(hObject, eventdata, handles)
 % hObject    handle to pushbutton25 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on slider movement.
+function slider21_Callback(hObject, eventdata, handles)
+% hObject    handle to slider21 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+global d
+MIP=d.mip/max(max(d.mip));
+th_MIP=im2bw(MIP, handles.slider21.Value);
+smallestAcceptableArea = 25;
+structuringElement = strel('disk', 2);
+th_clean_MIP = imclose(bwareaopen(th_MIP,smallestAcceptableArea),structuringElement);
+D = bwdist(~th_clean_MIP);
+figure(2);
+imshow(D,[],'InitialMagnification','fit');
+title('Distance transform of ~bw');
+D = -D;
+D(~th_clean_MIP) = -Inf;
+L = watershed(D);
+rgb = label2rgb(L,'jet',[.5 .5 .5]);
+figure(3);
+imshow(rgb,'InitialMagnification','fit');
+title('Watershed transform of D');
+
+% --- Executes during object creation, after setting all properties.
+function slider21_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider21 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+% --- Executes on button press in pushbutton34.
+function pushbutton34_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton34 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
