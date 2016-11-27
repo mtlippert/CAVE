@@ -823,6 +823,7 @@ if d.bcount==0 || d.valid==1;
 end
 
 %displaying picture with previously marked ROIs
+axes(handles.axes1);
 if d.bcount>0;
     colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
@@ -924,6 +925,26 @@ if d.load==1;
                 end
                 B=bwboundaries(d.mask); %boundaries of ROIs
                 stat = regionprops(d.labeled,'Centroid');
+                %check whether ROIs are touching
+                if length(stat)>length(B);
+                    d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
+                    d.mask = d.mask-ROI;
+                    singleFrame=d.mip;
+                    if d.dF==1 || d.pre==1;
+                        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+                    else
+                        axes(handles.axes1); imshow(singleFrame); hold on;
+                    end
+                    stat = regionprops(d.labeled,'Centroid');
+                    for k=1:size(d.b,1);
+                        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+                        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+                        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+                    end
+                    hold off;
+                    msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+                    return;
+                end
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
@@ -1001,6 +1022,26 @@ if d.load==1;
     end
     B=bwboundaries(d.mask); %boundaries of ROIs
     stat = regionprops(d.labeled,'Centroid');
+    %check whether ROIs are touching
+    if length(stat)>length(B);
+        d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
+        d.mask = d.mask-ROI;
+        singleFrame=d.mip;
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        stat = regionprops(d.labeled,'Centroid');
+        for k=1:size(d.b,1);
+            d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+            plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+            text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+        end
+        hold off;
+        msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+        return;
+    end
     d.b=cell(length(B),1);
     d.c=cell(length(B),1);
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
@@ -1063,6 +1104,26 @@ else
                 end
                 B=bwboundaries(d.mask); %boundaries of ROIs
                 stat = regionprops(d.labeled,'Centroid');
+                %check whether ROIs are touching
+                if length(stat)>length(B);
+                    d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
+                    d.mask = d.mask-ROI;
+                    singleFrame=d.mip;
+                    if d.dF==1 || d.pre==1;
+                        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+                    else
+                        axes(handles.axes1); imshow(singleFrame); hold on;
+                    end
+                    stat = regionprops(d.labeled,'Centroid');
+                    for k=1:size(d.b,1);
+                        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+                        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+                        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+                    end
+                    hold off;
+                    msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+                    return;
+                end
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
@@ -1137,6 +1198,26 @@ else
     end
     B=bwboundaries(d.mask); %boundaries of ROIs
     stat = regionprops(d.labeled,'Centroid');
+    %check whether ROIs are touching
+    if length(stat)>length(B);
+        d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
+        d.mask = d.mask-ROI;
+        singleFrame=d.mip;
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        stat = regionprops(d.labeled,'Centroid');
+        for k=1:size(d.b,1);
+            d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+            plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+            text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+        end
+        hold off;
+        msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+        return;
+    end
     d.b=cell(length(B),1);
     d.c=cell(length(B),1);
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
@@ -1749,13 +1830,10 @@ if d.pushed==0 && v.pushed==0;
 end
 if v.pushed==0;
     v.imd=[];
-    nframes=[];
 elseif v.pushed==1;
     v.hsvP=[];
     v.hsvG=[];
-    nframes=size(v.imd,2);
 elseif v.pushed>=1;
-    nframes=size(v.imd,2);
 end
 if d.pushed==0;
     d.imd=[];
@@ -1785,30 +1863,33 @@ if d.pushed==4;
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
 end
 
-if d.pre==1;
+if d.pre==1 && d.pushed==1;
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    axes(handles.axes1);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
-        axes(handles.axes1); imshow(singleFrame);
+        imshow(singleFrame);
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif d.pushed==1;
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    axes(handles.axes1);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
-        axes(handles.axes1); imshow(singleFrame);
+        imshow(singleFrame);
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif d.pushed==4;
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    axes(handles.axes1);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
-        axes(handles.axes1); imshow(singleFrame);hold on;
+        imshow(singleFrame);hold on;
     end
     stat = regionprops(d.labeled,'Centroid');
     for k=1:size(d.b,1);
@@ -1821,7 +1902,7 @@ elseif d.pushed==4;
     set(handles.text36, 'String', textLabel);
 end
 if v.pushed==1 && d.pushed>=1;
-    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %original video
+    axes(handles.axes2); image(v.imd(round(handles.slider7.Value)).cdata); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==1;
@@ -1829,11 +1910,11 @@ elseif v.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==2;
-    axes(handles.axes2); imshow(v.hsvG(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %green masked video
+    axes(handles.axes2); imshow(v.hsvG(round(handles.slider7.Value)).cdata); %green masked video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==3;
-    axes(handles.axes2); imshow(v.hsvP(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %yellow masked video
+    axes(handles.axes2); imshow(v.hsvP(round(handles.slider7.Value)).cdata); %yellow masked video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
@@ -1901,14 +1982,14 @@ if d.pushed==4;
 end
 
 %if both videos were loaded
-if v.pushed==1 && d.pre==1;
+if v.pushed==1 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+    image(v.imd(k).cdata); %original video
     axes(handles.axes1); %thresholded video
-    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
@@ -1930,7 +2011,7 @@ elseif v.pushed==1 && d.pushed==1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+    image(v.imd(k).cdata); %original video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1 || d.pre==1;
@@ -1955,7 +2036,7 @@ elseif v.pushed==1 && d.pushed==4;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+    image(v.imd(k).cdata); %original video
     axes(handles.axes1); %ROIs with video
     singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
@@ -1982,14 +2063,14 @@ elseif v.pushed==1 && d.pushed==4;
         v.play=0;
     end
     end
-elseif v.pushed==2 && d.pre==1;
+elseif v.pushed==2 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
+    imshow(v.hsvG(k).cdata); %green masked video
     axes(handles.axes1); %thresholded video
-    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
@@ -2011,7 +2092,7 @@ elseif  v.pushed==2 && d.pushed==1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
+    imshow(v.hsvG(k).cdata); %green masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1 || d.pre==1;
@@ -2036,7 +2117,7 @@ elseif v.pushed==2 && d.pushed==4;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvG(round(k*round((nframes/maxframes),2))).cdata); %green masked video
+    imshow(v.hsvG(k).cdata); %green masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
@@ -2063,14 +2144,14 @@ elseif v.pushed==2 && d.pushed==4;
         v.play=0;
     end
     end
-elseif v.pushed==3 && d.pre==1;
+elseif v.pushed==3 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
+    imshow(v.hsvP(k).cdata); %pink masked video
     axes(handles.axes1); %thresholded video
-    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
@@ -2092,7 +2173,7 @@ elseif v.pushed==3 && d.pushed==1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
+    imshow(v.hsvP(k).cdata); %pink masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1 || d.pre==1;
@@ -2117,7 +2198,7 @@ elseif v.pushed==3 && d.pushed==4;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %pink masked video
+    imshow(v.hsvP(k).cdata); %pink masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
@@ -2289,17 +2370,20 @@ if d.play==1 || v.play==1;
     return;
 end
 
-
 v.pn=[];
 v.fn=[];
 v.crop=0; %signals video is not cropped
 v.hsv=0; %signals video is not converted to hsv color space
 v.gspot=0; %signals green spot is not saved
 v.psopt=0; %signals pink spot is not saved
-[v.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
+if d.pushed>=1;
+    [v.pn]=uigetdir(d.pn);
+else
+    [v.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
+end
 
 %checks whether same folder was selected
-if d.pushed==1 && strcmp(v.pn,d.pn)==0;
+if d.pushed>=1 && strcmp(v.pn,d.pn)==0;
     msgbox('PLEASE SELECT SAME FOLDER AS FOR THE CALCIUM IMAGING VIDEO!','ATTENTION');
     return;
 end
@@ -2319,24 +2403,25 @@ v.imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
 
 %putting each frame into variable 'v.imd'
 h=waitbar(0,'Loading');
-k = 1;
-while hasFrame(vidObj)
-    v.imd(k).cdata = readFrame(vidObj);
-    k = k+1;
+c=1;
+for k=1:v.framerate/d.framerate:nframes
+    v.imd(c).cdata = read(vidObj,k);
+    c=c+1;
     waitbar(k/nframes,h);
 end
-v.imd;
+sframe=size(v.imd,2)-size(d.imd,3);
+v.imd=v.imd(1:size(d.imd,3));
 v.pushed=1; %signals video is loaded
 close(h);
 
 %looking at first original picture
 axes(handles.axes2); image(v.imd(1).cdata);
-msgbox('Loading Completed.','Success');
+msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
 
 
 
 
-% --- Executes on button press in pushbutton15.                  CROP VIDEO
+% --- Executes on button press in pushbutton15. CROP & CONVERT IMAGE TO HSV
 function pushbutton15_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton15 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -2381,35 +2466,11 @@ end
 v.imd=imd;
 close(h);
 axes(handles.axes2); image(v.imd(1).cdata);
-msgbox('Cropping Completed.','Success');
 
-
-
-
-% --- Executes on button press in pushbutton8.         CONVERT IMAGE TO HSV
-function pushbutton8_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton8 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-global v
-global d
-if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
-    return;
-end
-if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
-    return;
-end
-%checks if video is croppped
-if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-end
-%checks the size of the video and performs temporal downsampling if the video is too big
-if size(v.imd,2)>7000;
-    v.imd=v.imd(:,1:5:size(v.imd,2)); %taking only every fifth frame
-end
+% %checks the size of the video and performs temporal downsampling if the video is too big
+% if size(v.imd,2)>7000;
+%     v.imd=v.imd(:,1:5:size(v.imd,2)); %taking only every fifth frame
+% end
 
 frame = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 hsvImage = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
@@ -2434,7 +2495,7 @@ v.sImage=sImage;
 v.vImage=vImage;
 v.hsv=1; %signals that video was converted
 close(h);
-msgbox('Conversion Completed. Please use the green and pink presets to view only the respective spot. If needed adjust thresholds manually! If satisfied save the green spot by clicking SAVE GREEN SPOT and the pink spot by clicking SAVE PINK SPOT.','Success');
+msgbox('Cropping and Conversion Completed. Please use the green and pink presets to view only the respective spot. If needed adjust thresholds manually! If satisfied save the green spot by clicking SAVE GREEN SPOT and the pink spot by clicking SAVE PINK SPOT.','Success');
 
 
 
@@ -2967,9 +3028,9 @@ elseif d.pushed==0;
     return;
 end
 % Green preset values
-hueThresholdLow = 0.15;
-hueThresholdHigh = 0.60;
-saturationThresholdLow = 0.36;
+hueThresholdLow = 0.25;
+hueThresholdHigh = 0.55;
+saturationThresholdLow = 0.16;
 saturationThresholdHigh = 1;
 valueThresholdLow = 0;
 valueThresholdHigh = 0.8;
@@ -3058,9 +3119,9 @@ end
 % Pink preset values
 hueThresholdLow = 0.80;
 hueThresholdHigh = 1;
-saturationThresholdLow = 0.36;
+saturationThresholdLow = 0.16;
 saturationThresholdHigh = 1;
-valueThresholdLow = 0.0;
+valueThresholdLow = 0.2;
 valueThresholdHigh = 0.8;
 handles.slider14.Value = hueThresholdHigh;
 handles.slider13.Value = hueThresholdLow;
@@ -3231,7 +3292,7 @@ close(h);
 %plotting green trace
 tracegplot=traceg(traceg>0);
 tracegplot=reshape(tracegplot,[size(tracegplot,1)/2,2]);
-figure(4), image(v.imd(1).cdata); hold on;
+figure, image(v.imd(1).cdata); hold on;
 plot(tracegplot(:,1),tracegplot(:,2),'g'); hold off;
 
 msgbox('Saving Completed. Please save pink spot as well!','Success');
@@ -3345,7 +3406,7 @@ close(h);
 %plotting pink trace
 tracepplot=tracep(tracep>0);
 tracepplot=reshape(tracepplot,[size(tracepplot,1)/2,2]);
-figure(4), image(v.imd(1).cdata); hold on;
+figure, image(v.imd(1).cdata); hold on;
 plot(tracepplot(:,1),tracepplot(:,2),'r'); hold off;
 hold off;
 
@@ -3411,7 +3472,7 @@ close(h);
 %plotting green trace
 tracegplot=traceg(traceg>0);
 tracegplot=reshape(tracegplot,[size(tracegplot,1)/2,2]);
-figure(4), image(v.imd(1).cdata); hold on;
+figure, image(v.imd(1).cdata); hold on;
 plot(tracegplot(:,1),tracegplot(:,2),'g');
 
 
@@ -3644,6 +3705,11 @@ function pushbutton25_ButtonDownFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
+
+
+
+
+
 % --- Executes on slider movement.
 function slider21_Callback(hObject, eventdata, handles)
 % hObject    handle to slider21 (see GCBO)
@@ -3654,21 +3720,25 @@ function slider21_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 MIP=d.mip/max(max(d.mip));
-th_MIP=im2bw(MIP, handles.slider21.Value);
-smallestAcceptableArea = 25;
-structuringElement = strel('disk', 2);
-th_clean_MIP = imclose(bwareaopen(th_MIP,smallestAcceptableArea),structuringElement);
-D = bwdist(~th_clean_MIP);
-figure(2);
-imshow(D,[],'InitialMagnification','fit');
-title('Distance transform of ~bw');
-D = -D;
-D(~th_clean_MIP) = -Inf;
-L = watershed(D);
-rgb = label2rgb(L,'jet',[.5 .5 .5]);
-figure(3);
-imshow(rgb,'InitialMagnification','fit');
-title('Watershed transform of D');
+MIP(MIP<handles.slider21.Value)=0;
+figure(2),imshow(MIP);
+
+
+% th_MIP=im2bw(MIP, handles.slider21.Value);
+% smallestAcceptableArea = 25;
+% structuringElement = strel('disk', 2);
+% th_clean_MIP = imclose(bwareaopen(th_MIP,smallestAcceptableArea),structuringElement);
+% D = bwdist(~th_clean_MIP);
+% figure(2);
+% imshow(D,[],'InitialMagnification','fit');
+% title('Distance transform of ~bw');
+% D = -D;
+% D(~th_clean_MIP) = -Inf;
+% L = watershed(D);
+% rgb = label2rgb(L,'jet',[.5 .5 .5]);
+% figure(3);
+% imshow(rgb,'InitialMagnification','fit');
+% title('Watershed transform of D');
 
 % --- Executes during object creation, after setting all properties.
 function slider21_CreateFcn(hObject, eventdata, handles)
