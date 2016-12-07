@@ -117,6 +117,8 @@ d.bcount=0; %no. of rois selected equals zero
 d.roisdefined=0; %no rois defined
 d.play=0;
 v.play=0;
+v.pn=[];
+d.pn=[];
 d.thresh=0;
 d.valid=0;
 d.align=0; %signals whether images were aligned
@@ -858,7 +860,9 @@ end
 %manual ROI selection
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
 if d.bcount>0 || d.load==1;
-    ROI=imresize(ROI,size(d.mip,1)/size(ROI,1));
+    B=zeros(size(d.mip,1),size(d.mip,2));
+    B=imresize(ROI, [size(d.mip,1) size(d.mip,2)]);
+    ROI=B;
 end
 %check if ROI was selected correctly
 if numel(find(ROI))==0;
@@ -1475,7 +1479,7 @@ if d.load==1;
         set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        if round(std(d.ROImeans(:,j))*2,1)>=0.3;
+        if round(std(d.ROImeans(:,j))*2,1)>=0.3; % quiroga function!!
             [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',0.5,'MinPeakDistance',3); % 10 for 2-p video, 0.4 for doric
             [~,y]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',round(std(d.ROImeans(:,j))*2,1),'MinPeakDistance',3);
             y=intersect(x,y);
@@ -1616,7 +1620,7 @@ elseif d.load==0;
         set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        if round(std(d.ROImeans(:,j))*2,1)>=0.3;
+        if d.ROImeans(:,j)>=median(abs(d.ROImeans(:,j))/0.6745); %round(std(d.ROImeans(:,j))*2,1)>=0.3;
             [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',0.5,'MinPeakDistance',3); % 10 for 2-p video, 0.4 for doric
             [~,y]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',round(std(d.ROImeans(:,j))*2,1),'MinPeakDistance',3);
             y=intersect(x,y);
@@ -1998,12 +2002,11 @@ if v.pushed==1 && d.pre==1 && d.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif v.pushed==1 && d.pushed==1;
@@ -2023,12 +2026,11 @@ elseif v.pushed==1 && d.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif v.pushed==1 && d.pushed==4;
@@ -2055,12 +2057,11 @@ elseif v.pushed==1 && d.pushed==4;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif v.pushed==2 && d.pre==1 && d.pushed==1;
@@ -2079,12 +2080,11 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif  v.pushed==2 && d.pushed==1;
@@ -2104,12 +2104,11 @@ elseif  v.pushed==2 && d.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif v.pushed==2 && d.pushed==4;
@@ -2136,12 +2135,11 @@ elseif v.pushed==2 && d.pushed==4;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif v.pushed==3 && d.pre==1 && d.pushed==1;
@@ -2160,12 +2158,11 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif v.pushed==3 && d.pushed==1;
@@ -2185,12 +2182,11 @@ elseif v.pushed==3 && d.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 elseif v.pushed==3 && d.pushed==4;
@@ -2217,12 +2213,11 @@ elseif v.pushed==3 && d.pushed==4;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
-        v.play=0;
     end
     end
 end
@@ -2243,11 +2238,11 @@ if d.pre==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
     end
     end
 elseif d.pushed==1;
@@ -2264,11 +2259,11 @@ elseif d.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
     end
     end
 elseif d.pushed==4;
@@ -2292,11 +2287,11 @@ elseif d.pushed==4;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.1);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(d.imd,3);
-        d.play=0;
     end
     end
 end
@@ -2312,11 +2307,11 @@ if  v.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
     pause(0.05);
+    if k==size(d.imd,3);
+        d.stop=1;
+    end
     if d.stop==1;
         return;
-    end
-    if k==size(v.imd,2);
-        v.play=0;
     end
     end
 end
@@ -3444,6 +3439,18 @@ elseif v.gspot==0 || v.pspot==0;
     msgbox('PLEASE SAVE COLOR SPOTS FIRST!','ERROR');
     return;
 end
+%making sure that the ROIs were plotted
+if isempty(d.perc)==1 && d.dF==0;
+    msgbox('ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
+    return;
+end
+if d.thresh==1 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
+    msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
+    return;
+elseif d.thresh==0 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
+    msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
+    return;
+end
 
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
@@ -3549,18 +3556,6 @@ writetable(T,filename);
 
 %plotting cell activity
 printyn=1; %for printing figures
-%making sure that the ROIs were plotted
-if isempty(d.perc)==1 && d.dF==0;
-    msgbox('ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
-    return;
-end
-if d.thresh==1 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
-    msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
-    return;
-elseif d.thresh==0 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
-    msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
-    return;
-end
 if d.dF==1;
     d.perc=d.ROImeans;
 end

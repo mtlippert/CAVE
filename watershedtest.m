@@ -11,7 +11,7 @@ mask = adapthisteq(MIP);
 background = imopen(mask,strel('disk',15));
 MIP2 = mask - background;
 % figure,imshow(I2)
-MIP3 = imadjust(I2);
+MIP3 = imadjust(MIP2);
 % figure,imshow(I3);
 % figure,imshow(im2bw(I3,0.65));
 I4=im2bw(MIP3,0.65);
