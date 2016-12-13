@@ -20,20 +20,32 @@ function varargout = roisub(varargin)
 %       
 %       HOW TO USE THIS GUI FOR CALCIUM IMAGING DATA WITH DORIC
 %       ENDOMICROSCOPE:
+% 
+%       -PREPARATIONS to work with this program: one TIFF file per folder &
+%       test file named 'Framrate' containing only a number describing the
+%       framerate of the calcium imaging video (TIFF file)
+% 
 %       -load .tif data recorded by doric endomicroscope by pushing SELECT
 %       FOLDER button
+% 
 %       -LOW IN, HIGH IN, LOW OUT, HIGH OUT sliders for changes brightness
 %       and contrast to investigate images (RESET resets values to initial
 %       values)
-%       -FRAMES SLIDER for sliding through tiff images from frame to frame
+% 
+%       -FRAMES SLIDER for sliding through TIFF images from frame to frame
 %       -PLAY button to play the video from current frame in FRAME SLIDER,
 %       STOP for stopping the video immediately
+% 
+%       -PREPROCESSING downsamples the file to 40 percent, kicks out faulty
+%       frames and does flat field correction; additionally gives you a 
+%       graph of mean change over time
 %       -if needed, ALIGN IMAGES allows to align the images to the first
 %       frame
-%       -use the SCALE slider to define the downsampling scale and apply it
-%       by clicking the PREPROCESSING BUTTON
-%       -PREPROCESSING downsamples the file with the specified scale and
-%       kicks out faulty frames
+%
+%       -DELTA F/F calculates the change over time of the video by
+%       substracting a mean frame from each frame and dividng by the mean
+%       frame
+% 
 %       -to define the ROIs use the ROI button. Define the area by clicking
 %       around the wanted area. Corners can be adjusted afterwards by
 %       hovering over it until one sees a circle symbol. Simply click and
@@ -43,8 +55,11 @@ function varargout = roisub(varargin)
 %       You can press the ROI button multiple times to define as many ROIs
 %       as you want. In case you want to clear all ROIs and start over,
 %       please use the CLEAR ALL ROIS button
+%       -to remove a ROI or parts of it simply overlap with a new ROI
 %       -to define a lot of ROIs use the THRESHOLD slider to define a
 %       threshold and then click THRESHOLD ROIS to aplly the threshold
+%       -if you already defined ROIs or you want to use a ROI mask from
+%       another video press LOAD ROIS
 %       -to show changes in brightness over time from your defined ROIs
 %       use PLOT ROIS
 %
@@ -110,6 +125,8 @@ clear global d;
 clear global v;
 global d
 global v
+global p
+p.pn=[];
 %initializing variables needed before hand
 v.pushed=0; %no video loaded
 d.pushed=0; %no video loaded
@@ -162,6 +179,7 @@ function pushbutton5_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 %clears cache
 %clears all global variables
 clear global d;
@@ -178,6 +196,7 @@ d.load=0;
 d.align=0; %signals whether images were aligned
 d.pre=0;
 d.mip=0;
+d.pn=[];
 %clears axes
 cla(handles.axes1,'reset');
 %resets frame slider
@@ -189,7 +208,7 @@ handles.slider6.Value=0;
 handles.slider16.Value=1;
 
 if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 
@@ -197,11 +216,19 @@ end
 d.perc=[]; %initializing ROI values in percent as empty
 
 %defining initial folder displayed in dialog window
-[d.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
+if isempty(p.pn)==1;
+    [d.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
+else
+    [d.pn]=uigetdir(p.pn);
+end
 
-%checks whether same folder was selected
+%clears old behavioral video if new calcium imaging video is loaded
 if v.pushed==1 && strcmp(v.pn,d.pn)==0;
-    msgbox('PLEASE SELECT SAME FOLDER AS FOR THE BEHAVIORAL VIDEO!','ATTENTION');
+    %clears cache
+    %clears all global variables
+    clear global v;
+    %clears axes
+    cla(handles.axes2,'reset');
     return;
 end
 
@@ -226,8 +253,250 @@ catch ME
    end
 end 
 
-%putting each frame into variable 'Images'
-if length(Files)==1;
+%check whether ROI mask had been saved before
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn));
+    tf(k)=strcmp([d.fn(1:end-4) '.mat'],files(k).name);
+end
+if sum(tf)>0;
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to load your last processed version?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            %loading delta F/F video
+            load([d.pn '\' d.fn(1:end-4) 'dFvid']);
+            d.imd=deltaFimd;
+            %loading MIP
+            MaxIntensProj = max(d.imd, [], 3);
+            stdIm = std(d.imd,0,3);
+            d.mip=MaxIntensProj./stdIm;
+            figure,imagesc(d.mip),title('Maximum Intensity Projection');
+            %loading ROI mask
+            load([d.pn '\' d.fn(1:end-4) '.mat']);
+            d.mask=ROImask;
+            d.ROIorder=ROIorder;
+            %plotting ROIs
+            colors={[0    0.4471    0.7412],...
+                [0.8510    0.3255    0.0980],...
+                [0.9294    0.6941    0.1255],...
+                [0.4941    0.1843    0.5569],...
+                [0.4667    0.6745    0.1882],...
+                [0.3020    0.7451    0.9333],...
+                [0.6353    0.0784    0.1843],...
+                [0.6784    0.9216    1.0000]};
+
+            singleFrame=d.imd(:,:,round(handles.slider7.Value));
+            axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+            B=bwboundaries(d.mask); %boundaries of ROIs
+            d.labeled=bwlabel(d.mask);
+            stat = regionprops(d.labeled,'Centroid');
+            d.b=cell(length(B),1);
+            d.c=cell(length(B),1);
+            colors=repmat(colors,1,ceil(length(B)/8));
+            for j = 1 : length(B);
+                d.b{j,1} = B{j};
+                d.c{j,1} = stat(j).Centroid;
+                plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+                text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+            end
+            hold off;
+            d.pushed=4; %signals that ROIs were selected
+            d.roisdefined=1; %signals that ROIs were defined
+
+            % label ROIs
+            background=d.mask;
+            background(background==1)=2;
+            background(background==0)=1;
+            background(background==2)=0;
+            CC=bwconncomp(d.mask);
+            numROIs=CC.NumObjects; %number of ROIs
+            d.imdThresh=cell(size(d.imd,3),numROIs);
+            d.ROIs=cell(size(d.imd,3),numROIs);
+            d.background=cell(size(d.imd,3),1);
+            d.bg=cell(size(d.imd,3),1);
+            h=waitbar(0,'Labeling ROIs');
+            for j=1:size(d.imd,3);
+                for i=1:numROIs;
+                    ROIs=zeros(size(d.imd,1),size(d.imd,2));
+                    m = find(d.labeled==i);
+                    ROIs(m)=1;
+                    % You can only multiply integers if they are of the same type.
+                    ROIs = cast(ROIs, class(d.imd(:,:,1)));
+                    d.imdThresh{j,i} = ROIs .* d.imd(:,:,j);
+                    d.ROIs{j,d.ROIorder(i)}=d.imdThresh{j,i}(m);
+                end
+                % You can only multiply integers if they are of the same type.
+                nn = find(background==1);
+                background = cast(background, class(d.imd(:,:,1)));
+                d.background{j,1} = background .* d.imd(:,:,j);
+                d.bg{j,1}=d.background{j,1}(nn);
+                waitbar(j/size(d.imd,3),h);
+            end
+            %relabeling d.labeled
+            labels=zeros(size(d.imd,1),size(d.imd,2));
+            for i=1:numROIs;
+                m = find(d.labeled==i);
+                labels(m)=d.ROIorder(i);
+            end
+            d.labeled=labels;
+            d.load=1; %signals that a ROI mask was loaded
+            close(h);
+
+            %loading original calcium imaging video
+            % Construct a questdlg with two options
+            choice = questdlg('Would you also like to load the original calcium imaging video?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            switch choice
+                case 'YES'
+                    if length(Files)==1;
+                        %putting each frame into variable 'Images'
+                        h=waitbar(0,'Loading');
+                        for k = 1:frames;
+                            % Read in image into an array.
+                            fullFileName = fullfile([d.pn '\' d.fn]);
+                            Image = imread(fullFileName,k);
+                            % Check to see if it's an 8-bit image needed later for scaling).
+                            if strcmpi(class(Image), 'uint8')
+                                % Flag for 256 gray levels.
+                                eightBit = true;
+                            else
+                                eightBit = false;
+                            end
+                            if eightBit
+                                Images = Image;
+                            else
+                            Imaged=double(Image);
+                            Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
+                            end
+                            imd(:,:,k) = Images;
+                            waitbar(k/frames,h);
+                        end
+                        d.origCI=imd;
+                    else
+                        %putting each frame into variable 'images'
+                        h=waitbar(0,'Loading');
+                        for k = 1:length(Files);
+                            waitbar(k/length(Files),h);
+                            baseFileName = Files(k).name;
+                            fullFileName = fullfile([d.pn '\' baseFileName]);
+                            Image = imread(fullFileName); 
+                            % Check to see if it's an 8-bit image needed later for scaling).
+                            if strcmpi(class(Image), 'uint8')
+                                % Flag for 256 gray levels.
+                                eightBit = true;
+                            else
+                                eightBit = false;
+                            end
+                            if eightBit
+                                Images = Image;
+                            else
+                            Imaged=double(Image);
+                            Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
+                            end
+                            imd(:,:,k) = Images;
+                        end
+                        d.origCI=imd;
+                    end
+                    d.dF=1;
+                    load([d.pn '\' d.fn(1:end-4) 'vidalign']);
+                    d.align=vidalign;
+                    d.pre=1;
+
+                    msgbox('Loading complete!');
+                case 'NO'
+                    d.dF=1;
+                    load([d.pn '\' d.fn(1:end-4) 'vidalign']);
+                    d.align=vidalign;
+                    d.pre=1;
+
+                    msgbox('Loading complete!');
+            end
+        case 'NO'
+            if length(Files)==1;
+                %putting each frame into variable 'Images'
+                h=waitbar(0,'Loading');
+                for k = 1:frames;
+                    % Read in image into an array.
+                    fullFileName = fullfile([d.pn '\' d.fn]);
+                    Image = imread(fullFileName,k);
+                    % Check to see if it's an 8-bit image needed later for scaling).
+                    if strcmpi(class(Image), 'uint8')
+                        % Flag for 256 gray levels.
+                        eightBit = true;
+                    else
+                        eightBit = false;
+                    end
+                    if eightBit
+                        Images = Image;
+                    else
+                    Imaged=double(Image);
+                    Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
+                    end
+                    d.imd(:,:,k) = Images;
+                    waitbar(k/frames,h);
+                end
+
+                d.pushed=1; %signals that file was selected
+                d.roisdefined=0; %no rois defined
+                d.b=[];
+                d.c=[];
+                d.dF=0;
+                d.load=0;
+                d.align=0;
+                d.pre=0;
+                d.mip=0;
+                d.origCI=[];
+
+                %looking at first original picture
+                axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+            else
+                %putting each frame into variable 'images'
+                h=waitbar(0,'Loading');
+                for k = 1:length(Files);
+                    waitbar(k/length(Files),h);
+                    baseFileName = Files(k).name;
+                    fullFileName = fullfile([d.pn '\' baseFileName]);
+                    Image = imread(fullFileName); 
+                    % Check to see if it's an 8-bit image needed later for scaling).
+                    if strcmpi(class(Image), 'uint8')
+                        % Flag for 256 gray levels.
+                        eightBit = true;
+                    else
+                        eightBit = false;
+                    end
+                    if eightBit
+                        Images = Image;
+                    else
+                    Imaged=double(Image);
+                    Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
+                    end
+                    d.imd(:,:,k) = Images;
+                end
+
+                d.pushed=1; %signals that file was selected
+                d.roisdefined=0; %no rois defined
+                d.b=[];
+                d.c=[];
+                d.dF=0;
+                d.load=0;
+                d.align=0;
+                d.pre=0;
+                d.mip=0;
+                d.origCI=[];
+
+                %looking at first original picture
+                axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+            end
+    end
+
+elseif length(Files)==1;
+    %putting each frame into variable 'Images'
     h=waitbar(0,'Loading');
     for k = 1:frames;
         % Read in image into an array.
@@ -249,6 +518,20 @@ if length(Files)==1;
         d.imd(:,:,k) = Images;
         waitbar(k/frames,h);
     end
+    
+    d.pushed=1; %signals that file was selected
+    d.roisdefined=0; %no rois defined
+    d.b=[];
+    d.c=[];
+    d.dF=0;
+    d.load=0;
+    d.align=0;
+    d.pre=0;
+    d.mip=0;
+    d.origCI=[];
+    
+    %looking at first original picture
+    axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
 else
     %putting each frame into variable 'images'
     h=waitbar(0,'Loading');
@@ -272,26 +555,29 @@ else
         end
         d.imd(:,:,k) = Images;
     end
+    
+    d.pushed=1; %signals that file was selected
+    d.roisdefined=0; %no rois defined
+    d.b=[];
+    d.c=[];
+    d.dF=0;
+    d.load=0;
+    d.align=0;
+    d.pre=0;
+    d.mip=0;
+    d.origCI=[];
+    
+    %looking at first original picture
+    axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
 end
-d.pushed=1; %signals that file was selected
-d.roisdefined=0; %no rois defined
-d.b=[];
-d.c=[];
-d.dF=0;
-d.load=0;
-d.align=0;
-d.pre=0;
-d.mip=0;
-d.origCI=[];
+p.pn=d.pn;
 close(h);
 
-%looking at first original picture
-axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
 titleLabel = ['Calcium imaging video: ' d.fn];
 set(handles.text27, 'String', titleLabel);
+handles.text27.TooltipString=d.pn;
 textLabel = sprintf('%d / %d', 1,size(d.imd,3));
 set(handles.text36, 'String', textLabel);
-
 
 msgbox('Loading Completed.','Success');
 
@@ -310,7 +596,7 @@ function slider5_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.pre==1 || d.dF==1;
@@ -355,7 +641,7 @@ function slider6_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.pre==1 || d.dF==1;
@@ -400,7 +686,7 @@ function slider15_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.pre==1 || d.dF==1;
@@ -445,7 +731,7 @@ function slider16_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.pre==1 || d.dF==1;
@@ -489,7 +775,7 @@ function pushbutton22_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %resets values of low in/out, high in/out to start values
@@ -530,21 +816,13 @@ close(h);
 %Eliminating faulty frames
 h=waitbar(0,'Eliminating faulty frames');
 for k=1:size(meanChange,3);
-    if std(meanChange)>60 && meanChange(1,1,k)<round(min(meanChange),2)*0.66;
+    if meanChange(1,1,k)<-(5*median(abs(meanChange)/0.6745)) || meanChange(1,1,k)>5*median(abs(meanChange)/0.6745);
         if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1));
             imd(:,:,k+1)=imd(:,:,k);
 %         elseif k+1 <= size(meanChange,3) && (meanChange(1,1,k)==meanChange(1,1,k+1));
 %             imd(:,:,k+1)=imd(:,:,k+3); % k+3 when the glitch lasted 2 frames!
         else
-            imd(:,:,k+1)=imd(:,:,k-2);
-        end
-    elseif d.dF==1 && meanChange(1,1,k)<round(min(meanChange),2)*0.66;
-        if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1));
-            imd(:,:,k+1)=imd(:,:,k);
-%         elseif k+2 <= size(meanChange,3) && (meanChange(1,1,k)==meanChange(1,1,k+1));
-%             imd(:,:,k+1)=imd(:,:,k+3); % k+3 when the glitch lasted 2 frames!
-        else
-            imd(:,:,k+1)=imd(:,:,k-2);
+            imd(:,:,k+1)=imd(:,:,k-1);
         end
     end
     waitbar(k/size(meanChange,3),h);
@@ -555,13 +833,12 @@ close(h);
 d.origCI=imresize(d.imd,0.805); %keeping this file stored as original video
 
 %flatfield correction
-
 H = fspecial('average',round(.08*size(d.imd,1))); %8 % blur
 a=(imfilter(d.imd(:,:,1),H,'replicate')); %blur frame totally
-
 d.imd=uint16(single(max(max(d.imd(:,:,1))))*bsxfun(@rdivide,single(d.imd),single(a)));
 s=size(d.imd); %cut middle 80 % of image
 d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
+
 %showing resulting frame
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
@@ -569,7 +846,7 @@ axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFra
 d.pre=1;
 %plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
-figure(1),plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
+figure,plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
 msgbox('Preprocessing done!','Success');
 
 
@@ -581,15 +858,15 @@ function pushbutton9_Callback(hObject, eventdata, handles)
 global d
 global v
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 if d.pre==0;
-    msgbox('PLEASE DO PREPROCESSING BEFORE PROCEEDING!','ATTENTION');
+    msgbox('Please do preprocessing before proceeding!','ATTENTION');
     return;
 end
 % adapted from source: http://de.mathworks.com/help/vision/examples/video-stabilization-using-point-feature-matching.html
@@ -702,7 +979,7 @@ if d.pushed==4;
     d.b=[];
     d.c=[];
     d.roisdefined=0; %signals no ROIs were selected
-    msgbox('PLEASE RESELECT ROIs!','ATTENTION');
+    msgbox('Please re-select ROIs!','ATTENTION');
     return;
 end
 
@@ -725,9 +1002,15 @@ function pushbutton25_Callback(hObject, eventdata, handles)
 global d
 
 if d.pre==0;
-    msgbox('PLEASE DO PREPROCESSING BEFORE PROCEEDING!','ATTENTION');
+    msgbox('Please do preprocessing before proceeding!','ATTENTION');
     return;
 end
+
+if d.dF==1;
+    msgbox('You already did delta F/F calculation!','ATTENTION');
+    return;
+end
+
 %setting aligned images as original CI video
 if d.align==1;
     d.origCI=d.imd;
@@ -761,6 +1044,18 @@ for k=1:size(d.imd,3);
 end
 d.imd=imddF;
 close(h);
+
+%saving deltaF video
+h=msgbox('Program might seem unresponsive, please wait!');
+filename=[d.pn '\' d.fn(1:end-4) 'dFvid'];
+deltaFimd=d.imd;
+save(filename, 'deltaFimd');
+%saving whether images were aligned
+filename=[d.pn '\' d.fn(1:end-4) 'vidalign'];
+vidalign=d.align;
+save(filename, 'vidalign');
+close(h);
+
 %variable initialization for ROI processing
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.labeled = zeros(size(d.imd,1),size(d.imd,2));
@@ -775,9 +1070,9 @@ MaxIntensProj = max(d.imd, [], 3);
 stdIm = std(d.imd,0,3);
 d.mip=MaxIntensProj./stdIm;
 if handles.radiobutton2.Value==1;
-    figure(1),imagesc(d.mip),title('Maximum Intensity Projection');
+    figure,imagesc(d.mip),title('Maximum Intensity Projection');
 else
-    figure(1),imagesc(d.mip),title('Maximum Intensity Projection');
+    figure,imagesc(d.mip),title('Maximum Intensity Projection');
 end
 msgbox('Calculation done!','Success');
 
@@ -795,15 +1090,15 @@ function pushbutton3_Callback(hObject, eventdata, handles)
 global d
 global v
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 if d.dF==0;
-    msgbox('PLEASE PERFORM DELTA F/F CALCULATION BEFORE SELECTING ROIs!','ATTENTION');
+    msgbox('Please perform Delta F/F calculation before selection ROIs!','ATTENTION');
     return;
 end
 
@@ -880,7 +1175,7 @@ if numel(find(ROI))==0;
     end
     hold off;
     d.valid=1;
-    msgbox('PLEASE SELECT VALID ROI! Check the instructions again.','ERROR');
+    msgbox('Please select valid ROI! Check the instructions again.','ERROR');
     return;
 end
 %count times button is pressed
@@ -946,7 +1241,7 @@ if d.load==1;
                         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
                     end
                     hold off;
-                    msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+                    msgbox('Please do not let ROIs touch!','ERROR');
                     return;
                 end
                 d.b=cell(length(B),1);
@@ -997,7 +1292,7 @@ if d.load==1;
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
                 end
                 hold off;
-                msgbox('PLEASE DO NOT SUPERIMPOSE ROIs!','ERROR');
+                msgbox('Please do not superimpose ROIs!','ERROR');
                 d.mask = d.mask-ROI;
                 return;
         end
@@ -1043,7 +1338,7 @@ if d.load==1;
             text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
         end
         hold off;
-        msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+        msgbox('Please do not let ROIs touch!','ERROR');
         return;
     end
     d.b=cell(length(B),1);
@@ -1125,7 +1420,7 @@ else
                         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
                     end
                     hold off;
-                    msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+                    msgbox('Please do not let ROIs touch!','ERROR');
                     return;
                 end
                 d.b=cell(length(B),1);
@@ -1175,7 +1470,7 @@ else
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
                 end
                 hold off;
-                msgbox('PLEASE DO NOT SUPERIMPOSE ROIs!','ERROR');
+                msgbox('Please do not superimpose ROIs!','ERROR');
                 return;
         end
     else
@@ -1219,7 +1514,7 @@ else
             text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
         end
         hold off;
-        msgbox('PLEASE DO NOT LET ROIs TOUCH!','ERROR');
+        msgbox('Please do not let ROIs touch!','ERROR');
         return;
     end
     d.b=cell(length(B),1);
@@ -1253,11 +1548,11 @@ function pushbutton16_Callback(hObject, eventdata, handles)
 global d
 global v
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 %resets all varibles needed for selecting ROIs
@@ -1310,13 +1605,18 @@ d.ROIorder=[];
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 
+if d.pre==0;
+    msgbox('Please do preprocessing & Delta F/F calculation before proceeding!','ATTENTION');
+    return;
+elseif d.dF==0;
+    msgbox('Please do Delta F/F calculation before proceeding!','ATTENTION');
+    return;
+end
+
 filepath=[d.pn '\'];
 [pn]=uigetdir(filepath);
 %extracts filename
-filePattern = fullfile(pn, '*.mat');
-Files = dir(filePattern);
-fn = Files(1).name;
-load([pn '\' fn]);
+load([pn '\' d.fn(1:end-4) '.mat']);
 d.mask=ROImask;
 d.ROIorder=ROIorder;
 %plotting ROIs
@@ -1405,21 +1705,21 @@ function pushbutton14_Callback(hObject, eventdata, handles)
 global d
 global v
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 %check whether ROIs were selected
 if d.roisdefined==0;
-    msgbox('PLEASE LABEL ROIs FIRST!','ERROR');
+    msgbox('Please label ROIs first!','ERROR');
     return;
 end
 %check whether dF/F was calculated
 if d.dF==0;
-    msgbox('PLEASE CALCULATE DF/F FIRST!','ERROR');
+    msgbox('Please calculate Delta F/F first!','ERROR');
     return;
 end
 
@@ -1506,9 +1806,12 @@ if d.load==1;
     %saving as table
     filename=[d.pn '\' d.fn(1:end-4) '.xls'];
     %erasing any previous content
-    filePattern = fullfile(d.pn, '*.xls'); % *.tiff for 2-P
-    Files = dir(filePattern);
-    if isempty(Files)==0;
+    files=dir(d.pn);
+    tf=zeros(length(dir(d.pn)));
+    for k=1:length(dir(d.pn));
+        tf(k)=strcmp([d.fn(1:end-4) '.xls'],files(k).name);
+    end
+    if sum(tf)>0;
         file=xlsread(filename);
         file=zeros(size(file,1)+1,size(file,2)+1);
         xlswrite(filename,file);
@@ -1647,9 +1950,12 @@ elseif d.load==0;
     %saving as table
     filename=[d.pn '\' d.fn(1:end-4) '.xls'];
     %erasing any previous content
-    filePattern = fullfile(d.pn, '*.xls'); % *.tiff for 2-P
-    Files = dir(filePattern);
-    if isempty(Files)==0;
+    files=dir(d.pn);
+    tf=zeros(length(dir(d.pn)));
+    for k=1:length(dir(d.pn));
+        tf(k)=strcmp([d.fn(1:end-4) '.xls'],files(k).name);
+    end
+    if sum(tf)>0;
         file=xlsread(filename);
         file=zeros(size(file,1)+1,size(file,2)+1);
         xlswrite(filename,file);
@@ -1722,14 +2028,9 @@ if isempty(d.origCI)==1;
 end
 
 h=waitbar(0,'Saving calcium imaging video');
-% Construct a questdlg with two options
-choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
-    'Attention', ...
-    'Original','dF/F','Combined','Original');
-% Handle response
-switch choice
-    case 'Original'
-        %converting original CI video to double precision and to values between 1 and 0
+
+if d.dF==0; %saving video if it was not processed further
+    %converting original CI video to double precision and to values between 1 and 0
         origCIconv=double(d.origCI);
         origCIconv=origCIconv./max(max(max(origCIconv)));
         
@@ -1747,70 +2048,97 @@ switch choice
         close(h);
 %         close(gcf);
         msgbox('Saving video completed.');
-    case 'dF/F'
-        filename=[d.pn '\' d.fn(1:end-4) 'dF'];
-        v = VideoWriter(filename,'Grayscale AVI');
-        v.FrameRate=d.framerate;
-        open(v);
-        for k = 1:size(d.imd,3);
-            frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
-            frame(frame<0)=0;
-    
-            writeVideo(v,frame);
-            waitbar(k/size(d.imd,3),h);
-        end
-        close(v);
-        close(h);
-        msgbox('Saving video completed.');
-    case 'Combined'
-        %converting original CI video to double precision and to values between 1 and 0
-        origCIconv=double(d.origCI);
-        origCIconv=origCIconv./max(max(max(origCIconv)));
-        %converting dF/F video such that all pixels below 50% of absolute maximum
-        %intensity are zero
-        imdconv=zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3));
-        smallestAcceptableArea = 30;
-        structuringElement = strel('disk', 2);
-        hh=waitbar(0,'Converting dF/F calcium imaging video');
-        for k=1:size(d.imd,3);
-            frame=d.imd(:,:,k);
-%             frame(frame<(mean(mean(mean(d.imd)))*2))=0;
-%             mask = imclearborder(imclose(bwareaopen(frame,smallestAcceptableArea),structuringElement));
-            frame=frame.*d.mask;
-            frame(frame<(max(max(max(d.imd)))*0.25))=0;
-            imdconv(:,:,k)=frame;
-            waitbar(k/size(d.imd,3),hh);
-        end
-        close(hh);
-        %converting video such that values are between 1 and 0
-        if d.align==1 && handles.radiobutton2.Value==1;
-            imdMax=1/(mean(mean(mean(imdconv))));
-        else
-            imdMax=1/(max(max(max(imdconv))));
-        end
-        imdconv=imdconv.*imdMax;
-        
-        filename=[d.pn '\' d.fn(1:end-4) 'combo'];
-        v = VideoWriter(filename,'Uncompressed AVI');
-        v.FrameRate=d.framerate;
-        open(v);
-        for k=1:size(d.imd,3);
-            singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-            figure(100),imshow(singleFrame);
-            red = cat(3, ones(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))));
-            hold on 
-            hh = imshow(red); 
-            hold off
-            set(hh, 'AlphaData', imdconv(:,:,k));
-            f=getframe(gcf);
-            newframe=f.cdata;
-            writeVideo(v,singleFrame);
-            waitbar(k/size(d.imd,3),h);
-        end
-        close(v);
-        close(h);
-        close(gcf);
-        msgbox('Saving video completed.');
+else
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
+        'Attention', ...
+        'Original','dF/F','Combined','Original');
+    % Handle response
+    switch choice
+        case 'Original'
+            %converting original CI video to double precision and to values between 1 and 0
+            origCIconv=double(d.origCI);
+            origCIconv=origCIconv./max(max(max(origCIconv)));
+
+            filename=[d.pn '\' d.fn(1:end-4)];
+            v = VideoWriter(filename,'Grayscale AVI');
+            v.FrameRate=d.framerate;
+            open(v);
+            for k=1:size(d.imd,3);
+                singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    %             figure(100),imshow(singleFrame);
+                writeVideo(v,singleFrame);
+                waitbar(k/size(d.imd,3),h);
+            end
+            close(v);
+            close(h);
+    %         close(gcf);
+            msgbox('Saving video completed.');
+        case 'dF/F'
+            filename=[d.pn '\' d.fn(1:end-4) 'dF'];
+            v = VideoWriter(filename,'Grayscale AVI');
+            v.FrameRate=d.framerate;
+            open(v);
+            for k = 1:size(d.imd,3);
+                frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
+                frame(frame<0)=0;
+
+                writeVideo(v,frame);
+                waitbar(k/size(d.imd,3),h);
+            end
+            close(v);
+            close(h);
+            msgbox('Saving video completed.');
+        case 'Combined'
+            %converting original CI video to double precision and to values between 1 and 0
+            origCIconv=double(d.origCI);
+            origCIconv=origCIconv./max(max(max(origCIconv)));
+            %converting dF/F video such that all pixels below 50% of absolute maximum
+            %intensity are zero
+            imdconv=zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3));
+            smallestAcceptableArea = 30;
+            structuringElement = strel('disk', 2);
+            hh=waitbar(0,'Converting dF/F calcium imaging video');
+            for k=1:size(d.imd,3);
+                frame=d.imd(:,:,k);
+    %             frame(frame<(mean(mean(mean(d.imd)))*2))=0;
+    %             mask = imclearborder(imclose(bwareaopen(frame,smallestAcceptableArea),structuringElement));
+                frame=frame.*d.mask;
+                frame(frame<(max(max(max(d.imd)))*0.25))=0;
+                imdconv(:,:,k)=frame;
+                waitbar(k/size(d.imd,3),hh);
+            end
+            close(hh);
+            %converting video such that values are between 1 and 0
+            if d.align==1 && handles.radiobutton2.Value==1;
+                imdMax=1/(mean(mean(mean(imdconv))));
+            else
+                imdMax=1/(max(max(max(imdconv))));
+            end
+            imdconv=imdconv.*imdMax;
+
+            filename=[d.pn '\' d.fn(1:end-4) 'combo'];
+            v = VideoWriter(filename,'Uncompressed AVI');
+            v.FrameRate=d.framerate;
+            open(v);
+            for k=1:size(d.imd,3);
+                singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+                figure(100),imshow(singleFrame);
+                red = cat(3, ones(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))));
+                hold on 
+                hh = imshow(red); 
+                hold off
+                set(hh, 'AlphaData', imdconv(:,:,k));
+                f=getframe(gcf);
+                newframe=f.cdata;
+                writeVideo(v,singleFrame);
+                waitbar(k/size(d.imd,3),h);
+            end
+            close(v);
+            close(h);
+            close(gcf);
+            msgbox('Saving video completed.');
+    end
 end
 
 
@@ -1829,7 +2157,7 @@ function slider7_Callback(hObject, eventdata, handles)
 global d
 global v
 if d.pushed==0 && v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if v.pushed==0;
@@ -1947,7 +2275,7 @@ global v
 d.stop=0;
 %checks if a video file was selected
 if v.pushed==0 && d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ERROR');
+    msgbox('Please select folder first!','ERROR');
     return;
 elseif v.pushed==0;
     v.imd=[];
@@ -2325,7 +2653,7 @@ function pushbutton21_Callback(hObject, eventdata, handles)
 global d
 global v
 if d.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 d.stop=1;
@@ -2355,13 +2683,14 @@ clear global v;
 global v
 v.pushed=0;
 v.play=0;
+v.pn=[];
 %clears axes
 cla(handles.axes2,'reset');
 %resets frame slider
 handles.slider7.Value=1;
 
 if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 
@@ -2377,9 +2706,9 @@ else
     [v.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
 end
 
-%checks whether same folder was selected
-if d.pushed>=1 && strcmp(v.pn,d.pn)==0;
-    msgbox('PLEASE SELECT SAME FOLDER AS FOR THE CALCIUM IMAGING VIDEO!','ATTENTION');
+%checks whether calcium imaging video was loaded
+if d.pushed==0;
+    msgbox('Please select calcium imaging video first!','ATTENTION');
     return;
 end
 
@@ -2399,10 +2728,18 @@ v.imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
 %putting each frame into variable 'v.imd'
 h=waitbar(0,'Loading');
 c=1;
-for k=1:v.framerate/d.framerate:nframes
-    v.imd(c).cdata = read(vidObj,k);
-    c=c+1;
-    waitbar(k/nframes,h);
+if v.framerate>d.framerate;
+    for k=1:ceil(v.framerate/d.framerate):nframes
+        v.imd(c).cdata = read(vidObj,k);
+        c=c+1;
+        waitbar(k/nframes,h);
+    end
+else
+    for k=1:nframes
+        v.imd(c).cdata = read(vidObj,k);
+        c=c+1;
+        waitbar(k/nframes,h);
+    end
 end
 sframe=size(v.imd,2)-size(d.imd,3);
 v.imd=v.imd(1:size(d.imd,3));
@@ -2411,6 +2748,9 @@ close(h);
 
 %looking at first original picture
 axes(handles.axes2); image(v.imd(1).cdata);
+titleLabel = ['Behavioral video: ' v.fn];
+set(handles.text28, 'String', titleLabel);
+handles.text28.TooltipString=v.pn;
 msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
 
 
@@ -2424,11 +2764,11 @@ function pushbutton15_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
-    msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
+    msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 axes(handles.axes2); image(v.imd(1).cdata); %displays first image
@@ -2439,7 +2779,7 @@ cropped=clipboard('pastespecial');
 cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
 %checks if cropping coordinates are valid
 if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0;
-    msgbox('PLEASE SELECT VALID CROPPING AREA! Check the instructions again.','ERROR');
+    msgbox('Please select valid cropping area! Check the instructions again.','ERROR');
     return;
 end
 cc=floor(cropCoordinates);
@@ -2508,19 +2848,16 @@ function slider9_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
@@ -2593,19 +2930,16 @@ function slider10_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
@@ -2678,19 +3012,16 @@ function slider11_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 maxframes=size(d.imd,3);
@@ -2761,19 +3092,16 @@ function slider12_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 maxframes=size(d.imd,3);
@@ -2844,19 +3172,16 @@ function slider13_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 maxframes=size(d.imd,3);
@@ -2927,19 +3252,16 @@ function slider14_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 maxframes=size(d.imd,3);
@@ -3008,18 +3330,16 @@ function pushbutton19_Callback(hObject, eventdata, handles)
 global d
 global v
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
-%checks whther video is cropped and converted
+%checks whether video was cropped and converted and whether the
+%corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 % Green preset values
@@ -3098,17 +3418,16 @@ function pushbutton20_Callback(hObject, eventdata, handles)
 global d
 global v
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
+%checks whether video was cropped and converted and whether the
+%corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
-    return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
 elseif d.pushed==0;
-    msgbox('PLEASE LOAD CALCIUM IMAGING VIDEO FIRST!','ERROR');
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 % Pink preset values
@@ -3188,19 +3507,20 @@ function pushbutton10_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
-%check whether video was cropped and converted
+%checks whether video was cropped and converted and whether the
+%corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+elseif d.pushed==0;
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
@@ -3302,19 +3622,20 @@ function pushbutton11_Callback(hObject, eventdata, handles)
 global v
 global d
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
-%check whether video was cropped and converted
+%checks whether video was cropped and converted and whether the
+%corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
+elseif d.pushed==0;
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
             
@@ -3420,35 +3741,32 @@ function pushbutton12_Callback(hObject, eventdata, handles)
 global d
 global v
 if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ATTENTION');
+    msgbox('Please select folder first!','ATTENTION');
     return;
 end
 if d.play==1 || v.play==1;
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
-%check whether video was cropped and converted and whether color spots were
-%saved
+%checks whether video was cropped and converted and whether the
+%corresponding video was loaded
 if v.crop==0;
-    msgbox('PLEASE CROP VIDEO FIRST!','ERROR');
+    msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif v.hsv==0;
-    msgbox('PLEASE CONVERT VIDEO TO HSV COLOR SPACE FIRST!','ERROR');
-    return;
-elseif v.gspot==0 || v.pspot==0;
-    msgbox('PLEASE SAVE COLOR SPOTS FIRST!','ERROR');
+elseif d.pushed==0;
+    msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 %making sure that the ROIs were plotted
 if isempty(d.perc)==1 && d.dF==0;
-    msgbox('ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
+    msgbox('ROIs need to be plotted before you can see corresponding postition of the mouse with cell activity!','ATTENTION');
     return;
 end
 if d.thresh==1 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
-    msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
+    msgbox('All ROIs need to be plotted before you can see corresponding postition of the mouse with cell activity!','ATTENTION');
     return;
 elseif d.thresh==0 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
-    msgbox('ALL ROIs NEED TO BE PLOTTED BEFORE YOU CAN SEE THE CORRESPONDING POSITION OF THE MOUSE WITH CELL ACTIVITY!','ATTENTION');
+    msgbox('All ROIs need to be plotted before you can see corresponding postition of the mouse with cell activity!','ATTENTION');
     return;
 end
 
@@ -3609,7 +3927,7 @@ for j=1:size(d.perc,2);
     hold off;
     if printyn==1
         name=sprintf('ROI%d_trace',j);
-        path=[d.pn '/',name,' .png'];
+        path=[d.pn '/',name,'.png'];
         path=regexprep(path,'\','/');
         print(h,'-dpng','-r100',path); %-depsc for vector graphic 
     end
