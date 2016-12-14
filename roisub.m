@@ -846,7 +846,11 @@ axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFra
 d.pre=1;
 %plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
-figure,plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
+h=figure,plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
+name=('Mean Change');
+path=[d.pn '/',name,'.png'];
+path=regexprep(path,'\','/');
+print(h,'-dpng','-r100',path); %-depsc for vector graphic
 msgbox('Preprocessing done!','Success');
 
 
@@ -1070,10 +1074,14 @@ MaxIntensProj = max(d.imd, [], 3);
 stdIm = std(d.imd,0,3);
 d.mip=MaxIntensProj./stdIm;
 if handles.radiobutton2.Value==1;
-    figure,imagesc(d.mip),title('Maximum Intensity Projection');
+    h=figure,imagesc(d.mip),title('Maximum Intensity Projection');
 else
-    figure,imagesc(d.mip),title('Maximum Intensity Projection');
+    h=figure,imagesc(d.mip),title('Maximum Intensity Projection');
 end
+name=('MIP');
+path=[d.pn '/',name,'.png'];
+path=regexprep(path,'\','/');
+print(h,'-dpng','-r100',path); %-depsc for vector graphic
 msgbox('Calculation done!','Success');
 
 
@@ -1779,23 +1787,15 @@ if d.load==1;
         set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        if round(std(d.ROImeans(:,j))*2,1)>=0.3; % quiroga function!!
-            [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',0.5,'MinPeakDistance',3); % 10 for 2-p video, 0.4 for doric
-            [~,y]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',round(std(d.ROImeans(:,j))*2,1),'MinPeakDistance',3);
-            y=intersect(x,y);
-            spikes{1,j}=y;
-            if isempty(y)==0;
-                plot(y,max(d.ROImeans(:,j))+0.5,'k.');
-            else
-                spikes{1,j}=1;
-            end
-            %calculating number of spikes
-            NoofSpikes(j,1)=length(y);
+        [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
+        spikes{1,j}=x;
+        if isempty(x)==0;
+            plot(x,max(d.ROImeans(:,j))+0.5,'k.');
         else
             spikes{1,j}=1;
-            %calculating number of spikes
-            NoofSpikes(j,1)=0;
         end
+        %calculating number of spikes
+        NoofSpikes(j,1)=length(x);
     end
     hold off;
     %calculating firing frequency
@@ -1805,16 +1805,8 @@ if d.load==1;
     
     %saving as table
     filename=[d.pn '\' d.fn(1:end-4) '.xls'];
-    %erasing any previous content
-    files=dir(d.pn);
-    tf=zeros(length(dir(d.pn)));
-    for k=1:length(dir(d.pn));
-        tf(k)=strcmp([d.fn(1:end-4) '.xls'],files(k).name);
-    end
-    if sum(tf)>0;
-        file=xlsread(filename);
-        file=zeros(size(file,1)+1,size(file,2)+1);
-        xlswrite(filename,file);
+    if exist(filename, 'file')==2
+      delete(filename);
     end
     
     ROInumber=cell(size(d.ROImeans,2),1);
@@ -1827,7 +1819,7 @@ if d.load==1;
     
     %plotting raster plot
     b=zeros(size(d.ROImeans,1),1);
-    figure;
+    fig=figure;
     subplot(2,1,1);
     for j=1:size(d.ROImeans,2);
         plot(spikes{1,j},j,'k.');
@@ -1923,23 +1915,15 @@ elseif d.load==0;
         set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        if d.ROImeans(:,j)>=median(abs(d.ROImeans(:,j))/0.6745); %round(std(d.ROImeans(:,j))*2,1)>=0.3;
-            [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',0.5,'MinPeakDistance',3); % 10 for 2-p video, 0.4 for doric
-            [~,y]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',round(std(d.ROImeans(:,j))*2,1),'MinPeakDistance',3);
-            y=intersect(x,y);
-            spikes{1,j}=y;
-            if isempty(y)==0;
-                plot(y,max(d.ROImeans(:,j))+0.5,'k.');
-            else
-                spikes{1,j}=1;
-            end
-            %calculating number of spikes
-            NoofSpikes(j,1)=length(y);
+        [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
+        spikes{1,j}=x;
+        if isempty(x)==0;
+            plot(x,max(d.ROImeans(:,j))+0.5,'k.');
         else
             spikes{1,j}=1;
-            %calculating number of spikes
-            NoofSpikes(j,1)=0;
         end
+        %calculating number of spikes
+        NoofSpikes(j,1)=length(x);
     end
     hold off;
     %calculating firing frequency
@@ -1949,16 +1933,8 @@ elseif d.load==0;
     
     %saving as table
     filename=[d.pn '\' d.fn(1:end-4) '.xls'];
-    %erasing any previous content
-    files=dir(d.pn);
-    tf=zeros(length(dir(d.pn)));
-    for k=1:length(dir(d.pn));
-        tf(k)=strcmp([d.fn(1:end-4) '.xls'],files(k).name);
-    end
-    if sum(tf)>0;
-        file=xlsread(filename);
-        file=zeros(size(file,1)+1,size(file,2)+1);
-        xlswrite(filename,file);
+    if exist(filename, 'file')==2
+      delete(filename);
     end
     
     ROInumber=cell(size(d.ROImeans,2),1);
@@ -1971,7 +1947,7 @@ elseif d.load==0;
     
     %plotting raster plot
     b=zeros(size(d.ROImeans,1),1);
-    figure;
+    fig=figure;
     subplot(2,1,1);
     for j=1:size(d.ROImeans,2);
         plot(spikes{1,j},j,'k.');
@@ -2003,6 +1979,58 @@ elseif d.load==0;
     ticlabel=cell2mat(ticlabel);
     ticlabel=ticlabel./d.framerate;
     set(gca,'XTickLabel',ticlabel);
+end
+%saving traces
+% Construct a questdlg with two options
+choice = questdlg('Would you like to save these traces?', ...
+    'Attention', ...
+    'YES','NO','YES');
+% Handle response
+switch choice
+    case 'YES'
+        files=dir(d.pn);
+        tf=zeros(1,length(dir(d.pn)));
+        for k=1:length(dir(d.pn));
+            tf(k)=strcmp('traces',files(k).name);
+        end
+        if sum(tf)==0;
+            mkdir([d.pn '\traces']);
+            tnum=ceil(size(d.ROImeans,2)/8);
+            hfnum=get(fig,'Number');
+            numseries=(hfnum-tnum:1:hfnum-1);
+            for j=1:tnum;
+                name=sprintf('traces_%d',j);
+                figurenum=sprintf('-f%d',numseries(j));
+                path=[d.pn '/traces/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+            end
+            name=('rasterplot');
+            figurenum=sprintf('-f%d',hfnum);
+            path=[d.pn '/traces/',name,'.png'];
+            path=regexprep(path,'\','/');
+            print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+            msgbox('Done!','Attention');
+        else
+            tnum=ceil(size(d.ROImeans,2)/8);
+            hfnum=get(fig,'Number');
+            numseries=(hfnum-tnum:1:hfnum-1);
+            for j=1:tnum;
+                name=sprintf('traces_%d',j);
+                figurenum=sprintf('-f%d',numseries(j));
+                path=[d.pn '/traces/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+            end
+            name=('rasterplot');
+            figurenum=sprintf('-f%d',hfnum);
+            path=[d.pn '/traces/',name,'.png'];
+            path=regexprep(path,'\','/');
+            print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+            msgbox('Done!','Attention');
+        end
+    case 'NO'
+        return;
 end
 
 
