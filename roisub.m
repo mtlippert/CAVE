@@ -97,7 +97,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 23-Nov-2016 22:27:24
+% Last Modified by GUIDE v2.5 27-Dec-2016 18:07:14
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -193,7 +193,7 @@ d.thresh=0;
 d.valid=0;
 d.dF=0;
 d.load=0;
-d.align=0; %signals whether images were aligned
+d.align=0;
 d.pre=0;
 d.mip=0;
 d.pn=[];
@@ -243,13 +243,16 @@ x=imfinfo([d.pn '\' d.fn]);
 Width=x(1).Width;
 Height=x(1).Height;
 
-%reading frame rate of the CI video
+%asking frame rate of the CI video
 try
    d.framerate=csvread([d.pn '\Framerate.txt']);
 catch ME
    if (strcmp(ME.identifier,'MATLAB:csvread:FileNotFound'))
-      uiwait(msgbox('You need a text file called Framerate containing the number of frames per second!','Attention'));
-      return;
+        prompt = {'Enter framerate:'};
+        dlg_title = 'Input';
+        num_lines = 1;
+        answer = inputdlg(prompt,dlg_title,num_lines);
+        d.framerate=str2num(cell2mat(answer));
    end
 end 
 
@@ -414,8 +417,6 @@ if sum(tf)>0;
                     load([d.pn '\' d.fn(1:end-4) 'vidalign']);
                     d.align=vidalign;
                     d.pre=1;
-
-                    msgbox('Loading complete!');
             end
         case 'NO'
             if length(Files)==1;
@@ -571,7 +572,6 @@ else
     axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
 end
 p.pn=d.pn;
-close(h);
 
 titleLabel = ['Calcium imaging video: ' d.fn];
 set(handles.text27, 'String', titleLabel);
@@ -1704,6 +1704,57 @@ msgbox('Loading complete!');
 
 
 
+% --- Executes on slider movement.                          THRESHOLD LEVEL
+function slider21_Callback(hObject, eventdata, handles)
+% hObject    handle to slider21 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+global d
+MIP=d.mip/max(max(d.mip));
+MIP(MIP<handles.slider21.Value)=0;
+figure(2),imshow(MIP);
+
+
+% th_MIP=im2bw(MIP, handles.slider21.Value);
+% smallestAcceptableArea = 25;
+% structuringElement = strel('disk', 2);
+% th_clean_MIP = imclose(bwareaopen(th_MIP,smallestAcceptableArea),structuringElement);
+% D = bwdist(~th_clean_MIP);
+% figure(2);
+% imshow(D,[],'InitialMagnification','fit');
+% title('Distance transform of ~bw');
+% D = -D;
+% D(~th_clean_MIP) = -Inf;
+% L = watershed(D);
+% rgb = label2rgb(L,'jet',[.5 .5 .5]);
+% figure(3);
+% imshow(rgb,'InitialMagnification','fit');
+% title('Watershed transform of D');
+
+% --- Executes during object creation, after setting all properties.
+function slider21_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider21 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+% --- Executes on button press in pushbutton34.                   AUTO ROIs
+function pushbutton34_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton34 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+
+
 
 % --- Executes on button press in pushbutton14.             PLOT ROI VALUES
 function pushbutton14_Callback(hObject, eventdata, handles)
@@ -1758,6 +1809,8 @@ if d.load==1;
     % plotting ROI values
     NoofSpikes=zeros(size(d.ROIs,2),1);
     spikes=cell(1,size(d.ROIs,2));
+    ts=cell(1,size(d.ROIs,2));
+    amp=cell(1,size(d.ROIs,2));
     %initializing that only 8 subplots will be in one figure
     onesub=(1:8);
     anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
@@ -1787,8 +1840,10 @@ if d.load==1;
         set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
+        [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
         spikes{1,j}=x;
+        ts{1,j}=x/d.framerate;
+        amp{1,j}=y;
         if isempty(x)==0;
             plot(x,max(d.ROImeans(:,j))+0.5,'k.');
         else
@@ -1802,20 +1857,6 @@ if d.load==1;
     Frequency=round(NoofSpikes./(size(d.imd,3)/d.framerate),2);
     %calculating highest amplitude change
     Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
-    
-    %saving as table
-    filename=[d.pn '\' d.fn(1:end-4) '.xls'];
-    if exist(filename, 'file')==2
-      delete(filename);
-    end
-    
-    ROInumber=cell(size(d.ROImeans,2),1);
-    for k=1:size(d.ROImeans,2);
-        ROInumber{k,1}=sprintf('ROI No.%d',k);
-    end
-    T=table(NoofSpikes,Frequency,Amplitude,...
-        'RowNames',ROInumber);
-    writetable(T,filename,'WriteRowNames',true);
     
     %plotting raster plot
     b=zeros(size(d.ROImeans,1),1);
@@ -1886,6 +1927,8 @@ elseif d.load==0;
     % plotting ROI values
     NoofSpikes=zeros(size(d.ROIs,2),1);
     spikes=cell(1,size(d.ROIs,2));
+    ts=cell(1,size(d.ROIs,2));
+    amp=cell(1,size(d.ROIs,2));
     %initializing that only 8 subplots will be in one figure
     onesub=(1:8);
     anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
@@ -1915,8 +1958,10 @@ elseif d.load==0;
         set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        [~,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
+        [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
         spikes{1,j}=x;
+        ts{1,j}=x/d.framerate;
+        amp{1,j}=y;
         if isempty(x)==0;
             plot(x,max(d.ROImeans(:,j))+0.5,'k.');
         else
@@ -1930,20 +1975,6 @@ elseif d.load==0;
     Frequency=round(NoofSpikes./(size(d.imd,3)/d.framerate),2);
     %calculating highest amplitude change
     Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
-    
-    %saving as table
-    filename=[d.pn '\' d.fn(1:end-4) '.xls'];
-    if exist(filename, 'file')==2
-      delete(filename);
-    end
-    
-    ROInumber=cell(size(d.ROImeans,2),1);
-    for k=1:size(d.ROImeans,2);
-        ROInumber{k,1}=sprintf('ROI No.%d',k);
-    end
-    T=table(NoofSpikes,Frequency,Amplitude,...
-        'RowNames',ROInumber);
-    writetable(T,filename,'WriteRowNames',true);
     
     %plotting raster plot
     b=zeros(size(d.ROImeans,1),1);
@@ -2010,8 +2041,36 @@ switch choice
             path=[d.pn '/traces/',name,'.png'];
             path=regexprep(path,'\','/');
             print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+            
+            %saving table
+            filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
+            ROInumber=cell(size(d.ROImeans,2),1);
+            for k=1:size(d.ROImeans,2);
+                ROInumber{k,1}=sprintf('ROI No.%d',k);
+            end
+            T=table(NoofSpikes,Frequency,Amplitude,...
+                'RowNames',ROInumber);
+            writetable(T,filename,'WriteRowNames',true);
+            
+            %saving data
+            field1='framerate';
+            field2='wave';
+            field3='spikes';
+            field4='amp';
+            field5='ts';
+            value1=d.framerate;
+            value2=d.ROImeans;
+            value4=amp;
+            value5=ts;
+            value3=struct(field4,value4,field5,value5);
+            traces=struct(field1,value1,field2,value2,field3,value3);
+            filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
+            save(filename, 'traces');
+    
             msgbox('Done!','Attention');
         else
+            rmdir([d.pn '\traces'],'s');
+            mkdir([d.pn '\traces']);
             tnum=ceil(size(d.ROImeans,2)/8);
             hfnum=get(fig,'Number');
             numseries=(hfnum-tnum:1:hfnum-1);
@@ -2027,6 +2086,32 @@ switch choice
             path=[d.pn '/traces/',name,'.png'];
             path=regexprep(path,'\','/');
             print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+            
+            %saving table
+            filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
+            ROInumber=cell(size(d.ROImeans,2),1);
+            for k=1:size(d.ROImeans,2);
+                ROInumber{k,1}=sprintf('ROI No.%d',k);
+            end
+            T=table(NoofSpikes,Frequency,Amplitude,...
+                'RowNames',ROInumber);
+            writetable(T,filename,'WriteRowNames',true);
+    
+            %saving data
+            field1='framerate';
+            field2='wave';
+            field3='spikes';
+            field4='amp';
+            field5='ts';
+            value1=d.framerate;
+            value2=d.ROImeans;
+            value4=amp;
+            value5=ts;
+            value3=struct(field4,value4,field5,value5);
+            traces=struct(field1,value1,field2,value2,field3,value3);
+            filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
+            save(filename, 'traces');
+            
             msgbox('Done!','Attention');
         end
     case 'NO'
@@ -3357,6 +3442,7 @@ function pushbutton19_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 if v.pushed==0;
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -3436,93 +3522,28 @@ else
 end
 hold off;
 
-
-
-% --- Executes on button press in pushbutton20.                PINK PRESETS
-function pushbutton20_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton20 (see GCBO)
+% --- Executes on selection change in popupmenu1.              SELECT COLOR
+function popupmenu1_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenu1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global d
-global v
-if v.pushed==0;
-    msgbox('Please select folder first!','ATTENTION');
-    return;
+
+% Hints: contents = cellstr(get(hObject,'String')) returns popupmenu1 contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from popupmenu1
+global p
+p.preset=contents{get(handles.popupmenu1,'Value')};
+
+% --- Executes during object creation, after setting all properties.
+function popupmenu1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenu1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
-%checks whether video was cropped and converted and whether the
-%corresponding video was loaded
-if v.crop==0;
-    msgbox('Please crop & convert video first!','ERROR');
-    return;
-elseif d.pushed==0;
-    msgbox('Please load calcium imaging video first!','ERROR');
-    return;
-end
-% Pink preset values
-hueThresholdLow = 0.80;
-hueThresholdHigh = 1;
-saturationThresholdLow = 0.16;
-saturationThresholdHigh = 1;
-valueThresholdLow = 0.2;
-valueThresholdHigh = 0.8;
-handles.slider14.Value = hueThresholdHigh;
-handles.slider13.Value = hueThresholdLow;
-handles.slider12.Value = saturationThresholdLow;
-handles.slider11.Value = saturationThresholdHigh;
-handles.slider9.Value = valueThresholdLow;
-handles.slider10.Value = valueThresholdHigh;
-
-v.hueThresholdHigh = handles.slider14.Value;
-v.hueThresholdLow = handles.slider13.Value;
-v.saturationThresholdLow = handles.slider12.Value;
-v.saturationThresholdHigh = handles.slider11.Value;
-v.valueThresholdLow=handles.slider9.Value;
-v.valueThresholdHigh = handles.slider10.Value;
-
-maxframes=size(d.imd,3);
-nframes=size(v.imd,2);
-
-% Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
-
-% Combine the masks to find where all 3 are "true."
-% Then we will have the mask of only the green parts of the image.
-coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
-
-% Filter out small objects.
-smallestAcceptableArea = 50;
-% Get rid of small objects.  Note: bwareaopen returns a logical.
-coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
-% Smooth the border using a morphological closing operation, imclose().
-structuringElement = strel('disk', 4);
-coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
-% Fill in any holes in the regions, since they are most likely green also.
-coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
-
-% You can only multiply integers if they are of the same type.
-% (coloredObjectsMask is a logical array.)
-% We need to convert the type of coloredObjectsMask to the same data type as hImage.
-% coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
-coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
-
-% Use the colored object mask to mask out the colored-only portions of the rgb image.
-maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
-maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
-maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
-% Concatenate the masked color bands to form the rgb image.
-maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
-
-%showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
-    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise adjust thresholds manually!');
-    text(20,20,str,'Color','r');
-else
-    axes(handles.axes2); imshow(maskedRGBImage);
-end
-hold off;
 
 
 
@@ -3972,7 +3993,7 @@ msgbox('Tracing Completed','Success');
 %% BEHAVIORAL DETECTION
 
 
-% --- Executes on button press in pushbutton29.
+% --- Executes on button press in pushbutton29.            BUTTON DETECTION
 function pushbutton29_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton29 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -4035,66 +4056,3 @@ function pushbutton29_KeyPressFcn(hObject, eventdata, handles)
      % call the callback
      pushbutton29_Callback(handles.pushbutton29,[],handles);
  end
-
-
-
-% --- If Enable == 'on', executes on mouse press in 5 pixel border.
-% --- Otherwise, executes on mouse press in 5 pixel border or over pushbutton25.
-function pushbutton25_ButtonDownFcn(hObject, eventdata, handles)
-% hObject    handle to pushbutton25 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
-
-
-
-
-
-% --- Executes on slider movement.
-function slider21_Callback(hObject, eventdata, handles)
-% hObject    handle to slider21 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-global d
-MIP=d.mip/max(max(d.mip));
-MIP(MIP<handles.slider21.Value)=0;
-figure(2),imshow(MIP);
-
-
-% th_MIP=im2bw(MIP, handles.slider21.Value);
-% smallestAcceptableArea = 25;
-% structuringElement = strel('disk', 2);
-% th_clean_MIP = imclose(bwareaopen(th_MIP,smallestAcceptableArea),structuringElement);
-% D = bwdist(~th_clean_MIP);
-% figure(2);
-% imshow(D,[],'InitialMagnification','fit');
-% title('Distance transform of ~bw');
-% D = -D;
-% D(~th_clean_MIP) = -Inf;
-% L = watershed(D);
-% rgb = label2rgb(L,'jet',[.5 .5 .5]);
-% figure(3);
-% imshow(rgb,'InitialMagnification','fit');
-% title('Watershed transform of D');
-
-% --- Executes during object creation, after setting all properties.
-function slider21_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to slider21 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
-% --- Executes on button press in pushbutton34.
-function pushbutton34_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton34 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
