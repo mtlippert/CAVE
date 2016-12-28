@@ -235,6 +235,10 @@ end
 %extracts filename
 filePattern = fullfile(d.pn, '*.tif'); % *.tiff for 2-P
 Files = dir(filePattern);
+if size(Files,1)==0;
+    msgbox('This folder does not contain a TIFF file!','ATTENTION');
+    return;
+end
 d.fn = Files(1).name;
 
 %defining dimensions of video
@@ -2276,8 +2280,8 @@ end
 if v.pushed==0;
     v.imd=[];
 elseif v.pushed==1;
+    v.hsvA=[];
     v.hsvP=[];
-    v.hsvG=[];
 elseif v.pushed>=1;
 end
 if d.pushed==0;
@@ -2355,11 +2359,11 @@ elseif v.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==2;
-    axes(handles.axes2); imshow(v.hsvG(round(handles.slider7.Value)).cdata); %green masked video
+    axes(handles.axes2); imshow(v.hsvP(round(handles.slider7.Value)).cdata); %green masked video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==3;
-    axes(handles.axes2); imshow(v.hsvP(round(handles.slider7.Value)).cdata); %yellow masked video
+    axes(handles.axes2); imshow(v.hsvA(round(handles.slider7.Value)).cdata); %yellow masked video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
@@ -2394,8 +2398,8 @@ elseif v.pushed==0;
     v.imd=[];
     nframes=[];
 elseif v.pushed==1;
+    v.hsvA=[];
     v.hsvP=[];
-    v.hsvG=[];
     nframes=size(v.imd,2);
 elseif v.pushed>=1;
     nframes=size(v.imd,2);
@@ -2510,7 +2514,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvG(k).cdata); %green masked video
+    imshow(v.hsvP(k).cdata); %green masked video
     axes(handles.axes1); %thresholded video
     singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
@@ -2533,7 +2537,7 @@ elseif  v.pushed==2 && d.pushed==1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvG(k).cdata); %green masked video
+    imshow(v.hsvP(k).cdata); %green masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1 || d.pre==1;
@@ -2557,7 +2561,7 @@ elseif v.pushed==2 && d.pushed==4;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvG(k).cdata); %green masked video
+    imshow(v.hsvP(k).cdata); %green masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
@@ -2588,7 +2592,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvP(k).cdata); %pink masked video
+    imshow(v.hsvA(k).cdata); %pink masked video
     axes(handles.axes1); %thresholded video
     singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
@@ -2611,7 +2615,7 @@ elseif v.pushed==3 && d.pushed==1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvP(k).cdata); %pink masked video
+    imshow(v.hsvA(k).cdata); %pink masked video
     axes(handles.axes1); %original video
     singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     if d.dF==1 || d.pre==1;
@@ -2635,7 +2639,7 @@ elseif v.pushed==3 && d.pushed==4;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
     axes(handles.axes2);
-    imshow(v.hsvP(k).cdata); %pink masked video
+    imshow(v.hsvA(k).cdata); %pink masked video
     axes(handles.axes1); %ROIs with video
     singleFrame=d.imd(:,:,k);
     if d.dF==1 || d.pre==1;
@@ -2811,8 +2815,8 @@ v.pn=[];
 v.fn=[];
 v.crop=0; %signals video is not cropped
 v.hsv=0; %signals video is not converted to hsv color space
-v.gspot=0; %signals green spot is not saved
-v.psopt=0; %signals pink spot is not saved
+v.Pspot=0; %signals green spot is not saved
+v.Aspot=0; %signals pink spot is not saved
 if d.pushed>=1;
     [v.pn]=uigetdir(d.pn);
 else
@@ -2943,7 +2947,7 @@ v.sImage=sImage;
 v.vImage=vImage;
 v.hsv=1; %signals that video was converted
 close(h);
-msgbox('Cropping and Conversion Completed. Please use the green and pink presets to view only the respective spot. If needed adjust thresholds manually! If satisfied save the green spot by clicking SAVE GREEN SPOT and the pink spot by clicking SAVE PINK SPOT.','Success');
+msgbox('Cropping and Conversion Completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking SAVE ANTERIOR SPOT and SAVE POSTERIOR SPOT.','Success');
 
 
 
@@ -3435,11 +3439,16 @@ end
 
 
 
-% --- Executes on button press in pushbutton19.               GREEN PRESETS
-function pushbutton19_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton19 (see GCBO)
+
+% --- Executes on selection change in popupmenu1.              SELECT COLOR
+function popupmenu1_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenu1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns popupmenu1 contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from popupmenu1
+
 global d
 global v
 global p
@@ -3456,13 +3465,43 @@ elseif d.pushed==0;
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
-% Green preset values
-hueThresholdLow = 0.25;
-hueThresholdHigh = 0.55;
-saturationThresholdLow = 0.16;
-saturationThresholdHigh = 1;
-valueThresholdLow = 0;
-valueThresholdHigh = 0.8;
+
+%determining popup choice
+v.preset=handles.popupmenu1.Value;
+if v.preset==1;
+    % Green preset values
+    hueThresholdLow = 0.25;
+    hueThresholdHigh = 0.55;
+    saturationThresholdLow = 0.16;
+    saturationThresholdHigh = 1;
+    valueThresholdLow = 0;
+    valueThresholdHigh = 0.8;
+elseif v.preset==2;
+    % Pink preset values
+    hueThresholdLow = 0.80;
+    hueThresholdHigh = 1;
+    saturationThresholdLow = 0.36;
+    saturationThresholdHigh = 1;
+    valueThresholdLow = 0.0;
+    valueThresholdHigh = 0.8;
+elseif v.preset==3;
+    % Yellow preset values
+    hueThresholdLow = 0.12;
+    hueThresholdHigh = 0.36;
+    saturationThresholdLow = 0.19;
+    saturationThresholdHigh = 1;
+    valueThresholdLow = 0;
+    valueThresholdHigh = 0.8;
+elseif v.preset==4;
+    % Blue preset values
+    hueThresholdLow = 0.62;
+    hueThresholdHigh = 1;
+    saturationThresholdLow = 0.3;
+    saturationThresholdHigh = 1;
+    valueThresholdLow = 0.7;
+    valueThresholdHigh = 1;
+end
+
 handles.slider14.Value = hueThresholdHigh;
 handles.slider13.Value = hueThresholdLow;
 handles.slider12.Value = saturationThresholdLow;
@@ -3515,23 +3554,13 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
     axes(handles.axes2); imshow(maskedRGBImage); hold on;
-    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise adjust thresholds manually!');
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
 else
     axes(handles.axes2); imshow(maskedRGBImage);
 end
 hold off;
 
-% --- Executes on selection change in popupmenu1.              SELECT COLOR
-function popupmenu1_Callback(hObject, eventdata, handles)
-% hObject    handle to popupmenu1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns popupmenu1 contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from popupmenu1
-global p
-p.preset=contents{get(handles.popupmenu1,'Value')};
 
 % --- Executes during object creation, after setting all properties.
 function popupmenu1_CreateFcn(hObject, eventdata, handles)
@@ -3548,7 +3577,7 @@ end
 
 
 
-% --- Executes on button press in pushbutton10.             SAVE GREEN SPOT
+% --- Executes on button press in pushbutton10.      SAVE AS POSTERIOR SPOT
 function pushbutton10_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton10 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -3587,10 +3616,10 @@ coloredObjectsMask=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cda
 maskedImageR=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 maskedImageG=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 maskedImageB=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-v.hsvG = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
+v.hsvP = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 
 %getting green spot from all frames
-h=waitbar(0,'Extracting green spot for all frames');
+h=waitbar(0,'Extracting posterior spot for all frames');
 for k=1:size(v.imd,2);
     % Now apply each color band's particular thresholds to the color band
     hueMask = (v.hImage(k,:,:) >= v.hueThresholdLow) & (v.hImage(k,:,:) <= v.hueThresholdHigh);
@@ -3598,7 +3627,7 @@ for k=1:size(v.imd,2);
     valueMask = (v.vImage(k,:,:) >= v.valueThresholdLow) & (v.vImage(k,:,:) <= v.valueThresholdHigh);
 
     % Combine the masks to find where all 3 are "true."
-    % Then we will have the mask of only the green parts of the image.
+    % Then we will have the mask of only the colored parts of the image.
     coloredObjectsMask(k).cdata = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
@@ -3608,7 +3637,7 @@ for k=1:size(v.imd,2);
     % Smooth the border using a morphological closing operation, imclose().
     structuringElement = strel('disk', 4);
     coloredObjectsMask(k).cdata = imclose(coloredObjectsMask(k).cdata, structuringElement);
-    % Fill in any holes in the regions, since they are most likely green also.
+    % Fill in any holes in the regions.
     coloredObjectsMask(k).cdata = imfill(logical(coloredObjectsMask(k).cdata), 'holes');
 
     % You can only multiply integers if they are of the same type.
@@ -3622,22 +3651,22 @@ for k=1:size(v.imd,2);
     maskedImageG(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,2);
     maskedImageB(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,3);
     % Concatenate the masked color bands to form the rgb image.
-    v.hsvG(k).cdata = cat(3, maskedImageR(k).cdata, maskedImageG(k).cdata, maskedImageB(k).cdata);
+    v.hsvP(k).cdata = cat(3, maskedImageR(k).cdata, maskedImageG(k).cdata, maskedImageB(k).cdata);
     waitbar(k/size(v.imd,2),h);
 end
-v.coloredObjectsMaskG =  coloredObjectsMask;
-v.pushed=2; %signals green spot was saved
-v.gspot=1; %signals green spot was saved
+v.coloredObjectsMaskP =  coloredObjectsMask;
+v.pushed=2; %signals posterior spot was saved
+v.Pspot=1; %signals posterior spot was saved
 close(h);
 
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
-traceg=zeros(nframes,2);
-%tracing center of the extracted green dot
-h=waitbar(0,'Tracing green spot');
+traceP=zeros(nframes,2);
+%tracing center of the extracted posterior dot
+h=waitbar(0,'Tracing posterior spot');
 for k=1:nframes;
-    stats=regionprops(v.coloredObjectsMaskG(k).cdata, {'Centroid','Area'});
+    stats=regionprops(v.coloredObjectsMaskP(k).cdata, {'Centroid','Area'});
     if ~isempty([stats.Area])
         areaArray = [stats.Area];
         [junk,idx] = max(areaArray);
@@ -3648,22 +3677,32 @@ for k=1:nframes;
         x(k,:) = 0;
         y(k,:) = 0;
     end
-    traceg(:,1)=x; %coordinates of the mouse center
-    traceg(:,2)=y;
+    traceP(:,1)=x; %coordinates of the mouse center
+    traceP(:,2)=y;
     waitbar(k/nframes,h);
 end
 close(h);
 %plotting green trace
-tracegplot=traceg(traceg>0);
-tracegplot=reshape(tracegplot,[size(tracegplot,1)/2,2]);
+tracePplot=traceP(traceP>0);
+tracePplot=reshape(tracePplot,[size(tracePplot,1)/2,2]);
 figure, image(v.imd(1).cdata); hold on;
-plot(tracegplot(:,1),tracegplot(:,2),'g'); hold off;
+%choosing color for plot
+if v.preset==1;
+    v.colorP=('g');
+elseif v.preset==2;
+    v.colorP=('r');
+elseif v.preset==3;
+    v.colorP=('y');
+elseif v.preset==4;
+    v.colorP=('b');
+end
+plot(tracePplot(:,1),tracePplot(:,2),v.colorP); hold off;
 
-msgbox('Saving Completed. Please save pink spot as well!','Success');
+msgbox('Saving Completed. Please save anterior spot as well!','Success');
 
 
 
-% --- Executes on button press in pushbutton11.              SAVE PINK SPOT
+% --- Executes on button press in pushbutton11.       SAVE AS ANTERIOR SPOT
 function pushbutton11_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton11 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -3702,10 +3741,10 @@ coloredObjectsMask=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cda
 maskedImageR=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 maskedImageG=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 maskedImageB=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-v.hsvP = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
+v.hsvA = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
 
 %getting green spot from all frames
-h=waitbar(0,'Extracting pink spot for all frames');
+h=waitbar(0,'Extracting anterior spot for all frames');
 for k=1:size(v.imd,2);
     % Now apply each color band's particular thresholds to the color band
     hueMask = (v.hImage(k,:,:) >= v.hueThresholdLow) & (v.hImage(k,:,:) <= v.hueThresholdHigh);
@@ -3713,7 +3752,7 @@ for k=1:size(v.imd,2);
     valueMask = (v.vImage(k,:,:) >= v.valueThresholdLow) & (v.vImage(k,:,:) <= v.valueThresholdHigh);
 
     % Combine the masks to find where all 3 are "true."
-    % Then we will have the mask of only the green parts of the image.
+    % Then we will have the mask of only the colored parts of the image.
     coloredObjectsMask(k).cdata = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
@@ -3723,7 +3762,7 @@ for k=1:size(v.imd,2);
     % Smooth the border using a morphological closing operation, imclose().
     structuringElement = strel('disk', 4);
     coloredObjectsMask(k).cdata = imclose(coloredObjectsMask(k).cdata, structuringElement);
-    % Fill in any holes in the regions, since they are most likely green also.
+    % Fill in any holes in the regions.
     coloredObjectsMask(k).cdata = imfill(logical(coloredObjectsMask(k).cdata), 'holes');
 
     % You can only multiply integers if they are of the same type.
@@ -3737,22 +3776,22 @@ for k=1:size(v.imd,2);
     maskedImageG(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,2);
     maskedImageB(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,3);
     % Concatenate the masked color bands to form the rgb image.
-    v.hsvP(k).cdata = cat(3, maskedImageR(k).cdata, maskedImageG(k).cdata, maskedImageB(k).cdata);
+    v.hsvA(k).cdata = cat(3, maskedImageR(k).cdata, maskedImageG(k).cdata, maskedImageB(k).cdata);
     waitbar(k/size(v.imd,2),h);
 end
-v.coloredObjectsMaskP = coloredObjectsMask;
-v.pushed=3; %signals pink spot was saved
-v.pspot=1; %signals pink spot was saved
+v.coloredObjectsMaskA = coloredObjectsMask;
+v.pushed=3; %signals anterior spot was saved
+v.Aspot=1; %signals anterior spot was saved
 close(h);
 
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
-tracep=zeros(nframes,2);
-%tracing center of the extracted pink dot
-h=waitbar(0,'Tracing pink spot');
+traceA=zeros(nframes,2);
+%tracing center of the extracted anterior dot
+h=waitbar(0,'Tracing anterior spot');
 for k=1:nframes;
-    stats=regionprops(v.coloredObjectsMaskP(k).cdata, {'Centroid','Area'});
+    stats=regionprops(v.coloredObjectsMaskA(k).cdata, {'Centroid','Area'});
     if ~isempty([stats.Area])
         areaArray = [stats.Area];
         [junk,idx] = max(areaArray);
@@ -3763,17 +3802,26 @@ for k=1:nframes;
         x(k,:) = 0;
         y(k,:) = 0;
     end
-    tracep(:,1)=x; %coordinates of the mouse center
-    tracep(:,2)=y;
+    traceA(:,1)=x; %coordinates of the mouse center
+    traceA(:,2)=y;
     waitbar(k/nframes,h);
 end
 close(h);
 %plotting pink trace
-tracepplot=tracep(tracep>0);
-tracepplot=reshape(tracepplot,[size(tracepplot,1)/2,2]);
+traceAplot=traceA(traceA>0);
+traceAplot=reshape(traceAplot,[size(traceAplot,1)/2,2]);
 figure, image(v.imd(1).cdata); hold on;
-plot(tracepplot(:,1),tracepplot(:,2),'r'); hold off;
-hold off;
+%choosing color for plot
+if v.preset==1;
+    v.colorA=('g');
+elseif v.preset==2;
+    v.colorA=('r');
+elseif v.preset==3;
+    v.colorA=('y');
+elseif v.preset==4;
+    v.colorA=('b');
+end
+plot(traceAplot(:,1),traceAplot(:,2),v.colorA); hold off;
 
 msgbox('Saving Completed. If both spots are saved,please proceed by tracing the animal!','Success');
 
@@ -3806,6 +3854,17 @@ elseif d.pushed==0;
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
+%checks whether spots were selected
+if v.Aspot==0 && v.Pspot==0;
+    msgbox('Please select colored spots!','ERROR');
+    return;
+elseif v.Aspot==0;
+    msgbox('Please select anterior colored spot!','ERROR');
+    return;
+elseif v.Pspot==0;
+    msgbox('Please select posterior colored spot!','ERROR');
+    return;
+end
 %making sure that the ROIs were plotted
 if isempty(d.perc)==1 && d.dF==0;
     msgbox('ROIs need to be plotted before you can see corresponding postition of the mouse with cell activity!','ATTENTION');
@@ -3822,41 +3881,10 @@ end
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
-traceg=zeros(nframes,2);
+traceP=zeros(nframes,2);
 
-%tracing center of the extracted green dot
-h=waitbar(0,'Tracing green spot');
-for k=1:nframes;
-    stats=regionprops(v.coloredObjectsMaskG(k).cdata, {'Centroid','Area'});
-    if ~isempty([stats.Area])
-        areaArray = [stats.Area];
-        [junk,idx] = max(areaArray);
-        c = stats(idx).Centroid;
-        x(k,:) = c(1);
-        y(k,:) = c(2);
-    else
-        x(k,:) = 0;
-        y(k,:) = 0;
-    end
-    traceg(:,1)=x; %coordinates of the mouse center
-    traceg(:,2)=y;
-    waitbar(k/nframes,h);
-end
-close(h);
-%plotting green trace
-tracegplot=traceg(traceg>0);
-tracegplot=reshape(tracegplot,[size(tracegplot,1)/2,2]);
-figure, image(v.imd(1).cdata); hold on;
-plot(tracegplot(:,1),tracegplot(:,2),'g');
-
-
-nframes=size(v.imd,2);
-x=zeros(nframes,1);
-y=zeros(nframes,1);
-tracep=zeros(nframes,2);
-
-%tracing center of the extracted pink dot
-h=waitbar(0,'Tracing pink spot');
+%tracing center of the extracted posterior dot
+h=waitbar(0,'Tracing posterior spot');
 for k=1:nframes;
     stats=regionprops(v.coloredObjectsMaskP(k).cdata, {'Centroid','Area'});
     if ~isempty([stats.Area])
@@ -3869,57 +3897,148 @@ for k=1:nframes;
         x(k,:) = 0;
         y(k,:) = 0;
     end
-    tracep(:,1)=x; %coordinates of the mouse center
-    tracep(:,2)=y;
+    traceP(:,1)=x; %coordinates of the mouse center
+    traceP(:,2)=y;
     waitbar(k/nframes,h);
 end
 close(h);
-%plotting pink trace
-tracepplot=tracep(tracep>0);
-tracepplot=reshape(tracepplot,[size(tracepplot,1)/2,2]);
-plot(tracepplot(:,1),tracepplot(:,2),'r');
-hold off;
+%plotting posterior trace
+tracePplot=traceP(traceP>0);
+tracePplot=reshape(tracePplot,[size(tracePplot,1)/2,2]);
+a=figure, image(v.imd(1).cdata); hold on;
+plot(tracePplot(:,1),tracePplot(:,2),v.colorP);
+
+
+nframes=size(v.imd,2);
+x=zeros(nframes,1);
+y=zeros(nframes,1);
+traceA=zeros(nframes,2);
+
+%tracing center of the extracted anterior dot
+h=waitbar(0,'Tracing anterior spot');
+for k=1:nframes;
+    stats=regionprops(v.coloredObjectsMaskA(k).cdata, {'Centroid','Area'});
+    if ~isempty([stats.Area])
+        areaArray = [stats.Area];
+        [junk,idx] = max(areaArray);
+        c = stats(idx).Centroid;
+        x(k,:) = c(1);
+        y(k,:) = c(2);
+    else
+        x(k,:) = 0;
+        y(k,:) = 0;
+    end
+    traceA(:,1)=x; %coordinates of the mouse center
+    traceA(:,2)=y;
+    waitbar(k/nframes,h);
+end
+close(h);
+%plotting anterior trace
+traceAplot=traceA(traceA>0);
+traceAplot=reshape(traceAplot,[size(traceAplot,1)/2,2]);
+plot(traceAplot(:,1),traceAplot(:,2),v.colorA); hold off;
+
+%saving plot
+% checking whether ROI traces had been saved before
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn));
+    tf(k)=strcmp('location',files(k).name);
+end
+if sum(tf)==0;
+    mkdir([d.pn '\location']);
+else
+    rmdir([d.pn '\location'],'s');
+    mkdir([d.pn '\location']);
+end
+name=sprintf('mouse_trace');
+path=[d.pn '/location/',name,'.png'];
+path=regexprep(path,'\','/');
+print(a,'-dpng','-r100',path); %-depsc for vector graphic
 
 %calculating the amount of time the mouse was out of view in percent
-percOutside=round((length(tracep)-length(tracepplot))/length(tracep)*100,1); %tracepplot excludes values of zero, which means mouse was out of view
+percOutside=round((length(traceA)-length(traceAplot))/length(traceA)*100,1); %traceAplot excludes values of zero, which means mouse was out of view
 
 %calculating traveled distance
-x=diff(tracepplot(:,1));
+x=diff(traceAplot(:,1));
 x=sqrt(x.^2);
-y=diff(tracepplot(:,2));
+y=diff(traceAplot(:,2));
 y=sqrt(y.^2);
 dist=sqrt(x.^2+y.^2);
-totalDistIncm=sum(dist(dist>1 & dist<30)); %movement is consider at least 1 pixel and at most 30 pixels at once
+totalDistInPx=sum(dist(dist>1 & dist<40)); %movement is consider at least 1 pixel and at most 40 pixels at once
 
 %pixel in cm
-factor=30/size(v.imd(1).cdata,2);
-totalDistIncm=round(totalDistIncm*factor,1);
+h=figure,image(v.imd(1).cdata);hold on;
+uiwait(msgbox('Please define the length of one side of the testing area by dragging a line, right-clicking, select "Copy Position" and close the figure. Then press "Next", "Finish"!','Attention'));
+a=imline;
+uiwait(h);
+cropped=clipboard('pastespecial');
+testsizepixel=round(str2num(cell2mat(cropped.A_pastespecial)));
+testsizepixel=round(sqrt((abs(testsizepixel(2,1)-testsizepixel(1,1)))^2+(abs(testsizepixel(2,2)-testsizepixel(1,2)))^2))
+prompt = {'Enter real length in cm:'};
+dlg_title = 'Input';
+num_lines = 1;
+answer = inputdlg(prompt,dlg_title,num_lines);
+testsizecm=str2num(cell2mat(answer));
+factor=testsizecm/testsizepixel;
+totalDistIncm=round(totalDistInPx*factor,1);
 
 %calculating percent pause
 pause=sum(dist(:) <= 1); % change 1 to any other number if wanted, 1 is one pixel movement
-percPause=round(pause/length(tracep)*100,1); %percent in regards to the whole time
+percPause=round(pause/length(traceA)*100,1); %percent in regards to the whole time
 
 %velocity in cm/s
-VelocityIncms=round(totalDistIncm/(length(tracepplot)/25),1); %mean velocity while it was visible
+VelocityIncms=round(totalDistIncm/(length(traceAplot)/v.framerate),1); %mean velocity while it was visible
 
-%calculating amount if time the mouse was in the bowl or in the open compartment in percent
-%selecting bowl area
-figure,image(v.imd(1).cdata);
-uiwait(msgbox('Please define the bowl compartment by clicking around the area!','Attention'));
-ROI=roipoly;
-close(gcf);
-z=find(ROI>=1);
-z(z>size(v.imd(1).cdata,1))=0;
-border=max(z);
-Xvalues=tracepplot(:,2);
-Xvalues(Xvalues>border)=0;
-percBowl=round(numel(find(Xvalues>0))/length(tracep)*100,1); %percent in regards to the whole time
-percOpen=100-percBowl-percOutside;
 
-%saving as table
-T=table(totalDistIncm,VelocityIncms,percPause, percOutside, percBowl, percOpen);
-filename=[d.pn '\' d.fn(1:end-4) 'behavior.xls'];
-writetable(T,filename);
+%defining compartments
+%question if
+% Construct a questdlg with two options
+choice = questdlg('Would you like to define regions of interest?', ...
+    'Attention', ...
+    'Yes','No','No');
+% Handle response
+switch choice
+    case 'Yes'
+        %question how many
+        prompt = {'How many?'};
+        dlg_title = 'Input';
+        num_lines = 1;
+        answer = inputdlg(prompt,dlg_title,num_lines);
+        amount=str2num(cell2mat(answer));
+        %loop of selecting compartments, giving names and calculations
+        perccomp=zeros(1,amount);
+        name=cell(1,amount);
+        for k=1:amount;
+            %selecting ROI
+            figure,image(v.imd(1).cdata);
+            str=sprintf('Please define compartment No. %d by clicking around the area!',k);
+            uiwait(msgbox(str,'Attention'));
+            ROI=roipoly;
+            %name of ROI
+            prompt = {'What do you want to call it?'};
+            dlg_title = 'Input';
+            num_lines = 1;
+            answer = inputdlg(prompt,dlg_title,num_lines);
+            name{1,k}=answer;
+            close(gcf);
+            %calculating amount of time the mouse (the head) was in a compartment in percent
+            [y,x]=find(ROI>0);
+            cood=[x,y];
+            traceAround=round(traceAplot);
+            mhead=accumarray(traceAround,1);
+            Mhead=imresize(mhead, [size(ROI,1) size(ROI,2)]);
+            Mhead(Mhead<0.1)=0;
+            Mhead(Mhead>0.1)=1;
+            combi=ROI+Mhead;
+            numpixel=numel(find(combi>1));
+            numpixel=numpixel*((size(mhead,1)/size(ROI,1)+size(mhead,2)/size(ROI,2))/2);
+            perccomp(1,k)=round(numpixel/length(traceA)*100,2); %percent in regards to the whole time
+            Compartments.(char(name{1,k})) = perccomp(1,k);
+        end
+    case 'No'
+end
+
 
 %plotting cell activity
 printyn=1; %for printing figures
@@ -3932,25 +4051,25 @@ for j=1:size(d.perc,2);
     c=0;
     a=0;
     ArrowCoord=[];
-    for k=1:floor(length(traceg)/round(length(traceg)/size(d.perc,1),2));
-        if d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0 && tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0; %>=0.6
+    for k=1:floor(length(traceP)/round(length(traceP)/size(d.perc,1),2));
+        if d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0 && traceA(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0; %>=0.6
             c=c+1;
             a=a+1;
-            ArrowCoord{a,j}=[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1);traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)];
-            x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)=x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)+1;
-            x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)=x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)+1;
-        elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0 && tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)==0; %>=0.6
-%         drawArrow([traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)],[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)=x(round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2)),round(traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)),j)+1;
+            ArrowCoord{a,j}=[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1);traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)];
+            x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)=x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)+1;
+            x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)=x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)+1;
+        elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0 && traceA(round(k*round(length(traceP)/size(d.perc,1),2)),1)==0; %>=0.6
+%         drawArrow([traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)],[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)=x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)+1;
             c=c+1;
-%             ArrowCoord{c,j}=[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1);traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)];
-        elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)==0 && tracep(round(k*round(length(traceg)/size(d.perc,1),2)),1)>0; %>=0.6
-%         drawArrow([traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)],[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)=x(round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)),round(tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)),j)+1;
+%             ArrowCoord{c,j}=[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1);traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)];
+        elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)==0 && traceA(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0; %>=0.6
+%         drawArrow([traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)],[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)=x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)+1;
             c=c+1;
-%             ArrowCoord{c,j}=[traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1);traceg(round(k*round(length(traceg)/size(d.perc,1),2)),2) tracep(round(k*round(length(tracep)/size(d.perc,1),2)),2)];
+%             ArrowCoord{c,j}=[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1);traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)];
         end
-        if d.perc(k,j)>=std(d.ROImeans(:,j))*2 && (tracep(round(k*round(length(tracep)/size(d.perc,1),2)),1)==0 && traceg(round(k*round(length(traceg)/size(d.perc,1),2)),1)==0); %>=0.6
+        if d.perc(k,j)>=std(d.ROImeans(:,j))*2 && (traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)==0 && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)==0); %>=0.6
             n=n+1;
         end
     end
@@ -3974,15 +4093,36 @@ for j=1:size(d.perc,2);
         drawArrow([ArrowCoord{k,j}(1,1) ArrowCoord{k,j}(1,2)],[ArrowCoord{k,j}(2,1) ArrowCoord{k,j}(2,2)],'MaxHeadSize',5,'LineWidth',1,'Color',[1 0 0]);
     end
     hold off;
+    %saving plots
     if printyn==1
         name=sprintf('ROI%d_trace',j);
-        path=[d.pn '/',name,'.png'];
+        path=[d.pn '/location/',name,'.png'];
         path=regexprep(path,'\','/');
-        print(h,'-dpng','-r100',path); %-depsc for vector graphic 
+        print(h,'-dpng','-r100',path); %-depsc for vector graphic
+
+        %saving table
+        T=table(totalDistIncm,VelocityIncms,percPause,percOutside);
+        filename=[d.pn '\location\' d.fn(1:end-4) 'behavior.xls'];
+        writetable(T,filename);
+
+        %saving data
+%             field1='framerate';
+%             field2='wave';
+%             field3='spikes';
+%             field4='amp';
+%             field5='ts';
+%             value1=d.framerate;
+%             value2=d.ROImeans;
+%             value4=amp;
+%             value5=ts;
+%             value3=struct(field4,value4,field5,value5);
+%             traces=struct(field1,value1,field2,value2,field3,value3);
+%             filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
+%             save(filename, 'traces');
     end
 end
 v.pushed=1; %signals to show original video again
-msgbox('Tracing Completed','Success');
+msgbox('Tracing Completed. ROI traces saved in folder location!','Success');
     
 
 
@@ -4009,8 +4149,8 @@ elseif v.pushed==0;
     v.imd=[];
     nframes=[];
 elseif v.pushed==1;
+    v.hsvA=[];
     v.hsvP=[];
-    v.hsvG=[];
     nframes=size(v.imd,2);
 elseif v.pushed>=1;
     nframes=size(v.imd,2);
