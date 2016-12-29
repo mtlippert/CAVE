@@ -97,7 +97,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 27-Dec-2016 18:07:14
+% Last Modified by GUIDE v2.5 29-Dec-2016 17:19:02
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -2279,10 +2279,13 @@ if d.pushed==0 && v.pushed==0;
 end
 if v.pushed==0;
     v.imd=[];
+    nframes=[];
 elseif v.pushed==1;
     v.hsvA=[];
     v.hsvP=[];
+    nframes=size(v.imd,2);
 elseif v.pushed>=1;
+    nframes=size(v.imd,2);
 end
 if d.pushed==0;
     d.imd=[];
@@ -2351,19 +2354,19 @@ elseif d.pushed==4;
     set(handles.text36, 'String', textLabel);
 end
 if v.pushed==1 && d.pushed>=1;
-    axes(handles.axes2); image(v.imd(round(handles.slider7.Value)).cdata); %original video
+    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==1;
-    axes(handles.axes2); image(v.imd(round(handles.slider7.Value)).cdata); %original video
+    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==2;
-    axes(handles.axes2); imshow(v.hsvP(round(handles.slider7.Value)).cdata); %green masked video
+    axes(handles.axes2); imshow(v.hsvP(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %green masked video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==3;
-    axes(handles.axes2); imshow(v.hsvA(round(handles.slider7.Value)).cdata); %yellow masked video
+    axes(handles.axes2); imshow(v.hsvA(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %yellow masked video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
@@ -2435,235 +2438,235 @@ if v.pushed==1 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    image(v.imd(k).cdata); %original video
-    axes(handles.axes1); %thresholded video
-    singleFrame=d.imd(:,:,k);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        axes(handles.axes1); imshow(singleFrame);
-    end
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+        axes(handles.axes1); %thresholded video
+        singleFrame=d.imd(:,:,k);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            axes(handles.axes1); imshow(singleFrame);
+        end
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif v.pushed==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    image(v.imd(k).cdata); %original video
-    axes(handles.axes1); %original video
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        imshow(singleFrame);
-    end
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+        axes(handles.axes1); %original video
+        singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            imshow(singleFrame);
+        end
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif v.pushed==1 && d.pushed==4;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    image(v.imd(k).cdata); %original video
-    axes(handles.axes1); %ROIs with video
-    singleFrame=d.imd(:,:,k);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
-    else
-        imshow(singleFrame);hold on;
-    end
-    stat = regionprops(d.labeled,'Centroid');
-    for j=1:size(d.b,1);
-        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end
-    hold off;
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+        axes(handles.axes1); %ROIs with video
+        singleFrame=d.imd(:,:,k);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
+        else
+            imshow(singleFrame);hold on;
+        end
+        stat = regionprops(d.labeled,'Centroid');
+        for j=1:size(d.b,1);
+            d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+            plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+            text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        end
+        hold off;
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif v.pushed==2 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvP(k).cdata); %green masked video
-    axes(handles.axes1); %thresholded video
-    singleFrame=d.imd(:,:,k);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        axes(handles.axes1); imshow(singleFrame);
-    end
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %posterior spot masked video
+        axes(handles.axes1); %thresholded video
+        singleFrame=d.imd(:,:,k);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            axes(handles.axes1); imshow(singleFrame);
+        end
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif  v.pushed==2 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvP(k).cdata); %green masked video
-    axes(handles.axes1); %original video
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        imshow(singleFrame);
-    end
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %posterior spot masked video
+        axes(handles.axes1); %original video
+        singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            imshow(singleFrame);
+        end
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif v.pushed==2 && d.pushed==4;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvP(k).cdata); %green masked video
-    axes(handles.axes1); %ROIs with video
-    singleFrame=d.imd(:,:,k);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
-    else
-        imshow(singleFrame);hold on;
-    end
-    stat = regionprops(d.labeled,'Centroid');
-    for j=1:size(d.b,1);
-        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end
-    hold off;
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %posterior spot masked video
+        axes(handles.axes1); %ROIs with video
+        singleFrame=d.imd(:,:,k);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
+        else
+            imshow(singleFrame);hold on;
+        end
+        stat = regionprops(d.labeled,'Centroid');
+        for j=1:size(d.b,1);
+            d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+            plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+            text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        end
+        hold off;
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif v.pushed==3 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvA(k).cdata); %pink masked video
-    axes(handles.axes1); %thresholded video
-    singleFrame=d.imd(:,:,k);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        axes(handles.axes1); imshow(singleFrame);
-    end
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        imshow(v.hsvA(round(k*round((nframes/maxframes),2))).cdata); %anterior spot masked video
+        axes(handles.axes1); %thresholded video
+        singleFrame=d.imd(:,:,k);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            axes(handles.axes1); imshow(singleFrame);
+        end
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif v.pushed==3 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvA(k).cdata); %pink masked video
-    axes(handles.axes1); %original video
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        imshow(singleFrame);
-    end
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        imshow(v.hsvA(round(k*round((nframes/maxframes),2))).cdata); %anterior spot masked video
+        axes(handles.axes1); %original video
+        singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            imshow(singleFrame);
+        end
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif v.pushed==3 && d.pushed==4;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-    axes(handles.axes2);
-    imshow(v.hsvA(k).cdata); %pink masked video
-    axes(handles.axes1); %ROIs with video
-    singleFrame=d.imd(:,:,k);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
-    else
-        imshow(singleFrame);hold on;
-    end
-    stat = regionprops(d.labeled,'Centroid');
-    for j=1:size(d.b,1);
-        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end
-    hold off;
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        axes(handles.axes2);
+        imshow(v.hsvA(round(k*round((nframes/maxframes),2))).cdata); %anterior spot masked video
+        axes(handles.axes1); %ROIs with video
+        singleFrame=d.imd(:,:,k);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
+        else
+            imshow(singleFrame);hold on;
+        end
+        stat = regionprops(d.labeled,'Centroid');
+        for j=1:size(d.b,1);
+            d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+            plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+            text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        end
+        hold off;
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 end
 
@@ -2673,43 +2676,43 @@ if d.pre==1;
     d.play=1;
     axes(handles.axes1);
     for k=round(handles.slider7.Value):size(d.imd,3);
-    singleFrame=d.imd(:,:,round(handles.slider7.Value));
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        axes(handles.axes1); imshow(singleFrame);
-    end
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            axes(handles.axes1); imshow(singleFrame);
+        end
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif d.pushed==1;
     d.play=1;
     axes(handles.axes1); %original video
     for k=round(handles.slider7.Value):size(d.imd,3);
-    singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    if d.dF==1 || d.pre==1;
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-    else
-        imshow(singleFrame);
-    end
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        if d.dF==1 || d.pre==1;
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        else
+            imshow(singleFrame);
+        end
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 elseif d.pushed==4;
     d.play=1;
@@ -2727,17 +2730,17 @@ elseif d.pushed==4;
         plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
         text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
-    hold off;
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.1);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        hold off;
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.1);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 end
 
@@ -2747,17 +2750,17 @@ if  v.pushed==1;
     v.play=1;
     axes(handles.axes2);
     for k=round(handles.slider7.Value):size(v.imd,2);
-    image(v.imd(k).cdata); %original video
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.05);
-    if k==size(d.imd,3);
-        d.stop=1;
-    end
-    if d.stop==1;
-        return;
-    end
+        image(v.imd(k).cdata); %original video
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(0.05);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            return;
+        end
     end
 end
 
@@ -2801,6 +2804,11 @@ global v
 v.pushed=0;
 v.play=0;
 v.pn=[];
+v.amount=[];
+v.shortkey=[];
+v.name=[];
+v.events=[];
+v.skdefined=0;
 %clears axes
 cla(handles.axes2,'reset');
 %resets frame slider
@@ -2810,6 +2818,12 @@ if d.play==1 || v.play==1;
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
+
+%checks whether calcium imaging video was loaded
+if d.pushed==0;
+    msgbox('Please select calcium imaging video first!','ATTENTION');
+    return;
+end        
 
 v.pn=[];
 v.fn=[];
@@ -2823,52 +2837,188 @@ else
     [v.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
 end
 
-%checks whether calcium imaging video was loaded
-if d.pushed==0;
-    msgbox('Please select calcium imaging video first!','ATTENTION');
-    return;
-end
-
+%check whether converted video had been saved before
 filePattern = fullfile(v.pn, '*.mp4');
 Files = dir(filePattern);
 v.fn = Files(1).name;
-v.vid = VideoReader([v.pn '\' v.fn]);
+files=dir(v.pn);
+tf=zeros(1,length(dir(v.pn)));
+for k=1:length(dir(v.pn));
+    tf(k)=strcmp([v.fn(1:end-4) '_converted.mat'],files(k).name);
+end
+if sum(tf)>0;
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to load your last processed version?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            %loading cropped and converted video
+            h=msgbox('Loading... please wait!');
+            load([v.pn '\' v.fn(1:end-4) '_converted']);
+            v.imd=convVimd;
+            v.pushed=1; %signals video is loaded
+            v.crop=1; %signals that video was cropped
+            %loading HSV images
+            load([v.pn '\HSV']);
+            v.hImage=hImage;
+            v.sImage=sImage;
+            v.vImage=vImage;
+            v.hsv=1; %signals that video was converted
+            %loading traces
+            files=dir(v.pn);
+            tfA=zeros(1,length(dir(v.pn)));
+            tfP=zeros(1,length(dir(v.pn)));
+            for k=1:length(dir(v.pn));
+                tfA(k)=strcmp('traceA.mat',files(k).name);
+                tfP(k)=strcmp('traceP.mat',files(k).name);
+            end
+            if sum(tfA)>0;
+                load([v.pn '\traceA']);
+                v.traceA=traceA;
+                v.traceAplot=traceAplot;
+                v.colorA=colorA;
+                v.Aspot=1;
+            end
+            if sum(tfP)>0;
+                load([v.pn '\traceP']);
+                v.traceP=traceP;
+                v.tracePplot=tracePplot;
+                v.colorP=colorP;
+                v.Pspot=1;
+            end
+            if sum(tfA)>0&&sum(tfP)>0;
+                %plotting trace
+                a=figure, image(v.imd(1).cdata); hold on;
+                plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
+                plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
+            end
+            %loading behavior
+            files=dir(v.pn);
+            tfb=zeros(1,length(dir(v.pn)));
+            for k=1:length(dir(v.pn));
+                tfb(k)=strcmp('Behavior.mat',files(k).name);
+            end
+            if sum(tfb)>0;
+                %saving positions at ROIs
+                load([v.pn '\Behavior']);
+                v.amount=Amount;
+                v.events=Events;
+                v.shortkey=Shortkeys;
+                v.name=BehavNames;
+                v.skdefined=1;
+                %showing plot
+                figure;
+                str={};
+                skeys={};
+                for j=1:v.amount;
+                    v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
+                    plot(1:size(v.imd,2),v.events.(char(v.name{1,j}))),hold on;
+                    str(end+1)={char(v.name{1,j})};
+                    skeys(end+1)={char(v.shortkey{1,j})};
+                end
+                xlabel('Time in seconds');
+                tlabel=get(gca,'XTickLabel');
+                for k=1:length(tlabel);
+                    tlabel{k,1}=str2num(tlabel{k,1});
+                end
+                tlabel=cell2mat(tlabel);
+                tlabel=tlabel./d.framerate;
+                set(gca,'XTickLabel',tlabel);
+                legend(str);
+                hold off;
+            end
+            close(h);
+            %looking at first original picture
+            axes(handles.axes2); image(v.imd(1).cdata);
+            titleLabel = ['Behavioral video: ' v.fn];
+            set(handles.text28, 'String', titleLabel);
+            handles.text28.TooltipString=v.pn;
+            if sum(tfb)>0;
+                msgbox(cat(2, {'Loading Completed. Your shortkeys are:'}, skeys),'Success');
+            else
+                msgbox(sprintf('Loading Completed.'),'Success');
+            end
+        case 'NO'
+            %loading raw video
+            v.vid = VideoReader([v.pn '\' v.fn]);
 
-%defining dimensions of video
-nframes=get(v.vid,'NumberOfFrames');
-vidObj = VideoReader([v.pn '\' v.fn]);
-vidHeight = vidObj.Height;
-vidWidth = vidObj.Width;
-v.framerate=vidObj.FrameRate;
-v.imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
+            %defining dimensions of video
+            nframes=get(v.vid,'NumberOfFrames');
+            vidObj = VideoReader([v.pn '\' v.fn]);
+            vidHeight = vidObj.Height;
+            vidWidth = vidObj.Width;
+            v.framerate=vidObj.FrameRate;
+            v.imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
 
-%putting each frame into variable 'v.imd'
-h=waitbar(0,'Loading');
-c=1;
-if v.framerate>d.framerate;
-    for k=1:ceil(v.framerate/d.framerate):nframes
-        v.imd(c).cdata = read(vidObj,k);
-        c=c+1;
-        waitbar(k/nframes,h);
+            %putting each frame into variable 'v.imd'
+            h=waitbar(0,'Loading');
+            c=1;
+            if v.framerate>d.framerate;
+                for k=1:ceil(v.framerate/d.framerate):nframes
+                    v.imd(c).cdata = read(vidObj,k);
+                    c=c+1;
+                    waitbar(k/nframes,h);
+                end
+            else
+                for k=1:nframes
+                    v.imd(c).cdata = read(vidObj,k);
+                    c=c+1;
+                    waitbar(k/nframes,h);
+                end
+            end
+            sframe=size(v.imd,2)-size(d.imd,3);
+            v.imd=v.imd(1:size(d.imd,3));
+            v.pushed=1; %signals video is loaded
+            close(h);
+            %looking at first original picture
+            axes(handles.axes2); image(v.imd(1).cdata);
+            titleLabel = ['Behavioral video: ' v.fn];
+            set(handles.text28, 'String', titleLabel);
+            handles.text28.TooltipString=v.pn;
+            msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
     end
 else
-    for k=1:nframes
-        v.imd(c).cdata = read(vidObj,k);
-        c=c+1;
-        waitbar(k/nframes,h);
-    end
-end
-sframe=size(v.imd,2)-size(d.imd,3);
-v.imd=v.imd(1:size(d.imd,3));
-v.pushed=1; %signals video is loaded
-close(h);
+    %loading raw video
+    v.vid = VideoReader([v.pn '\' v.fn]);
 
-%looking at first original picture
-axes(handles.axes2); image(v.imd(1).cdata);
-titleLabel = ['Behavioral video: ' v.fn];
-set(handles.text28, 'String', titleLabel);
-handles.text28.TooltipString=v.pn;
-msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+    %defining dimensions of video
+    nframes=get(v.vid,'NumberOfFrames');
+    vidObj = VideoReader([v.pn '\' v.fn]);
+    vidHeight = vidObj.Height;
+    vidWidth = vidObj.Width;
+    v.framerate=vidObj.FrameRate;
+    v.imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
+
+    %putting each frame into variable 'v.imd'
+    h=waitbar(0,'Loading');
+    c=1;
+    if v.framerate>d.framerate;
+        for k=1:ceil(v.framerate/d.framerate):nframes
+            v.imd(c).cdata = read(vidObj,k);
+            c=c+1;
+            waitbar(k/nframes,h);
+        end
+    else
+        for k=1:nframes
+            v.imd(c).cdata = read(vidObj,k);
+            c=c+1;
+            waitbar(k/nframes,h);
+        end
+    end
+    sframe=size(v.imd,2)-size(d.imd,3);
+    v.imd=v.imd(1:size(d.imd,3));
+    v.pushed=1; %signals video is loaded
+    close(h);
+    %looking at first original picture
+    axes(handles.axes2); image(v.imd(1).cdata);
+    titleLabel = ['Behavioral video: ' v.fn];
+    set(handles.text28, 'String', titleLabel);
+    handles.text28.TooltipString=v.pn;
+    msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+end
+
 
 
 
@@ -2947,6 +3097,17 @@ v.sImage=sImage;
 v.vImage=vImage;
 v.hsv=1; %signals that video was converted
 close(h);
+
+%saving cropped and converted video
+h=msgbox('Program might seem unresponsive, please wait!');
+filename=[v.pn '\' v.fn(1:end-4) '_converted'];
+convVimd=v.imd;
+save(filename, 'convVimd');
+%saving HSV variables
+filename=[v.pn '\HSV'];
+save(filename, 'hImage','sImage','vImage');
+close(h);
+
 msgbox('Cropping and Conversion Completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking SAVE ANTERIOR SPOT and SAVE POSTERIOR SPOT.','Success');
 
 
@@ -3487,7 +3648,7 @@ elseif v.preset==2;
 elseif v.preset==3;
     % Yellow preset values
     hueThresholdLow = 0.12;
-    hueThresholdHigh = 0.36;
+    hueThresholdHigh = 0.25;
     saturationThresholdLow = 0.19;
     saturationThresholdHigh = 1;
     valueThresholdLow = 0;
@@ -3662,7 +3823,7 @@ close(h);
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
-traceP=zeros(nframes,2);
+v.v.traceP=zeros(nframes,2);
 %tracing center of the extracted posterior dot
 h=waitbar(0,'Tracing posterior spot');
 for k=1:nframes;
@@ -3677,14 +3838,15 @@ for k=1:nframes;
         x(k,:) = 0;
         y(k,:) = 0;
     end
-    traceP(:,1)=x; %coordinates of the mouse center
-    traceP(:,2)=y;
+    v.traceP(:,1)=x; %coordinates of the mouse center
+    v.traceP(:,2)=y;
     waitbar(k/nframes,h);
 end
 close(h);
-%plotting green trace
-tracePplot=traceP(traceP>0);
-tracePplot=reshape(tracePplot,[size(tracePplot,1)/2,2]);
+
+%plotting posterior trace
+v.tracePplot=v.traceP(v.traceP>0);
+v.tracePplot=reshape(v.tracePplot,[size(v.tracePplot,1)/2,2]);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
 if v.preset==1;
@@ -3696,7 +3858,15 @@ elseif v.preset==3;
 elseif v.preset==4;
     v.colorP=('b');
 end
-plot(tracePplot(:,1),tracePplot(:,2),v.colorP); hold off;
+
+%saving posterior trace
+filename=[v.pn '\traceP'];
+traceP=v.traceP;
+tracePplot=v.tracePplot;
+colorP=v.colorP;
+save(filename, 'traceP','tracePplot','colorP');
+
+plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP); hold off;
 
 msgbox('Saving Completed. Please save anterior spot as well!','Success');
 
@@ -3787,7 +3957,7 @@ close(h);
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
-traceA=zeros(nframes,2);
+v.traceA=zeros(nframes,2);
 %tracing center of the extracted anterior dot
 h=waitbar(0,'Tracing anterior spot');
 for k=1:nframes;
@@ -3802,14 +3972,15 @@ for k=1:nframes;
         x(k,:) = 0;
         y(k,:) = 0;
     end
-    traceA(:,1)=x; %coordinates of the mouse center
-    traceA(:,2)=y;
+    v.traceA(:,1)=x; %coordinates of the mouse center
+    v.traceA(:,2)=y;
     waitbar(k/nframes,h);
 end
 close(h);
-%plotting pink trace
-traceAplot=traceA(traceA>0);
-traceAplot=reshape(traceAplot,[size(traceAplot,1)/2,2]);
+
+%plotting anterior trace
+v.traceAplot=v.traceA(v.traceA>0);
+v.traceAplot=reshape(v.traceAplot,[size(v.traceAplot,1)/2,2]);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
 if v.preset==1;
@@ -3821,7 +3992,15 @@ elseif v.preset==3;
 elseif v.preset==4;
     v.colorA=('b');
 end
-plot(traceAplot(:,1),traceAplot(:,2),v.colorA); hold off;
+
+%saving anterior trace
+filename=[v.pn '\traceA'];
+traceA=v.traceA;
+traceAplot=v.traceAplot;
+colorA=v.colorA;
+save(filename, 'traceA','traceAplot','colorA');
+
+plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
 
 msgbox('Saving Completed. If both spots are saved,please proceed by tracing the animal!','Success');
 
@@ -3878,65 +4057,12 @@ elseif d.thresh==0 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
     return;
 end
 
-nframes=size(v.imd,2);
-x=zeros(nframes,1);
-y=zeros(nframes,1);
-traceP=zeros(nframes,2);
-
-%tracing center of the extracted posterior dot
-h=waitbar(0,'Tracing posterior spot');
-for k=1:nframes;
-    stats=regionprops(v.coloredObjectsMaskP(k).cdata, {'Centroid','Area'});
-    if ~isempty([stats.Area])
-        areaArray = [stats.Area];
-        [junk,idx] = max(areaArray);
-        c = stats(idx).Centroid;
-        x(k,:) = c(1);
-        y(k,:) = c(2);
-    else
-        x(k,:) = 0;
-        y(k,:) = 0;
-    end
-    traceP(:,1)=x; %coordinates of the mouse center
-    traceP(:,2)=y;
-    waitbar(k/nframes,h);
-end
-close(h);
 %plotting posterior trace
-tracePplot=traceP(traceP>0);
-tracePplot=reshape(tracePplot,[size(tracePplot,1)/2,2]);
 a=figure, image(v.imd(1).cdata); hold on;
-plot(tracePplot(:,1),tracePplot(:,2),v.colorP);
+plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
 
-
-nframes=size(v.imd,2);
-x=zeros(nframes,1);
-y=zeros(nframes,1);
-traceA=zeros(nframes,2);
-
-%tracing center of the extracted anterior dot
-h=waitbar(0,'Tracing anterior spot');
-for k=1:nframes;
-    stats=regionprops(v.coloredObjectsMaskA(k).cdata, {'Centroid','Area'});
-    if ~isempty([stats.Area])
-        areaArray = [stats.Area];
-        [junk,idx] = max(areaArray);
-        c = stats(idx).Centroid;
-        x(k,:) = c(1);
-        y(k,:) = c(2);
-    else
-        x(k,:) = 0;
-        y(k,:) = 0;
-    end
-    traceA(:,1)=x; %coordinates of the mouse center
-    traceA(:,2)=y;
-    waitbar(k/nframes,h);
-end
-close(h);
 %plotting anterior trace
-traceAplot=traceA(traceA>0);
-traceAplot=reshape(traceAplot,[size(traceAplot,1)/2,2]);
-plot(traceAplot(:,1),traceAplot(:,2),v.colorA); hold off;
+plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
 
 %saving plot
 % checking whether ROI traces had been saved before
@@ -3957,12 +4083,12 @@ path=regexprep(path,'\','/');
 print(a,'-dpng','-r100',path); %-depsc for vector graphic
 
 %calculating the amount of time the mouse was out of view in percent
-percOutside=round((length(traceA)-length(traceAplot))/length(traceA)*100,1); %traceAplot excludes values of zero, which means mouse was out of view
+percOutside=round((length(v.traceA)-length(v.traceAplot))/length(v.traceA)*100,1); %v.traceAplot excludes values of zero, which means mouse was out of view
 
 %calculating traveled distance
-x=diff(traceAplot(:,1));
+x=diff(v.traceAplot(:,1));
 x=sqrt(x.^2);
-y=diff(traceAplot(:,2));
+y=diff(v.traceAplot(:,2));
 y=sqrt(y.^2);
 dist=sqrt(x.^2+y.^2);
 totalDistInPx=sum(dist(dist>1 & dist<40)); %movement is consider at least 1 pixel and at most 40 pixels at once
@@ -3985,10 +4111,10 @@ totalDistIncm=round(totalDistInPx*factor,1);
 
 %calculating percent pause
 pause=sum(dist(:) <= 1); % change 1 to any other number if wanted, 1 is one pixel movement
-percPause=round(pause/length(traceA)*100,1); %percent in regards to the whole time
+percPause=round(pause/length(v.traceA)*100,1); %percent in regards to the whole time
 
 %velocity in cm/s
-VelocityIncms=round(totalDistIncm/(length(traceAplot)/v.framerate),1); %mean velocity while it was visible
+VelocityIncms=round(totalDistIncm/(length(v.traceAplot)/d.framerate),1); %mean velocity while it was visible
 
 
 %defining compartments
@@ -4025,15 +4151,15 @@ switch choice
             %calculating amount of time the mouse (the head) was in a compartment in percent
             [y,x]=find(ROI>0);
             cood=[x,y];
-            traceAround=round(traceAplot);
-            mhead=accumarray(traceAround,1);
+            v.traceAround=round(v.traceAplot);
+            mhead=accumarray(v.traceAround,1);
             Mhead=imresize(mhead, [size(ROI,1) size(ROI,2)]);
             Mhead(Mhead<0.1)=0;
             Mhead(Mhead>0.1)=1;
             combi=ROI+Mhead;
             numpixel=numel(find(combi>1));
             numpixel=numpixel*((size(mhead,1)/size(ROI,1)+size(mhead,2)/size(ROI,2))/2);
-            perccomp(1,k)=round(numpixel/length(traceA)*100,2); %percent in regards to the whole time
+            perccomp(1,k)=round(numpixel/length(v.traceA)*100,2); %percent in regards to the whole time
             Compartments.(char(name{1,k})) = perccomp(1,k);
         end
     case 'No'
@@ -4051,36 +4177,34 @@ for j=1:size(d.perc,2);
     c=0;
     a=0;
     ArrowCoord=[];
-    for k=1:floor(length(traceP)/round(length(traceP)/size(d.perc,1),2));
-        if d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0 && traceA(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0; %>=0.6
+    for k=1:floor(length(v.traceP)/round(length(v.traceP)/size(d.perc,1),2));
+        if d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0; %quiroga spike detection
             c=c+1;
             a=a+1;
-            ArrowCoord{a,j}=[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1);traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)];
-            x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)=x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)+1;
-            x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)=x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)+1;
-        elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0 && traceA(round(k*round(length(traceP)/size(d.perc,1),2)),1)==0; %>=0.6
-%         drawArrow([traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)],[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)=x(round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2)),round(traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)),j)+1;
+            ArrowCoord{a,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
+            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)+1;
+            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)+1;
+        elseif d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0; %>=0.6
+%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)+1;
             c=c+1;
-%             ArrowCoord{c,j}=[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1);traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)];
-        elseif d.perc(k,j)>=std(d.ROImeans(:,j))*2  && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)==0 && traceA(round(k*round(length(traceP)/size(d.perc,1),2)),1)>0; %>=0.6
-%         drawArrow([traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)],[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)=x(round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)),round(traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)),j)+1;
+%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
+        elseif d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0; %>=0.6
+%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)+1;
             c=c+1;
-%             ArrowCoord{c,j}=[traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1);traceP(round(k*round(length(traceP)/size(d.perc,1),2)),2) traceA(round(k*round(length(traceA)/size(d.perc,1),2)),2)];
+%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
         end
-        if d.perc(k,j)>=std(d.ROImeans(:,j))*2 && (traceA(round(k*round(length(traceA)/size(d.perc,1),2)),1)==0 && traceP(round(k*round(length(traceP)/size(d.perc,1),2)),1)==0); %>=0.6
+        if d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745) && (v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0); %>=0.6
             n=n+1;
         end
     end
-    %position distribution in percent
-    x=x./(c+n);
     %plot cell activity
     h=figure(4+j), image(v.imd(1).cdata); hold on;
     string=sprintf('ROI No.%d',j);
     title(string);
     cellactive=imresize(imresize(x,0.25),4);
-    colormap(jet),grid=imagesc(cellactive(:,:,j)),cb=colorbar,cb.Label.String = 'Position distribution in %';
+    colormap(jet),grid=imagesc(cellactive(:,:,j)),cb=colorbar,cb.Label.String = 'Relative position distribution';
     set(gcf,'renderer','OpenGL');
     alpha(grid,0.75);
     %display how many percent mouse was registered out of bounds
@@ -4105,24 +4229,15 @@ for j=1:size(d.perc,2);
         filename=[d.pn '\location\' d.fn(1:end-4) 'behavior.xls'];
         writetable(T,filename);
 
-        %saving data
-%             field1='framerate';
-%             field2='wave';
-%             field3='spikes';
-%             field4='amp';
-%             field5='ts';
-%             value1=d.framerate;
-%             value2=d.ROImeans;
-%             value4=amp;
-%             value5=ts;
-%             value3=struct(field4,value4,field5,value5);
-%             traces=struct(field1,value1,field2,value2,field3,value3);
-%             filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
-%             save(filename, 'traces');
+        %saving positions at ROIs
+        filename=[d.pn '\location\ROIposition'];
+        ROIposition=x;
+        OutofBounds=OoB;
+        save(filename, 'ROIposition','OutofBounds');
     end
 end
 v.pushed=1; %signals to show original video again
-msgbox('Tracing Completed. ROI traces saved in folder location!','Success');
+msgbox('Tracing Completed. ROI traces saved in folder "location"!','Success');
     
 
 
@@ -4142,8 +4257,8 @@ global d
 global v
 d.stop=0;
 %checks if a video file was selected
-if v.pushed==0;
-    msgbox('PLEASE SELECT FOLDER FIRST!','ERROR');
+if v.pushed==0 && d.pushed==0;
+    msgbox('Please select folder first!','ERROR');
     return;
 elseif v.pushed==0;
     v.imd=[];
@@ -4155,22 +4270,97 @@ elseif v.pushed==1;
 elseif v.pushed>=1;
     nframes=size(v.imd,2);
 end
+if d.pushed==0;
+    d.imd=[];
+    maxframes=size(v.imd,2);
+else
+    maxframes=size(d.imd,3);
+end
+
+if d.align==1 && handles.radiobutton2.Value==1;
+    imdMax=(1/(mean(mean(mean(d.imd))))+1/(max(max(max(d.imd)))))/2;
+else
+    imdMax=1/(max(max(max(d.imd))));
+end
+
+if v.skdefined==0;
+    uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you can push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
+    %Question how many
+    prompt = {'How many behaviors would you like to track?'};
+    dlg_title = 'Input';
+    num_lines = 1;
+    answer = inputdlg(prompt,dlg_title,num_lines);
+    v.amount=str2num(cell2mat(answer));
+    %loop of naming behaviors
+    v.shortkey=cell(1,v.amount);
+    v.name=cell(1,v.amount);
+    for k=1:v.amount;
+        %shortkey
+        str=sprintf('Please define shortkey No. %d.',k);
+        prompt = {str};
+        dlg_title = 'Input';
+        num_lines = 1;
+        answer = inputdlg(prompt,dlg_title,num_lines);
+        v.shortkey{1,k}=answer;
+        %name of ROI
+        prompt = {'What do you want to call it?'};
+        dlg_title = 'Input';
+        num_lines = 1;
+        answer = inputdlg(prompt,dlg_title,num_lines);
+        v.name{1,k}=answer;
+        %initializing event counter
+        v.events.(char(v.name{1,k})) = zeros(size(v.imd,2),1);
+    end
+    v.skdefined=1;
+end
+    
 
 if  v.pushed==1;
     v.play=1;
     axes(handles.axes2);
     for k=round(handles.slider7.Value):size(v.imd,2);
-    image(v.imd(k).cdata); %original video
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(0.05);
-    if d.stop==1;
-        return;
-    end
-    if k==size(v.imd,2);
-        v.play=0;
-    end
+        v.k=k;
+        image(v.imd(k).cdata); %original video
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(1/d.framerate);
+        if k==size(d.imd,3);
+            d.stop=1;
+        end
+        if d.stop==1;
+            a=figure;
+            str={};
+            for j=1:v.amount;
+                v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
+                plot(1:size(v.imd,2),v.events.(char(v.name{1,j}))),hold on;
+                str(end+1)={char(v.name{1,j})};
+            end
+            xlabel('Time in seconds');
+            tlabel=get(gca,'XTickLabel');
+            for k=1:length(tlabel);
+                tlabel{k,1}=str2num(tlabel{k,1});
+            end
+                tlabel=cell2mat(tlabel);
+                tlabel=tlabel./d.framerate;
+                set(gca,'XTickLabel',tlabel);
+                legend(str);
+                hold off;
+                %saving plot
+                name=sprintf('mouse_behavior');
+                path=[d.pn '/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(a,'-dpng','-r100',path); %-depsc for vector graphic
+                %saving positions at ROIs
+                filename=[d.pn '\Behavior'];
+                Amount=v.amount;
+                Events=v.events;
+                Shortkeys=v.shortkey;
+                BehavNames=v.name;
+                save(filename, 'Amount','Events','Shortkeys','BehavNames');
+                uiwait(msgbox('Plot and settings saved! You can now plot the behavior with the ROI traces together!'));
+            return;
+        end
     end
 end
 
@@ -4185,14 +4375,24 @@ function pushbutton29_KeyPressFcn(hObject, eventdata, handles)
 %	Character: character interpretation of the key(s) that was pressed
 %	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
 % handles    structure with handles and user data (see GUIDATA)
-
+global v
 % determine the key that was pressed 
  keyPressed = eventdata.Key;
 
- if strcmpi(keyPressed,'s')
-     % set focus to the button
-     uicontrol(handles.pushbutton29);
-
-     % call the callback
-     pushbutton29_Callback(handles.pushbutton29,[],handles);
+ for k=1:v.amount;
+     if strcmpi(keyPressed,v.shortkey{1,k})
+         v.events.(char(v.name{1,k}))(v.k)=1;
+     end
  end
+
+
+% --- Executes on button press in pushbutton35.       RESET BEHAV DETECTION
+function pushbutton35_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton35 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+v.amount=[];
+v.shortkey=[];
+v.name=[];
+v.events=[];
+v.skdefined=0;
