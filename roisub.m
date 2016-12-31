@@ -1827,6 +1827,12 @@ if d.load==1;
             figure('color','w');
         end
         subplot(8,1,anysub(j));
+        if v.behav==1;
+            for l=1:v.amount;
+                v.events.(char(v.name{1,l}))(v.events.(char(v.name{1,l}))>1)=1; %in case event was registered multiple times at the same frame
+                area(1:size(v.imd,2),v.events.(char(v.name{1,l})),'edgecolor',colors{1,l},'facecolor',colors{1,l},'facealpha',0.5),hold on;
+            end
+        end
         plot(d.ROImeans(:,j),'Color',colors{1,j});
         strings=sprintf('ROI No.%d',j);
         %title('ROI values in percent');
@@ -2809,6 +2815,7 @@ v.shortkey=[];
 v.name=[];
 v.events=[];
 v.skdefined=0;
+v.behav=0;
 %clears axes
 cla(handles.axes2,'reset');
 %resets frame slider
@@ -2908,13 +2915,22 @@ if sum(tf)>0;
                 v.shortkey=Shortkeys;
                 v.name=BehavNames;
                 v.skdefined=1;
+                v.behav=1;
                 %showing plot
+                colors={[0    0.4471    0.7412],...
+                        [0.8510    0.3255    0.0980],...
+                        [0.9294    0.6941    0.1255],...
+                        [0.4941    0.1843    0.5569],...
+                        [0.4667    0.6745    0.1882],...
+                        [0.3020    0.7451    0.9333],...
+                        [0.6353    0.0784    0.1843],...
+                        [0.6784    0.9216    1.0000]};
                 figure;
                 str={};
                 skeys={};
                 for j=1:v.amount;
                     v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
-                    plot(1:size(v.imd,2),v.events.(char(v.name{1,j}))),hold on;
+                    area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',colors{1,j},'facecolor',colors{1,j},'facealpha',0.5),hold on;
                     str(end+1)={char(v.name{1,j})};
                     skeys(end+1)={char(v.shortkey{1,j})};
                 end
@@ -4184,15 +4200,18 @@ for j=1:size(d.perc,2);
             ArrowCoord{a,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
             x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)+1;
             x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)+1;
+            xts(c,j)=k/d.framerate;
         elseif d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0; %>=0.6
 %         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
             x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)+1;
             c=c+1;
+            xts(c,j)=k/d.framerate;
 %             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
         elseif d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0; %>=0.6
 %         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
             x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)+1;
             c=c+1;
+            xts(c,j)=k/d.framerate;
 %             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
         end
         if d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745) && (v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0); %>=0.6
@@ -4231,9 +4250,13 @@ for j=1:size(d.perc,2);
 
         %saving positions at ROIs
         filename=[d.pn '\location\ROIposition'];
-        ROIposition=x;
+        field1='ROIposition';
+        field2='ts';
+        value1=x;
+        value2=xts;
+        Positions=struct(field1,value1,field2,value2);
         OutofBounds=OoB;
-        save(filename, 'ROIposition','OutofBounds');
+        save(filename, 'Positions','OutofBounds');
     end
 end
 v.pushed=1; %signals to show original video again
@@ -4286,10 +4309,14 @@ end
 if v.skdefined==0;
     uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you can push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
     %Question how many
-    prompt = {'How many behaviors would you like to track?'};
+    prompt = {'How many behaviors would you like to track? (8 maximum)'};
     dlg_title = 'Input';
     num_lines = 1;
     answer = inputdlg(prompt,dlg_title,num_lines);
+    if str2num(cell2mat(answer))>8;
+        uiwait(msgbox('Please define only up to 8 behaviors!'));
+        return
+    end
     v.amount=str2num(cell2mat(answer));
     %loop of naming behaviors
     v.shortkey=cell(1,v.amount);
@@ -4329,11 +4356,19 @@ if  v.pushed==1;
             d.stop=1;
         end
         if d.stop==1;
+            colors={[0    0.4471    0.7412],...
+                    [0.8510    0.3255    0.0980],...
+                    [0.9294    0.6941    0.1255],...
+                    [0.4941    0.1843    0.5569],...
+                    [0.4667    0.6745    0.1882],...
+                    [0.3020    0.7451    0.9333],...
+                    [0.6353    0.0784    0.1843],...
+                    [0.6784    0.9216    1.0000]};
             a=figure;
             str={};
             for j=1:v.amount;
                 v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
-                plot(1:size(v.imd,2),v.events.(char(v.name{1,j}))),hold on;
+                area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',colors{1,j},'facecolor',colors{1,j},'facealpha',0.5),hold on;
                 str(end+1)={char(v.name{1,j})};
             end
             xlabel('Time in seconds');
@@ -4358,6 +4393,7 @@ if  v.pushed==1;
                 Shortkeys=v.shortkey;
                 BehavNames=v.name;
                 save(filename, 'Amount','Events','Shortkeys','BehavNames');
+                v.behav=1;
                 uiwait(msgbox('Plot and settings saved! You can now plot the behavior with the ROI traces together!'));
             return;
         end
