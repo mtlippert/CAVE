@@ -135,6 +135,7 @@ d.roisdefined=0; %no rois defined
 d.play=0;
 v.play=0;
 v.pn=[];
+v.behav=0;
 d.pn=[];
 d.thresh=0;
 d.valid=0;
@@ -384,6 +385,7 @@ if sum(tf)>0;
                             imd(:,:,k) = Images;
                             waitbar(k/frames,h);
                         end
+                        close(h);
                         d.origCI=imd;
                     else
                         %putting each frame into variable 'images'
@@ -408,6 +410,7 @@ if sum(tf)>0;
                             end
                             imd(:,:,k) = Images;
                         end
+                        close(h);
                         d.origCI=imd;
                     end
                     d.dF=1;
@@ -446,6 +449,7 @@ if sum(tf)>0;
                     d.imd(:,:,k) = Images;
                     waitbar(k/frames,h);
                 end
+                close(h);
 
                 d.pushed=1; %signals that file was selected
                 d.roisdefined=0; %no rois defined
@@ -483,6 +487,7 @@ if sum(tf)>0;
                     end
                     d.imd(:,:,k) = Images;
                 end
+                close(h);
 
                 d.pushed=1; %signals that file was selected
                 d.roisdefined=0; %no rois defined
@@ -523,6 +528,7 @@ elseif length(Files)==1;
         d.imd(:,:,k) = Images;
         waitbar(k/frames,h);
     end
+    close(h);
     
     d.pushed=1; %signals that file was selected
     d.roisdefined=0; %no rois defined
@@ -560,6 +566,7 @@ else
         end
         d.imd(:,:,k) = Images;
     end
+    close(h);
     
     d.pushed=1; %signals that file was selected
     d.roisdefined=0; %no rois defined
@@ -1796,6 +1803,15 @@ colors={[0    0.4471    0.7412],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
 
+colorsb={[0    0.4    0.7],...
+    [0.8    0.3    0.09],...
+    [0.9    0.6    0.1],...
+    [0.4    0.1    0.5],...
+    [0.4    0.6    0.1],...
+    [0.3    0.7    0.9],...
+    [0.6    0.07   0.1],...
+    [0.6    0.9    1]};
+
     
     %dF/f and thresholded ROIs
 if d.load==1;
@@ -1827,13 +1843,16 @@ if d.load==1;
             figure('color','w');
         end
         subplot(8,1,anysub(j));
+        plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
         if v.behav==1;
+            axlim=get(gca,'YLim');
             for l=1:v.amount;
-                v.events.(char(v.name{1,l}))(v.events.(char(v.name{1,l}))>1)=1; %in case event was registered multiple times at the same frame
-                area(1:size(v.imd,2),v.events.(char(v.name{1,l})),'edgecolor',colors{1,l},'facecolor',colors{1,l},'facealpha',0.5),hold on;
+                for m=1:length(v.barstart.(char(v.name{1,l})));
+                rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),axlim(1),v.barwidth.(char(v.name{1,l}))(m),axlim(2)*2],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                end
             end
+            plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
         end
-        plot(d.ROImeans(:,j),'Color',colors{1,j});
         strings=sprintf('ROI No.%d',j);
         %title('ROI values in percent');
         if ismember(j,check2)==1 || j==size(d.ROIs,2);
@@ -1872,6 +1891,13 @@ if d.load==1;
     b=zeros(size(d.ROImeans,1),1);
     fig=figure;
     subplot(2,1,1);
+    if v.behav==1;
+        for l=1:v.amount;
+            for m=1:length(v.barstart.(char(v.name{1,l})));
+            rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),size(d.ROImeans,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+            end
+        end
+    end
     for j=1:size(d.ROImeans,2);
         plot(spikes{1,j},j,'k.');
         hold on;
@@ -1952,6 +1978,15 @@ elseif d.load==0;
         end
         subplot(8,1,anysub(j));
         plot(d.ROImeans(:,j),'Color',colors{1,j});
+        if v.behav==1;
+            axlim=get(gca,'YLim');
+            for l=1:v.amount;
+                for m=1:length(v.barstart.(char(v.name{1,l})));
+                rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),axlim(1),v.barwidth.(char(v.name{1,l}))(m),axlim(2)*2],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                end
+            end
+            plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
+        end
         strings=sprintf('ROI No.%d',j);
         %title('ROI values in percent');
         if ismember(j,check2)==1 || j==size(d.ROIs,2);
@@ -1990,6 +2025,13 @@ elseif d.load==0;
     b=zeros(size(d.ROImeans,1),1);
     fig=figure;
     subplot(2,1,1);
+    if v.behav==1;
+        for l=1:v.amount;
+            for m=1:length(v.barstart.(char(v.name{1,l})));
+            rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),size(d.ROImeans,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+            end
+        end
+    end
     for j=1:size(d.ROImeans,2);
         plot(spikes{1,j},j,'k.');
         hold on;
@@ -2040,13 +2082,11 @@ switch choice
             hfnum=get(fig,'Number');
             numseries=(hfnum-tnum:1:hfnum-1);
             for j=1:tnum;
-                name=sprintf('traces_%d',j);
                 figurenum=sprintf('-f%d',numseries(j));
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
             end
-            name=('rasterplot');
             figurenum=sprintf('-f%d',hfnum);
             path=[d.pn '/traces/',name,'.png'];
             path=regexprep(path,'\','/');
@@ -2079,50 +2119,77 @@ switch choice
     
             msgbox('Done!','Attention');
         else
-            rmdir([d.pn '\traces'],'s');
-            mkdir([d.pn '\traces']);
-            tnum=ceil(size(d.ROImeans,2)/8);
-            hfnum=get(fig,'Number');
-            numseries=(hfnum-tnum:1:hfnum-1);
-            for j=1:tnum;
-                name=sprintf('traces_%d',j);
-                figurenum=sprintf('-f%d',numseries(j));
+            if v.behav==1;
+                tnum=ceil(size(d.ROImeans,2)/8);
+                hfnum=get(fig,'Number');
+                numseries=(hfnum-tnum:1:hfnum-1);
+                for j=1:tnum;
+                    name=sprintf('traces_behav_%d',j);
+                    figurenum=sprintf('-f%d',numseries(j));
+                    path=[d.pn '/traces/',name,'.png'];
+                    path=regexprep(path,'\','/');
+                    print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                end
+                name=('rasterplot_behav');
+                figurenum=sprintf('-f%d',hfnum);
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                msgbox('Done!','Attention');
+            else
+                rmdir([d.pn '\traces'],'s');
+                mkdir([d.pn '\traces']);
+                tnum=ceil(size(d.ROImeans,2)/8);
+                hfnum=get(fig,'Number');
+                numseries=(hfnum-tnum:1:hfnum-1);
+                for j=1:tnum;
+                    if v.behav==1;
+                        name=sprintf('traces_behav_%d',j);
+                    else
+                        name=sprintf('traces_%d',j);
+                    end
+                    figurenum=sprintf('-f%d',numseries(j));
+                    path=[d.pn '/traces/',name,'.png'];
+                    path=regexprep(path,'\','/');
+                    print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                end
+                if v.behav==1;
+                    name=('rasterplot_behav');
+                else
+                    name=('rasterplot');
+                end
+                figurenum=sprintf('-f%d',hfnum);
+                path=[d.pn '/traces/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+
+                %saving table
+                filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
+                ROInumber=cell(size(d.ROImeans,2),1);
+                for k=1:size(d.ROImeans,2);
+                    ROInumber{k,1}=sprintf('ROI No.%d',k);
+                end
+                T=table(NoofSpikes,Frequency,Amplitude,...
+                    'RowNames',ROInumber);
+                writetable(T,filename,'WriteRowNames',true);
+
+                %saving data
+                field1='framerate';
+                field2='wave';
+                field3='spikes';
+                field4='amp';
+                field5='ts';
+                value1=d.framerate;
+                value2=d.ROImeans;
+                value4=amp;
+                value5=ts;
+                value3=struct(field4,value4,field5,value5);
+                traces=struct(field1,value1,field2,value2,field3,value3);
+                filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
+                save(filename, 'traces');
+
+                msgbox('Done!','Attention');
             end
-            name=('rasterplot');
-            figurenum=sprintf('-f%d',hfnum);
-            path=[d.pn '/traces/',name,'.png'];
-            path=regexprep(path,'\','/');
-            print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
-            
-            %saving table
-            filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
-            ROInumber=cell(size(d.ROImeans,2),1);
-            for k=1:size(d.ROImeans,2);
-                ROInumber{k,1}=sprintf('ROI No.%d',k);
-            end
-            T=table(NoofSpikes,Frequency,Amplitude,...
-                'RowNames',ROInumber);
-            writetable(T,filename,'WriteRowNames',true);
-    
-            %saving data
-            field1='framerate';
-            field2='wave';
-            field3='spikes';
-            field4='amp';
-            field5='ts';
-            value1=d.framerate;
-            value2=d.ROImeans;
-            value4=amp;
-            value5=ts;
-            value3=struct(field4,value4,field5,value5);
-            traces=struct(field1,value1,field2,value2,field3,value3);
-            filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
-            save(filename, 'traces');
-            
-            msgbox('Done!','Attention');
         end
     case 'NO'
         return;
@@ -2457,6 +2524,7 @@ if v.pushed==1 && d.pre==1 && d.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2481,6 +2549,7 @@ elseif v.pushed==1 && d.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2512,6 +2581,7 @@ elseif v.pushed==1 && d.pushed==4;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2535,6 +2605,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2559,6 +2630,7 @@ elseif  v.pushed==2 && d.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2590,6 +2662,7 @@ elseif v.pushed==2 && d.pushed==4;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2613,6 +2686,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2637,6 +2711,7 @@ elseif v.pushed==3 && d.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2668,6 +2743,7 @@ elseif v.pushed==3 && d.pushed==4;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2678,7 +2754,7 @@ end
 
 
 %if only calcium video was loaded
-if d.pre==1;
+if d.pre==1 && d.pushed<4;
     d.play=1;
     axes(handles.axes1);
     for k=round(handles.slider7.Value):size(d.imd,3);
@@ -2693,6 +2769,7 @@ if d.pre==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2714,6 +2791,7 @@ elseif d.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2742,6 +2820,7 @@ elseif d.pushed==4;
         set(handles.text36, 'String', textLabel);
         pause(0.1);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2762,6 +2841,7 @@ if  v.pushed==1;
         set(handles.text36, 'String', textLabel);
         pause(0.05);
         if k==size(d.imd,3);
+            d.play=0;
             d.stop=1;
         end
         if d.stop==1;
@@ -2914,6 +2994,8 @@ if sum(tf)>0;
                 v.events=Events;
                 v.shortkey=Shortkeys;
                 v.name=BehavNames;
+                v.barstart=barstart;
+                v.barwidth=barwidth;
                 v.skdefined=1;
                 v.behav=1;
                 %showing plot
@@ -4354,6 +4436,7 @@ if  v.pushed==1;
         pause(1/d.framerate);
         if k==size(d.imd,3);
             d.stop=1;
+            d.play=0;
         end
         if d.stop==1;
             colors={[0    0.4471    0.7412],...
@@ -4368,6 +4451,10 @@ if  v.pushed==1;
             str={};
             for j=1:v.amount;
                 v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
+                %timebars
+                bars=diff(v.events.(char(v.name{1,j})));
+                v.barstart.(char(v.name{1,j}))=find(bars==1);
+                v.barwidth.(char(v.name{1,j}))=find(bars==-1)-v.barstart.(char(v.name{1,j}));
                 area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',colors{1,j},'facecolor',colors{1,j},'facealpha',0.5),hold on;
                 str(end+1)={char(v.name{1,j})};
             end
@@ -4392,7 +4479,9 @@ if  v.pushed==1;
                 Events=v.events;
                 Shortkeys=v.shortkey;
                 BehavNames=v.name;
-                save(filename, 'Amount','Events','Shortkeys','BehavNames');
+                barstart=v.barstart;
+                barwidth=v.barwidth;
+                save(filename, 'Amount','Events','Shortkeys','BehavNames','barstart','barwidth');
                 v.behav=1;
                 uiwait(msgbox('Plot and settings saved! You can now plot the behavior with the ROI traces together!'));
             return;
@@ -4432,3 +4521,4 @@ v.shortkey=[];
 v.name=[];
 v.events=[];
 v.skdefined=0;
+v.behav=0;
