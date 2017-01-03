@@ -18,15 +18,20 @@ function varargout = roisub(varargin)
 %      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
 %      instance to run (singleton)".
 %       
+% 
 %       HOW TO USE THIS GUI FOR CALCIUM IMAGING DATA WITH DORIC
 %       ENDOMICROSCOPE:
 % 
-%       -PREPARATIONS to work with this program: one TIFF file per folder &
-%       test file named 'Framrate' containing only a number describing the
-%       framerate of the calcium imaging video (TIFF file)
+%       -PREPARATIONS to work with this program: one TIFF stack/data set
+%       per folder; optional: text file named 'Framrate' containing only a 
+%       number describing the framerate of the calcium imaging video (TIFF 
+%       file)
 % 
 %       -load .tif data recorded by doric endomicroscope by pushing SELECT
-%       FOLDER button
+%       FOLDER button, if you do not have a text file containing the
+%       framerate, a dialog window will open asking to enter the framerate
+%       IF, you already worked on the file before, the program will ask if
+%       you want to load the last version
 % 
 %       -LOW IN, HIGH IN, LOW OUT, HIGH OUT sliders for changes brightness
 %       and contrast to investigate images (RESET resets values to initial
@@ -38,54 +43,78 @@ function varargout = roisub(varargin)
 % 
 %       -PREPROCESSING downsamples the file to 40 percent, kicks out faulty
 %       frames and does flat field correction; additionally gives you a 
-%       graph of mean change over time
+%       graph of 'mean change over time'
 %       -if needed, ALIGN IMAGES allows to align the images to the first
-%       frame
+%       frame (RESET if you want to reset the alignment)
 %
 %       -DELTA F/F calculates the change over time of the video by
 %       substracting a mean frame from each frame and dividng by the mean
 %       frame
 % 
-%       -to define the ROIs use the ROI button. Define the area by clicking
-%       around the wanted area. Corners can be adjusted afterwards by
-%       hovering over it until one sees a circle symbol. Simply click and
-%       drag to adjust the corner. If you place the cursor over the middle
-%       the cursor should change into a cross which allows you to shift the
-%       selected area. If you are satisfied double-click.
+%       -MANUAL ROIs is used to define the ROIs manually by hand. Define 
+%       a ROI by clicking around the wanted area. Corners can be adjusted 
+%       afterwards by hovering over it until one sees a circle symbol. 
+%       Simply click and drag to adjust the corner. If you place the cursor 
+%       over the middle, the cursor should change into a cross which allows 
+%       you to shift the selected area. If you are satisfied: double-click.
 %       You can press the ROI button multiple times to define as many ROIs
 %       as you want. In case you want to clear all ROIs and start over,
 %       please use the CLEAR ALL ROIS button
-%       -to remove a ROI or parts of it simply overlap with a new ROI
+%       -to remove a ROI or parts of it simply overlap with a new MANUAL ROI
 %       -to define a lot of ROIs use the THRESHOLD slider to define a
-%       threshold and then click THRESHOLD ROIS to aplly the threshold
+%       threshold and then click AUTO ROIS to apply the threshold
 %       -if you already defined ROIs or you want to use a ROI mask from
-%       another video press LOAD ROIS
-%       -to show changes in brightness over time from your defined ROIs
+%       a previous data set press LOAD ROIS
+%       -to show changes in brightness over time for your defined ROIs
 %       use PLOT ROIS
+% 
+%       -SAVE VIDEO allows you to save the calcium imaging video as AVI
+%       file in three different ways: Original, meaning you save the
+%       original video with contrast settings, preprocessed and aligned (if
+%       you did those changes), dF/F, saves the delta F/F video, and
+%       Combined saves the preprocessed (and aligned) video overlayed with
+%       the CI signal in red
 %
+% 
 %       HOW TO ANALYZE THE BEHAVIORAL VIDEO:
 %       -load video by pushing SELECT FOLDER button
+%       IF you worked with the data before, you will be asked if you want
+%       to load the last version
 %       -crop the video to the area in which the mouse is moving by pushing
-%       the CROP VIDEO button by simply clicking and dragging the cursor
+%       the CROP & CONVERT TO HSV button by simply clicking and dragging the cursor
 %       over the desired area. You can adjust the are by hovering over the
 %       edges and then click and dragging it. If you are satisfied with the
 %       defined area, right-click, press Copy Position, and double-click
 %       onto the screen. In the dialog window simply press NEXT and FINISH.
-%       The CROP VIDEO also automatically downsamples the cropped video
-%       -convert the RGB video to HSV color space by pushing CONVERT TO HSV
-%       COLOR SPACE
-%       -press GREEN or PINK PRESETS to use the defined threshold presets
-%       for the respective spot. Adjust the thresholds if needed to extract
-%       only the green/pink spot from the back of the mouse by using the
-%       HUE, SATURATION, and VALUE THRESHOLD LOW and HIGH
-%       -apply the spot to all frames by pushing the SAVE GREEN/PINK SPOT
+%       The CROP VIDEO also automatically downsample and convert the 
+%       cropped video to HSV color space
+%       -select a color preset from the drop-down window (GREEN, PINK, 
+%       YELLOW, BLUE) to use the defined threshold presets for the 
+%       respective spot. Adjust the thresholds if needed to extract only 
+%       the desired colored spot from the back of the mouse by using the 
+%       HUE, SATURATION, and VALUE THRESHOLD, each LOW or HIGH
+%       -apply the color to all frames by pushing either SAVE AS ANTERIOR
+%       or POSTERIOR SPOT
 %       -scroll through all frames to check if spot is detected in all/most
-%       of the frames; if not, set threshold again and then push SAVE
-%       GREEN/PINK SPOT again
+%       of the frames; if not, set threshold again and then push the same
+%       button again
 %       -to show the movement of the animal push TRACE ANIMAL, it will
-%       display movement of the green spot in green and the movement of the
-%       pink spot in red. Additionally it will show a heat map
-%       corresponding to each cell that was active during that frame
+%       display movement of the anterior spot in the specified color and 
+%       the movement of the posterior spot in the specified color. 
+%       Additionally it will plot a figure for each ROI you defined, which 
+%       shows a heat map corresponding to the activity during that frame
+%       -BEHAVIORAL DETECTION allows you to define 8 different behaviors,
+%       define shortkeys and give them names. Then it will play the video
+%       from the specified frame from the frame slider and you will be able
+%       to use your shortkeys to indicate your defined behavior of the
+%       mouse during that frame. After you push STOP or the video ends, you
+%       will get a plot showing you the different behaviors over time. It
+%       will save the plot under the name mouse_behavior. Furthermore it
+%       will save the MAT file Behavior containing the number of behaviors
+%       you defined (Amount), at which timepoints you defined them during 
+%       the video (Events), the shortkeys you used (Shortkeys), the names 
+%       you gave the behaviors (BehavNames), and at which timepoint the 
+%       behaviors started and ended (barstart, barwidth)
 %
 %
 %       SOURCES USED: threshold.m; SimpleColorDetectionByHue; Mohammed Ali
@@ -424,6 +453,7 @@ if sum(tf)>0;
                     load([d.pn '\' d.fn(1:end-4) 'vidalign']);
                     d.align=vidalign;
                     d.pre=1;
+                    d.origCI=[];
             end
         case 'NO'
             if length(Files)==1;
@@ -2213,31 +2243,246 @@ else
     imdMax=1/(max(max(max(d.imd))));
 end
 
-if isempty(d.origCI)==1;
+if isempty(d.origCI)==1&&d.pushed==1;
     d.origCI=d.imd;
+elseif isempty(d.origCI)==1&&d.pushed==4;
+    d.origCI=[];
 end
 
-h=waitbar(0,'Saving calcium imaging video');
+
 
 if d.dF==0; %saving video if it was not processed further
     %converting original CI video to double precision and to values between 1 and 0
-        origCIconv=double(d.origCI);
-        origCIconv=origCIconv./max(max(max(origCIconv)));
-        
-        filename=[d.pn '\' d.fn(1:end-4)];
-        v = VideoWriter(filename,'Grayscale AVI');
-        v.FrameRate=d.framerate;
-        open(v);
-        for k=1:size(d.imd,3);
-            singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    h=waitbar(0,'Saving calcium imaging video');
+    origCIconv=double(d.origCI);
+    origCIconv=origCIconv./max(max(max(origCIconv)));
+
+    filename=[d.pn '\' d.fn(1:end-4)];
+    v = VideoWriter(filename,'Grayscale AVI');
+    v.FrameRate=d.framerate;
+    open(v);
+    for k=1:size(d.imd,3);
+        singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 %             figure(100),imshow(singleFrame);
-            writeVideo(v,singleFrame);
-            waitbar(k/size(d.imd,3),h);
-        end
-        close(v);
-        close(h);
+        writeVideo(v,singleFrame);
+        waitbar(k/size(d.imd,3),h);
+    end
+    close(v);
+    close(h);
 %         close(gcf);
-        msgbox('Saving video completed.');
+    msgbox('Saving video completed.');
+elseif isempty(d.origCI)==1&&d.pushed==4;
+    % Construct a questdlg with two options
+    choice = questdlg('Since you did not load the original CI video, you can only save the dF/F video. Do you want to load the original CI video now?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            %extracts filename
+            filePattern = fullfile(d.pn, '*.tif'); % *.tiff for 2-P
+            Files = dir(filePattern);
+            %defining dimensions of video
+            frames=size(imfinfo([d.pn '\' d.fn]),1);
+            if length(Files)==1;
+                %putting each frame into variable 'Images'
+                h=waitbar(0,'Loading');
+                for k = 1:frames;
+                    % Read in image into an array.
+                    fullFileName = fullfile([d.pn '\' d.fn]);
+                    Image = imread(fullFileName,k);
+                    % Check to see if it's an 8-bit image needed later for scaling).
+                    if strcmpi(class(Image), 'uint8')
+                        % Flag for 256 gray levels.
+                        eightBit = true;
+                    else
+                        eightBit = false;
+                    end
+                    if eightBit
+                        Images = Image;
+                    else
+                    Imaged=double(Image);
+                    Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
+                    end
+                    imd(:,:,k) = Images;
+                    waitbar(k/frames,h);
+                end
+                close(h);
+                d.origCI=imd;
+            else
+                %putting each frame into variable 'images'
+                h=waitbar(0,'Loading');
+                for k = 1:length(Files);
+                    waitbar(k/length(Files),h);
+                    baseFileName = Files(k).name;
+                    fullFileName = fullfile([d.pn '\' baseFileName]);
+                    Image = imread(fullFileName); 
+                    % Check to see if it's an 8-bit image needed later for scaling).
+                    if strcmpi(class(Image), 'uint8')
+                        % Flag for 256 gray levels.
+                        eightBit = true;
+                    else
+                        eightBit = false;
+                    end
+                    if eightBit
+                        Images = Image;
+                    else
+                    Imaged=double(Image);
+                    Images =uint16(Imaged./max(max(Imaged,[],2))*65535);
+                    end
+                    imd(:,:,k) = Images;
+                end
+                close(h);
+                d.origCI=imd;
+            end
+            d.dF=1;
+            load([d.pn '\' d.fn(1:end-4) 'vidalign']);
+            d.align=vidalign;
+            d.pre=1;
+
+            msgbox('Loading complete!');
+            
+            % Construct a questdlg with two options
+            choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
+                'Attention', ...
+                'Original','dF/F','Combined','Original');
+            % Handle response
+            switch choice
+                case 'Original'
+                    %converting original CI video to double precision and to values between 1 and 0
+                    h=waitbar(0,'Saving calcium imaging video');
+                    origCIconv=double(d.origCI);
+                    origCIconv=origCIconv./max(max(max(origCIconv)));
+
+                    filename=[d.pn '\' d.fn(1:end-4)];
+                    v = VideoWriter(filename,'Grayscale AVI');
+                    v.FrameRate=d.framerate;
+                    open(v);
+                    for k=1:size(d.imd,3);
+                        singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+            %             figure(100),imshow(singleFrame);
+                        writeVideo(v,singleFrame);
+                        waitbar(k/size(d.imd,3),h);
+                    end
+                    close(v);
+                    close(h);
+            %         close(gcf);
+                    msgbox('Saving video completed.');
+                case 'dF/F'
+                    h=waitbar(0,'Saving calcium imaging video');
+                    filename=[d.pn '\' d.fn(1:end-4) 'dF'];
+                    v = VideoWriter(filename,'Grayscale AVI');
+                    v.FrameRate=d.framerate;
+                    open(v);
+                    for k = 1:size(d.imd,3);
+                        frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
+                        frame(frame<0)=0;
+
+                        writeVideo(v,frame);
+                        waitbar(k/size(d.imd,3),h);
+                    end
+                    close(v);
+                    close(h);
+                    msgbox('Saving video completed.');
+                case 'Combined'
+                    %converting original CI video to double precision and to values between 1 and 0
+                    %checking whether original video was preprocessed because of dimensions
+                    if size(d.origCI,1)~=size(d.imd,1);
+                        %variable initialization
+                        imd=cast(zeros(ceil(size(d.origCI,1)*0.4),ceil(size(d.origCI,2)*0.4),size(d.origCI,3)),class(d.origCI));
+                        meanChange=diff(mean(mean(d.origCI,1),2));
+                        %Downsampling
+                        h=waitbar(0,'Downsampling of Original');
+                        for k=1:size(d.origCI,3);
+                            imd(:,:,k)=imresize(d.origCI(:,:,k),0.4); %evt. medfilt2() as median filter, downsampling fixed with 0.4
+                            waitbar(k/size(d.origCI,3),h);
+                        end
+                        close(h);
+                        %Eliminating faulty frames
+                        h=waitbar(0,'Eliminating faulty frames from Original');
+                        for k=1:size(meanChange,3);
+                            if meanChange(1,1,k)<-(5*median(abs(meanChange)/0.6745)) || meanChange(1,1,k)>5*median(abs(meanChange)/0.6745);
+                                if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1));
+                                    imd(:,:,k+1)=imd(:,:,k);
+                        %         elseif k+1 <= size(meanChange,3) && (meanChange(1,1,k)==meanChange(1,1,k+1));
+                        %             imd(:,:,k+1)=imd(:,:,k+3); % k+3 when the glitch lasted 2 frames!
+                                else
+                                    imd(:,:,k+1)=imd(:,:,k-1);
+                                end
+                            end
+                            waitbar(k/size(meanChange,3),h);
+                        end
+                        d.origCI=imd;
+                        close(h);
+                        d.origCI=imresize(d.origCI,0.805); %keeping this file stored as original video
+                    end
+                    h=waitbar(0,'Saving calcium imaging video');
+                    origCIconv=double(d.origCI);
+                    origCIconv=origCIconv./max(max(max(origCIconv)));
+                    %converting dF/F video such that all pixels below 50% of absolute maximum
+                    %intensity are zero
+                    imdconv=zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3));
+                    smallestAcceptableArea = 30;
+                    structuringElement = strel('disk', 2);
+                    hh=waitbar(0,'Converting dF/F calcium imaging video');
+                    for k=1:size(d.imd,3);
+                        frame=d.imd(:,:,k);
+            %             frame(frame<(mean(mean(mean(d.imd)))*2))=0;
+            %             mask = imclearborder(imclose(bwareaopen(frame,smallestAcceptableArea),structuringElement));
+                        frame=frame.*d.mask;
+                        frame(frame<(max(max(max(d.imd)))*0.25))=0;
+                        imdconv(:,:,k)=frame;
+                        waitbar(k/size(d.imd,3),hh);
+                    end
+                    close(hh);
+                    %converting video such that values are between 1 and 0
+                    if d.align==1 && handles.radiobutton2.Value==1;
+                        imdMax=1/(mean(mean(mean(imdconv))));
+                    else
+                        imdMax=1/(max(max(max(imdconv))));
+                    end
+                    imdconv=imdconv.*imdMax;
+
+                    filename=[d.pn '\' d.fn(1:end-4) 'combo'];
+                    v = VideoWriter(filename,'Uncompressed AVI');
+                    v.FrameRate=d.framerate;
+                    open(v);
+                    for k=1:size(d.imd,3);
+                        singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+                        figure(100),imshow(singleFrame);
+                        red = cat(3, ones(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))), zeros(size(origCIconv(:,:,1))));
+                        hold on 
+                        hh = imshow(red); 
+                        hold off
+                        set(hh, 'AlphaData', imdconv(:,:,k));
+                        f=getframe(gcf);
+                        newframe=f.cdata;
+                        writeVideo(v,singleFrame);
+                        waitbar(k/size(d.imd,3),h);
+                    end
+                    close(v);
+                    close(h);
+                    close(gcf);
+                    msgbox('Saving video completed.');
+            end
+            
+        case 'NO'
+            h=waitbar(0,'Saving calcium imaging video');
+            filename=[d.pn '\' d.fn(1:end-4) 'dF'];
+            v = VideoWriter(filename,'Grayscale AVI');
+            v.FrameRate=d.framerate;
+            open(v);
+            for k = 1:size(d.imd,3);
+                frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
+                frame(frame<0)=0;
+
+                writeVideo(v,frame);
+                waitbar(k/size(d.imd,3),h);
+            end
+            close(v);
+            close(h);
+            msgbox('Saving video completed.');
+    end
 else
     % Construct a questdlg with two options
     choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
@@ -2247,6 +2492,7 @@ else
     switch choice
         case 'Original'
             %converting original CI video to double precision and to values between 1 and 0
+            h=waitbar(0,'Saving calcium imaging video');
             origCIconv=double(d.origCI);
             origCIconv=origCIconv./max(max(max(origCIconv)));
 
@@ -2265,6 +2511,7 @@ else
     %         close(gcf);
             msgbox('Saving video completed.');
         case 'dF/F'
+            h=waitbar(0,'Saving calcium imaging video');
             filename=[d.pn '\' d.fn(1:end-4) 'dF'];
             v = VideoWriter(filename,'Grayscale AVI');
             v.FrameRate=d.framerate;
@@ -2281,6 +2528,37 @@ else
             msgbox('Saving video completed.');
         case 'Combined'
             %converting original CI video to double precision and to values between 1 and 0
+            %checking whether original video was preprocessed because of dimensions
+            if size(d.origCI,1)~=size(d.imd,1);
+                %variable initialization
+                imd=cast(zeros(ceil(size(d.origCI,1)*0.4),ceil(size(d.origCI,2)*0.4),size(d.origCI,3)),class(d.origCI));
+                meanChange=diff(mean(mean(d.origCI,1),2));
+                %Downsampling
+                h=waitbar(0,'Downsampling of Original');
+                for k=1:size(d.origCI,3);
+                    imd(:,:,k)=imresize(d.origCI(:,:,k),0.4); %evt. medfilt2() as median filter, downsampling fixed with 0.4
+                    waitbar(k/size(d.origCI,3),h);
+                end
+                close(h);
+                %Eliminating faulty frames
+                h=waitbar(0,'Eliminating faulty frames from Original');
+                for k=1:size(meanChange,3);
+                    if meanChange(1,1,k)<-(5*median(abs(meanChange)/0.6745)) || meanChange(1,1,k)>5*median(abs(meanChange)/0.6745);
+                        if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1));
+                            imd(:,:,k+1)=imd(:,:,k);
+                %         elseif k+1 <= size(meanChange,3) && (meanChange(1,1,k)==meanChange(1,1,k+1));
+                %             imd(:,:,k+1)=imd(:,:,k+3); % k+3 when the glitch lasted 2 frames!
+                        else
+                            imd(:,:,k+1)=imd(:,:,k-1);
+                        end
+                    end
+                    waitbar(k/size(meanChange,3),h);
+                end
+                d.origCI=imd;
+                close(h);
+                d.origCI=imresize(d.origCI,0.805); %keeping this file stored as original video
+            end
+            h=waitbar(0,'Saving calcium imaging video');
             origCIconv=double(d.origCI);
             origCIconv=origCIconv./max(max(max(origCIconv)));
             %converting dF/F video such that all pixels below 50% of absolute maximum
