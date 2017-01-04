@@ -66,7 +66,14 @@ function varargout = roisub(varargin)
 %       -if you already defined ROIs or you want to use a ROI mask from
 %       a previous data set press LOAD ROIS
 %       -to show changes in brightness over time for your defined ROIs
-%       use PLOT ROIS
+%       use PLOT ROIS; this saves a plot of each ROI (8 per figure) marking
+%       spikes with a black dot, a rasterplot, and the raw data with
+%       timestamps (traces_filename) into the folder 'traces', furthermore
+%       you get an excel file containing the highest amplitude, average
+%       firing frequency, and number of spikes for each ROI
+%       IF you did behavioral detection and plot the ROIs again, you well
+%       get the same plots but with underlying behavior with the suffix
+%       '_behav' saved into the folder 'traces'
 % 
 %       -SAVE VIDEO allows you to save the calcium imaging video as AVI
 %       file in three different ways: Original, meaning you save the
@@ -80,6 +87,7 @@ function varargout = roisub(varargin)
 %       -load video by pushing SELECT FOLDER button
 %       IF you worked with the data before, you will be asked if you want
 %       to load the last version
+% 
 %       -crop the video to the area in which the mouse is moving by pushing
 %       the CROP & CONVERT TO HSV button by simply clicking and dragging the cursor
 %       over the desired area. You can adjust the are by hovering over the
@@ -88,6 +96,7 @@ function varargout = roisub(varargin)
 %       onto the screen. In the dialog window simply press NEXT and FINISH.
 %       The CROP VIDEO also automatically downsample and convert the 
 %       cropped video to HSV color space
+% 
 %       -select a color preset from the drop-down window (GREEN, PINK, 
 %       YELLOW, BLUE) to use the defined threshold presets for the 
 %       respective spot. Adjust the thresholds if needed to extract only 
@@ -98,11 +107,24 @@ function varargout = roisub(varargin)
 %       -scroll through all frames to check if spot is detected in all/most
 %       of the frames; if not, set threshold again and then push the same
 %       button again
+% 
 %       -to show the movement of the animal push TRACE ANIMAL, it will
 %       display movement of the anterior spot in the specified color and 
-%       the movement of the posterior spot in the specified color. 
+%       the movement of the posterior spot in the specified color. It will
+%       save the movement of the mouse as a figure ('mouse_trace') into the
+%       folder 'location'. Then it will ask you to define the length of one
+%       side of your testing area. Furthermore you will be asked if you
+%       want to define ROIs, and if yes how many. You will be able to
+%       define them and give them names. Then the program will calculate
+%       the percentage the mouse has been in those ROIs. An excel file will
+%       be saved with total distance travelled by the mouse in cm, average
+%       speed, percent pause and percent in defined ROIs
+%       ('filenamebehavior') in folder 'location'.
 %       Additionally it will plot a figure for each ROI you defined, which 
 %       shows a heat map corresponding to the activity during that frame
+%       and save them into the folder 'location', as well as the raw data
+%       of the locations with timestamps
+% 
 %       -BEHAVIORAL DETECTION allows you to define 8 different behaviors,
 %       define shortkeys and give them names. Then it will play the video
 %       from the specified frame from the frame slider and you will be able
