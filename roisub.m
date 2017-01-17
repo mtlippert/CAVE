@@ -66,14 +66,7 @@ function varargout = roisub(varargin)
 %       -if you already defined ROIs or you want to use a ROI mask from
 %       a previous data set press LOAD ROIS
 %       -to show changes in brightness over time for your defined ROIs
-%       use PLOT ROIS; this saves a plot of each ROI (8 per figure) marking
-%       spikes with a black dot, a rasterplot, and the raw data with
-%       timestamps (traces_filename) into the folder 'traces', furthermore
-%       you get an excel file containing the highest amplitude, average
-%       firing frequency, and number of spikes for each ROI
-%       IF you did behavioral detection and plot the ROIs again, you well
-%       get the same plots but with underlying behavior with the suffix
-%       '_behav' saved into the folder 'traces'
+%       use PLOT ROIS
 % 
 %       -SAVE VIDEO allows you to save the calcium imaging video as AVI
 %       file in three different ways: Original, meaning you save the
@@ -87,7 +80,6 @@ function varargout = roisub(varargin)
 %       -load video by pushing SELECT FOLDER button
 %       IF you worked with the data before, you will be asked if you want
 %       to load the last version
-% 
 %       -crop the video to the area in which the mouse is moving by pushing
 %       the CROP & CONVERT TO HSV button by simply clicking and dragging the cursor
 %       over the desired area. You can adjust the are by hovering over the
@@ -96,7 +88,6 @@ function varargout = roisub(varargin)
 %       onto the screen. In the dialog window simply press NEXT and FINISH.
 %       The CROP VIDEO also automatically downsample and convert the 
 %       cropped video to HSV color space
-% 
 %       -select a color preset from the drop-down window (GREEN, PINK, 
 %       YELLOW, BLUE) to use the defined threshold presets for the 
 %       respective spot. Adjust the thresholds if needed to extract only 
@@ -107,24 +98,11 @@ function varargout = roisub(varargin)
 %       -scroll through all frames to check if spot is detected in all/most
 %       of the frames; if not, set threshold again and then push the same
 %       button again
-% 
 %       -to show the movement of the animal push TRACE ANIMAL, it will
 %       display movement of the anterior spot in the specified color and 
-%       the movement of the posterior spot in the specified color. It will
-%       save the movement of the mouse as a figure ('mouse_trace') into the
-%       folder 'location'. Then it will ask you to define the length of one
-%       side of your testing area. Furthermore you will be asked if you
-%       want to define ROIs, and if yes how many. You will be able to
-%       define them and give them names. Then the program will calculate
-%       the percentage the mouse has been in those ROIs. An excel file will
-%       be saved with total distance travelled by the mouse in cm, average
-%       speed, percent pause and percent in defined ROIs
-%       ('filenamebehavior') in folder 'location'.
+%       the movement of the posterior spot in the specified color. 
 %       Additionally it will plot a figure for each ROI you defined, which 
 %       shows a heat map corresponding to the activity during that frame
-%       and save them into the folder 'location', as well as the raw data
-%       of the locations with timestamps
-% 
 %       -BEHAVIORAL DETECTION allows you to define 8 different behaviors,
 %       define shortkeys and give them names. Then it will play the video
 %       from the specified frame from the frame slider and you will be able
@@ -148,7 +126,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 29-Dec-2016 17:19:02
+% Last Modified by GUIDE v2.5 16-Jan-2017 12:52:06
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -191,6 +169,7 @@ d.pn=[];
 d.thresh=0;
 d.valid=0;
 d.align=0; %signals whether images were aligned
+p.pnpreset=[];
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -265,7 +244,6 @@ if d.play==1 || v.play==1;
 end
 
 % ms.UseParallel = true; %initializes parallel processing
-d.perc=[]; %initializing ROI values in percent as empty
 
 %defining initial folder displayed in dialog window
 if isempty(p.pn)==1;
@@ -316,7 +294,7 @@ end
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn));
-    tf(k)=strcmp([d.fn(1:end-4) '.mat'],files(k).name);
+    tf(k)=strcmp([d.fn(1:end-4) 'dFvid.mat'],files(k).name);
 end
 if sum(tf)>0;
     % Construct a questdlg with two options
@@ -327,84 +305,74 @@ if sum(tf)>0;
     switch choice
         case 'YES'
             %loading delta F/F video
+            h=msgbox('Loading... please wait!');
             load([d.pn '\' d.fn(1:end-4) 'dFvid']);
             d.imd=deltaFimd;
+            close(h);
+            d.pushed=1;
             %loading MIP
             MaxIntensProj = max(d.imd, [], 3);
             stdIm = std(d.imd,0,3);
             d.mip=MaxIntensProj./stdIm;
             figure,imagesc(d.mip),title('Maximum Intensity Projection');
             %loading ROI mask
-            load([d.pn '\' d.fn(1:end-4) '.mat']);
-            d.mask=ROImask;
-            d.ROIorder=ROIorder;
-            %plotting ROIs
-            colors={[0    0.4471    0.7412],...
-                [0.8510    0.3255    0.0980],...
-                [0.9294    0.6941    0.1255],...
-                [0.4941    0.1843    0.5569],...
-                [0.4667    0.6745    0.1882],...
-                [0.3020    0.7451    0.9333],...
-                [0.6353    0.0784    0.1843],...
-                [0.6784    0.9216    1.0000]};
-
-            singleFrame=d.imd(:,:,round(handles.slider7.Value));
-            axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-            B=bwboundaries(d.mask); %boundaries of ROIs
-            d.labeled=bwlabel(d.mask);
-            stat = regionprops(d.labeled,'Centroid');
-            d.b=cell(length(B),1);
-            d.c=cell(length(B),1);
-            colors=repmat(colors,1,ceil(length(B)/8));
-            for j = 1 : length(B);
-                d.b{j,1} = B{j};
-                d.c{j,1} = stat(j).Centroid;
-                plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-                text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+            %check whether ROI mask had been saved before
+            files=dir(d.pn);
+            tf=zeros(1,length(dir(d.pn)));
+            for k=1:length(dir(d.pn));
+                tf(k)=strcmp([d.fn(1:end-4) 'ROIs.mat'],files(k).name);
             end
-            hold off;
-            d.pushed=4; %signals that ROIs were selected
-            d.roisdefined=1; %signals that ROIs were defined
+            if sum(tf)>0;
+                load([d.pn '\' d.fn(1:end-4) 'ROIs.mat']);
+                d.mask=ROImask;
+                d.ROIorder=ROIorder;
+                d.ROIs=ROIvalues;
+                %plotting ROIs
+                colors={[0    0.4471    0.7412],...
+                    [0.8510    0.3255    0.0980],...
+                    [0.9294    0.6941    0.1255],...
+                    [0.4941    0.1843    0.5569],...
+                    [0.4667    0.6745    0.1882],...
+                    [0.3020    0.7451    0.9333],...
+                    [0.6353    0.0784    0.1843],...
+                    [0.6784    0.9216    1.0000]};
 
-            % label ROIs
-            background=d.mask;
-            background(background==1)=2;
-            background(background==0)=1;
-            background(background==2)=0;
-            CC=bwconncomp(d.mask);
-            numROIs=CC.NumObjects; %number of ROIs
-            d.imdThresh=cell(size(d.imd,3),numROIs);
-            d.ROIs=cell(size(d.imd,3),numROIs);
-            d.background=cell(size(d.imd,3),1);
-            d.bg=cell(size(d.imd,3),1);
-            h=waitbar(0,'Labeling ROIs');
-            for j=1:size(d.imd,3);
-                for i=1:numROIs;
-                    ROIs=zeros(size(d.imd,1),size(d.imd,2));
-                    m = find(d.labeled==i);
-                    ROIs(m)=1;
-                    % You can only multiply integers if they are of the same type.
-                    ROIs = cast(ROIs, class(d.imd(:,:,1)));
-                    d.imdThresh{j,i} = ROIs .* d.imd(:,:,j);
-                    d.ROIs{j,d.ROIorder(i)}=d.imdThresh{j,i}(m);
+                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+                B=bwboundaries(d.mask); %boundaries of ROIs
+                d.labeled=bwlabel(d.mask);
+                stat = regionprops(d.labeled,'Centroid');
+                d.b=cell(length(B),1);
+                d.c=cell(length(B),1);
+                colors=repmat(colors,1,ceil(length(B)/8));
+                for j = 1 : length(B);
+                    d.b{j,1} = B{j};
+                    d.c{j,1} = stat(j).Centroid;
+                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
-                % You can only multiply integers if they are of the same type.
-                nn = find(background==1);
-                background = cast(background, class(d.imd(:,:,1)));
-                d.background{j,1} = background .* d.imd(:,:,j);
-                d.bg{j,1}=d.background{j,1}(nn);
-                waitbar(j/size(d.imd,3),h);
+                hold off;
+                %background
+                bg=cell(size(d.imd,3),1);
+                d.bg=cell(size(d.imd,3),1);
+                background=d.mask;
+                background(background==1)=2;
+                background(background==0)=1;
+                background(background==2)=0;
+                h=waitbar(0,'Labeling background');
+                for k = 1:size(d.imd,3);
+                    % You can only multiply integers if they are of the same type.
+                    nn = find(background==1);
+                    background = cast(background, class(d.imd(:,:,1)));
+                    d.background{k,1} = background .* d.imd(:,:,k);
+                    d.bg{k,1}=d.background{k,1}(nn);
+                    waitbar(k/size(d.imd,3),h);
+                end
+                close(h);
+                d.pushed=4; %signals that ROIs were selected
+                d.roisdefined=1; %signals that ROIs were defined
+                d.load=1;
             end
-            %relabeling d.labeled
-            labels=zeros(size(d.imd,1),size(d.imd,2));
-            for i=1:numROIs;
-                m = find(d.labeled==i);
-                labels(m)=d.ROIorder(i);
-            end
-            d.labeled=labels;
-            d.load=1; %signals that a ROI mask was loaded
-            close(h);
-
             %loading original calcium imaging video
             % Construct a questdlg with two options
             choice = questdlg('Would you also like to load the original calcium imaging video?', ...
@@ -1338,10 +1306,11 @@ if d.load==1;
                 switch choice
                     case 'YES'
                         %saving ROI mask
-                        filename=[d.pn '\' d.fn(1:end-4)];
+                        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                        ROIvalues=d.ROIs;
                         ROImask=d.mask;
                         ROIorder=d.ROIorder;
-                        save(filename, 'ROImask','ROIorder');
+                        save(filename, 'ROImask','ROIorder','ROIvalues');
                     case 'NO'
                         return;
                 end
@@ -1427,10 +1396,11 @@ if d.load==1;
     d.roisdefined=1; %signals that ROIs were defined
 
     %saving ROI mask
-    filename=[d.pn '\' d.fn(1:end-4)];
+    filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+    ROIvalues=d.ROIs;
     ROImask=d.mask;
     ROIorder=d.ROIorder;
-    save(filename, 'ROImask','ROIorder');
+    save(filename, 'ROImask','ROIorder','ROIvalues');
 else
     d.labeled = d.labeled+ROI*(max(max(d.labeled))+1); %labeling of ROIs
     d.mask = d.mask+ROI;
@@ -1517,10 +1487,11 @@ else
                 switch choice
                     case 'YES'
                         %saving ROI mask
-                        filename=[d.pn '\' d.fn(1:end-4)];
+                        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                        ROIvalues=d.ROIs;
                         ROImask=d.mask;
                         ROIorder=d.ROIorder;
-                        save(filename, 'ROImask','ROIorder');
+                        save(filename, 'ROImask','ROIorder','ROIvalues');
                     case 'NO'
                         return;
                 end
@@ -1603,10 +1574,11 @@ else
     d.roisdefined=1; %signals that ROIs were defined
 
     %saving ROI mask
-    filename=[d.pn '\' d.fn(1:end-4)];
+    filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+    ROIvalues=d.ROIs;
     ROImask=d.mask;
     ROIorder=d.ROIorder;
-    save(filename, 'ROImask','ROIorder');
+    save(filename, 'ROImask','ROIorder','ROIvalues');
 end
 
 
@@ -1685,82 +1657,121 @@ elseif d.dF==0;
 end
 
 filepath=[d.pn '\'];
-[pn]=uigetdir(filepath);
+[fn,pn,~]=uigetfile([filepath '*.mat']);
 %extracts filename
-load([pn '\' d.fn(1:end-4) '.mat']);
-d.mask=ROImask;
-d.ROIorder=ROIorder;
-%plotting ROIs
-colors={[0    0.4471    0.7412],...
-    [0.8510    0.3255    0.0980],...
-    [0.9294    0.6941    0.1255],...
-    [0.4941    0.1843    0.5569],...
-    [0.4667    0.6745    0.1882],...
-    [0.3020    0.7451    0.9333],...
-    [0.6353    0.0784    0.1843],...
-    [0.6784    0.9216    1.0000]};
+load([pn fn]);
+%checking whether path is the same as the path of the current file
+if strcmp(pn,d.pn)==1;
+    d.mask=ROImask;
+    d.ROIorder=ROIorder;
+    d.ROIs=ROIvalues;
+    %plotting ROIs
+    colors={[0    0.4471    0.7412],...
+        [0.8510    0.3255    0.0980],...
+        [0.9294    0.6941    0.1255],...
+        [0.4941    0.1843    0.5569],...
+        [0.4667    0.6745    0.1882],...
+        [0.3020    0.7451    0.9333],...
+        [0.6353    0.0784    0.1843],...
+        [0.6784    0.9216    1.0000]};
 
-singleFrame=d.imd(:,:,round(handles.slider7.Value));
-if d.dF==1 || d.pre==1;
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
-    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-else
-    axes(handles.axes1); imshow(singleFrame); hold on;
-end
-B=bwboundaries(d.mask); %boundaries of ROIs
-d.labeled=bwlabel(d.mask);
-stat = regionprops(d.labeled,'Centroid');
-d.b=cell(length(B),1);
-d.c=cell(length(B),1);
-colors=repmat(colors,1,ceil(length(B)/8));
-for j = 1 : length(B);
-    d.b{j,1} = B{j};
-    d.c{j,1} = stat(j).Centroid;
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-end
-hold off;
-d.pushed=4; %signals that ROIs were selected
-d.roisdefined=1; %signals that ROIs were defined
-
-% label ROIs
-background=d.mask;
-background(background==1)=2;
-background(background==0)=1;
-background(background==2)=0;
-CC=bwconncomp(d.mask);
-numROIs=CC.NumObjects; %number of ROIs
-d.imdThresh=cell(size(d.imd,3),numROIs);
-d.ROIs=cell(size(d.imd,3),numROIs);
-d.background=cell(size(d.imd,3),1);
-d.bg=cell(size(d.imd,3),1);
-h=waitbar(0,'Labeling ROIs');
-for j=1:size(d.imd,3);
-    for i=1:numROIs;
-        ROIs=zeros(size(d.imd,1),size(d.imd,2));
-        m = find(d.labeled==i);
-        ROIs(m)=1;
-        % You can only multiply integers if they are of the same type.
-        ROIs = cast(ROIs, class(d.imd(:,:,1)));
-        d.imdThresh{j,i} = ROIs .* d.imd(:,:,j);
-        d.ROIs{j,d.ROIorder(i)}=d.imdThresh{j,i}(m);
+    if d.dF==1 || d.pre==1;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+    else
+        axes(handles.axes1); imshow(singleFrame); hold on;
     end
-    % You can only multiply integers if they are of the same type.
-    nn = find(background==1);
-    background = cast(background, class(d.imd(:,:,1)));
-    d.background{j,1} = background .* d.imd(:,:,j);
-    d.bg{j,1}=d.background{j,1}(nn);
-    waitbar(j/size(d.imd,3),h);
+    B=bwboundaries(d.mask); %boundaries of ROIs
+    d.labeled=bwlabel(d.mask);
+    stat = regionprops(d.labeled,'Centroid');
+    d.b=cell(length(B),1);
+    d.c=cell(length(B),1);
+    colors=repmat(colors,1,ceil(length(B)/8));
+    for j = 1 : length(B);
+        d.b{j,1} = B{j};
+        d.c{j,1} = stat(j).Centroid;
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+    end
+    hold off;
+    d.pushed=4; %signals that ROIs were selected
+    d.roisdefined=1; %signals that ROIs were defined
+else 
+    d.mask=ROImask;
+    d.ROIorder=ROIorder;
+    %plotting ROIs
+    colors={[0    0.4471    0.7412],...
+        [0.8510    0.3255    0.0980],...
+        [0.9294    0.6941    0.1255],...
+        [0.4941    0.1843    0.5569],...
+        [0.4667    0.6745    0.1882],...
+        [0.3020    0.7451    0.9333],...
+        [0.6353    0.0784    0.1843],...
+        [0.6784    0.9216    1.0000]};
+
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1;
+        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+    else
+        axes(handles.axes1); imshow(singleFrame); hold on;
+    end
+    B=bwboundaries(d.mask); %boundaries of ROIs
+    d.labeled=bwlabel(d.mask);
+    stat = regionprops(d.labeled,'Centroid');
+    d.b=cell(length(B),1);
+    d.c=cell(length(B),1);
+    colors=repmat(colors,1,ceil(length(B)/8));
+    for j = 1 : length(B);
+        d.b{j,1} = B{j};
+        d.c{j,1} = stat(j).Centroid;
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+    end
+    hold off;
+    d.pushed=4; %signals that ROIs were selected
+    d.roisdefined=1; %signals that ROIs were defined
+
+    % label ROIs
+    background=d.mask;
+    background(background==1)=2;
+    background(background==0)=1;
+    background(background==2)=0;
+    CC=bwconncomp(d.mask);
+    numROIs=CC.NumObjects; %number of ROIs
+    d.imdThresh=cell(size(d.imd,3),numROIs);
+    d.ROIs=cell(size(d.imd,3),numROIs);
+    d.background=cell(size(d.imd,3),1);
+    d.bg=cell(size(d.imd,3),1);
+    h=waitbar(0,'Labeling ROIs');
+    for j=1:size(d.imd,3);
+        for i=1:numROIs;
+            ROIs=zeros(size(d.imd,1),size(d.imd,2));
+            m = find(d.labeled==i);
+            ROIs(m)=1;
+            % You can only multiply integers if they are of the same type.
+            ROIs = cast(ROIs, class(d.imd(:,:,1)));
+            d.imdThresh{j,i} = ROIs .* d.imd(:,:,j);
+            d.ROIs{j,d.ROIorder(i)}=d.imdThresh{j,i}(m);
+        end
+        % You can only multiply integers if they are of the same type.
+        nn = find(background==1);
+        background = cast(background, class(d.imd(:,:,1)));
+        d.background{j,1} = background .* d.imd(:,:,j);
+        d.bg{j,1}=d.background{j,1}(nn);
+        waitbar(j/size(d.imd,3),h);
+    end
+    %relabeling d.labeled
+    labels=zeros(size(d.imd,1),size(d.imd,2));
+    for i=1:numROIs;
+        m = find(d.labeled==i);
+        labels(m)=d.ROIorder(i);
+    end
+    d.labeled=labels;
+    d.load=1; %signals that a ROI mask was loaded
+    close(h);
 end
-%relabeling d.labeled
-labels=zeros(size(d.imd,1),size(d.imd,2));
-for i=1:numROIs;
-    m = find(d.labeled==i);
-    labels(m)=d.ROIorder(i);
-end
-d.labeled=labels;
-d.load=1; %signals that a ROI mask was loaded
-close(h);
 msgbox('Loading complete!');
 
 
@@ -1864,20 +1875,30 @@ colorsb={[0    0.4    0.7],...
     [0.6    0.07   0.1],...
     [0.6    0.9    1]};
 
+% % %high band pass filter of ROIvalues
+% % b=fir1(256,[400 5000]/(32000/2)); %detection threshold
+% % temp=single(filter(b,1,d.ROImeans(:,1)));
+% % %or
+% [b,a]=butter(4,0.1,'high');
+% % bla=filtfilt(b,a,d.ROImeans(:,1));
     
-    %dF/f and thresholded ROIs
+%dF/f and thresholded ROIs
 if d.load==1;
     colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
     % calculate mean grey value of ROIs in percent
     d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
     d.bgmeans=zeros(size(d.ROIs,1),1);
+    h=waitbar(0,'Calculating ROI values');
     for k=1:size(d.ROIs,2);
         for i=1:size(d.ROIs,1);
             d.ROImeans(i,k)=mean(d.ROIs{i,k});
             d.bgmean(i,1)=mean(d.bg{i,1});
             d.ROImeans(i,k)=(d.ROImeans(i,k)-d.bgmean(i,1))*100;
         end
+%         d.ROImeans(:,k)=filtfilt(b,a,d.ROImeans(:,k)); %high band pass filter
+        waitbar(k/size(d.ROIs,2),h);
     end
+    close(h);
     % plotting ROI values
     NoofSpikes=zeros(size(d.ROIs,2),1);
     spikes=cell(1,size(d.ROIs,2));
@@ -1896,6 +1917,8 @@ if d.load==1;
         end
         subplot(8,1,anysub(j));
         plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
+        axlim=get(gca,'YLim');
+        ylim([-1 2*round(axlim(2)/2)]); %round to next even number
         if v.behav==1;
             axlim=get(gca,'YLim');
             for l=1:v.amount;
@@ -1999,19 +2022,23 @@ elseif d.load==0;
         background = cast(background, class(d.imd(:,:,1)));
         d.background{k,1} = background .* d.imd(:,:,k);
         d.bg{k,1}=d.background{k,1}(nn);
+        waitbar(k/size(d.imd,3),h);
     end
     close(h);
     
     % calculate mean grey value of ROIs in percent
     d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
     d.bgmeans=zeros(size(d.ROIs,1),1);
+    h=waitbar(0,'Calculating ROI values');
     for k=1:size(d.ROIs,2);
         for i=1:size(d.ROIs,1);
             d.ROImeans(i,k)=mean(d.ROIs{i,k});
             d.bgmean(i,1)=mean(d.bg{i,1});
             d.ROImeans(i,k)=(d.ROImeans(i,k)-d.bgmean(i,1))*100;
         end
+        waitbar(k/size(d.ROIs,2),h);
     end
+    close(h);
     % plotting ROI values
     NoofSpikes=zeros(size(d.ROIs,2),1);
     spikes=cell(1,size(d.ROIs,2));
@@ -2030,6 +2057,8 @@ elseif d.load==0;
         end
         subplot(8,1,anysub(j));
         plot(d.ROImeans(:,j),'Color',colors{1,j});
+        axlim=get(gca,'YLim');
+        ylim([-1 2*round(axlim(2)/2)]); %round to next even number
         if v.behav==1;
             axlim=get(gca,'YLim');
             for l=1:v.amount;
@@ -2135,14 +2164,16 @@ switch choice
             numseries=(hfnum-tnum:1:hfnum-1);
             for j=1:tnum;
                 figurenum=sprintf('-f%d',numseries(j));
+                name=sprintf('traces_%d',j);
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
-                print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             end
             figurenum=sprintf('-f%d',hfnum);
+            name=('rasterplot');
             path=[d.pn '/traces/',name,'.png'];
             path=regexprep(path,'\','/');
-            print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+            print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             
             %saving table
             filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
@@ -2180,13 +2211,13 @@ switch choice
                     figurenum=sprintf('-f%d',numseries(j));
                     path=[d.pn '/traces/',name,'.png'];
                     path=regexprep(path,'\','/');
-                    print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                    print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
                 name=('rasterplot_behav');
                 figurenum=sprintf('-f%d',hfnum);
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
-                print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 msgbox('Done!','Attention');
             else
                 rmdir([d.pn '\traces'],'s');
@@ -2203,7 +2234,7 @@ switch choice
                     figurenum=sprintf('-f%d',numseries(j));
                     path=[d.pn '/traces/',name,'.png'];
                     path=regexprep(path,'\','/');
-                    print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                    print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
                 if v.behav==1;
                     name=('rasterplot_behav');
@@ -2213,7 +2244,7 @@ switch choice
                 figurenum=sprintf('-f%d',hfnum);
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
-                print(figurenum,'-dpng','-r100',path); %-depsc for vector graphic
+                print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
 
                 %saving table
                 filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
@@ -2674,7 +2705,8 @@ if d.align==1 && handles.radiobutton2.Value==1;
 else
     imdMax=1/(max(max(max(d.imd))));
 end
-
+cla(handles.axes1);
+cla(handles.axes2);
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
     [0.9294    0.6941    0.1255],...
@@ -2683,9 +2715,9 @@ colors={[0    0.4471    0.7412],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
-colors=repmat(colors,1,(ceil(size(d.b,1)/8)));
 if d.pushed==4;
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
+    colors=repmat(colors,1,(ceil(size(d.b,1)/8)));
 end
 
 if d.pre==1 && d.pushed==1;
@@ -2735,11 +2767,113 @@ elseif v.pushed==1;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==2;
-    axes(handles.axes2); imshow(v.hsvP(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %green masked video
+    v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+    %other slider values
+    v.hueThresholdLow = handles.slider13.Value;
+    v.hueThresholdHigh = handles.slider14.Value;
+    v.saturationThresholdLow = handles.slider12.Value;
+    v.saturationThresholdHigh = handles.slider11.Value;
+    v.valueThresholdHigh = handles.slider10.Value;
+
+    % Convert RGB image to HSV
+    hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+    % Now apply each color band's particular thresholds to the color band
+    hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+    saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+    valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+    % Combine the masks to find where all 3 are "true."
+    % Then we will have the mask of only the green parts of the image.
+    coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+    % Filter out small objects.
+    smallestAcceptableArea = 50;
+    % Get rid of small objects.  Note: bwareaopen returns a logical.
+    coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+    % Smooth the border using a morphological closing operation, imclose().
+    structuringElement = strel('disk', 4);
+    coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+    % Fill in any holes in the regions, since they are most likely green also.
+    coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+    % You can only multiply integers if they are of the same type.
+    % (coloredObjectsMask is a logical array.)
+    % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+    % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+    coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+    % Use the colored object mask to mask out the colored-only portions of the rgb image.
+    maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+    maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+    maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+    % Concatenate the masked color bands to form the rgb image.
+    maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+    %showing thresholded image in GUI
+    if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+        axes(handles.axes2); imshow(maskedRGBImage); hold on;
+        str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+        text(20,20,str,'Color','r');
+        hold off;
+    else
+        axes(handles.axes2); imshow(maskedRGBImage);
+    end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==3;
-    axes(handles.axes2); imshow(v.hsvA(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %yellow masked video
+    v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+    %other slider values
+    v.hueThresholdLow = handles.slider13.Value;
+    v.hueThresholdHigh = handles.slider14.Value;
+    v.saturationThresholdLow = handles.slider12.Value;
+    v.saturationThresholdHigh = handles.slider11.Value;
+    v.valueThresholdHigh = handles.slider10.Value;
+
+    % Convert RGB image to HSV
+    hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+    % Now apply each color band's particular thresholds to the color band
+    hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+    saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+    valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+    % Combine the masks to find where all 3 are "true."
+    % Then we will have the mask of only the green parts of the image.
+    coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+    % Filter out small objects.
+    smallestAcceptableArea = 50;
+    % Get rid of small objects.  Note: bwareaopen returns a logical.
+    coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+    % Smooth the border using a morphological closing operation, imclose().
+    structuringElement = strel('disk', 4);
+    coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+    % Fill in any holes in the regions, since they are most likely green also.
+    coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+    % You can only multiply integers if they are of the same type.
+    % (coloredObjectsMask is a logical array.)
+    % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+    % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+    coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+    % Use the colored object mask to mask out the colored-only portions of the rgb image.
+    maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+    maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+    maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+    % Concatenate the masked color bands to form the rgb image.
+    maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+    %showing thresholded image in GUI
+    if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+        axes(handles.axes2); imshow(maskedRGBImage); hold on;
+        str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+        text(20,20,str,'Color','r');
+        hold off;
+    else
+        axes(handles.axes2); imshow(maskedRGBImage);
+    end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
@@ -2792,7 +2926,8 @@ if d.align==1 && handles.radiobutton2.Value==1;
 else
     imdMax=1/(max(max(max(d.imd))));
 end
-
+cla(handles.axes1);
+cla(handles.axes2);
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
     [0.9294    0.6941    0.1255],...
@@ -2801,9 +2936,9 @@ colors={[0    0.4471    0.7412],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
-colors=repmat(colors,1,ceil(size(d.b,1)/8));
 if d.pushed==4;
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
+    colors=repmat(colors,1,ceil(size(d.b,1)/8));
 end
 
 %if both videos were loaded
@@ -2892,8 +3027,58 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-        axes(handles.axes2);
-        imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %posterior spot masked video
+        v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+        %other slider values
+        v.hueThresholdLow = handles.slider13.Value;
+        v.hueThresholdHigh = handles.slider14.Value;
+        v.saturationThresholdLow = handles.slider12.Value;
+        v.saturationThresholdHigh = handles.slider11.Value;
+        v.valueThresholdHigh = handles.slider10.Value;
+
+        % Convert RGB image to HSV
+        hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+        % Now apply each color band's particular thresholds to the color band
+        hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+        saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+        valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+        % Combine the masks to find where all 3 are "true."
+        % Then we will have the mask of only the green parts of the image.
+        coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+        % Filter out small objects.
+        smallestAcceptableArea = 50;
+        % Get rid of small objects.  Note: bwareaopen returns a logical.
+        coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+        % Smooth the border using a morphological closing operation, imclose().
+        structuringElement = strel('disk', 4);
+        coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+        % Fill in any holes in the regions, since they are most likely green also.
+        coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+        % You can only multiply integers if they are of the same type.
+        % (coloredObjectsMask is a logical array.)
+        % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+        % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+        coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+        % Use the colored object mask to mask out the colored-only portions of the rgb image.
+        maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+        maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+        maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+        % Concatenate the masked color bands to form the rgb image.
+        maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+        %showing thresholded image in GUI
+        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+            text(20,20,str,'Color','r');
+            hold off;
+        else
+            axes(handles.axes2); imshow(maskedRGBImage);
+        end
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -2916,8 +3101,58 @@ elseif  v.pushed==2 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-        axes(handles.axes2);
-        imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %posterior spot masked video
+        v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+        %other slider values
+        v.hueThresholdLow = handles.slider13.Value;
+        v.hueThresholdHigh = handles.slider14.Value;
+        v.saturationThresholdLow = handles.slider12.Value;
+        v.saturationThresholdHigh = handles.slider11.Value;
+        v.valueThresholdHigh = handles.slider10.Value;
+
+        % Convert RGB image to HSV
+        hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+        % Now apply each color band's particular thresholds to the color band
+        hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+        saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+        valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+        % Combine the masks to find where all 3 are "true."
+        % Then we will have the mask of only the green parts of the image.
+        coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+        % Filter out small objects.
+        smallestAcceptableArea = 50;
+        % Get rid of small objects.  Note: bwareaopen returns a logical.
+        coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+        % Smooth the border using a morphological closing operation, imclose().
+        structuringElement = strel('disk', 4);
+        coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+        % Fill in any holes in the regions, since they are most likely green also.
+        coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+        % You can only multiply integers if they are of the same type.
+        % (coloredObjectsMask is a logical array.)
+        % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+        % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+        coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+        % Use the colored object mask to mask out the colored-only portions of the rgb image.
+        maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+        maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+        maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+        % Concatenate the masked color bands to form the rgb image.
+        maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+        %showing thresholded image in GUI
+        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+            text(20,20,str,'Color','r');
+            hold off;
+        else
+            axes(handles.axes2); imshow(maskedRGBImage);
+        end
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         if d.dF==1 || d.pre==1;
@@ -2941,8 +3176,58 @@ elseif v.pushed==2 && d.pushed==4;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-        axes(handles.axes2);
-        imshow(v.hsvP(round(k*round((nframes/maxframes),2))).cdata); %posterior spot masked video
+        v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+        %other slider values
+        v.hueThresholdLow = handles.slider13.Value;
+        v.hueThresholdHigh = handles.slider14.Value;
+        v.saturationThresholdLow = handles.slider12.Value;
+        v.saturationThresholdHigh = handles.slider11.Value;
+        v.valueThresholdHigh = handles.slider10.Value;
+
+        % Convert RGB image to HSV
+        hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+        % Now apply each color band's particular thresholds to the color band
+        hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+        saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+        valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+        % Combine the masks to find where all 3 are "true."
+        % Then we will have the mask of only the green parts of the image.
+        coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+        % Filter out small objects.
+        smallestAcceptableArea = 50;
+        % Get rid of small objects.  Note: bwareaopen returns a logical.
+        coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+        % Smooth the border using a morphological closing operation, imclose().
+        structuringElement = strel('disk', 4);
+        coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+        % Fill in any holes in the regions, since they are most likely green also.
+        coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+        % You can only multiply integers if they are of the same type.
+        % (coloredObjectsMask is a logical array.)
+        % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+        % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+        coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+        % Use the colored object mask to mask out the colored-only portions of the rgb image.
+        maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+        maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+        maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+        % Concatenate the masked color bands to form the rgb image.
+        maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+        %showing thresholded image in GUI
+        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+            text(20,20,str,'Color','r');
+            hold off;
+        else
+            axes(handles.axes2); imshow(maskedRGBImage);
+        end
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -2973,8 +3258,58 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-        axes(handles.axes2);
-        imshow(v.hsvA(round(k*round((nframes/maxframes),2))).cdata); %anterior spot masked video
+        v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+        %other slider values
+        v.hueThresholdLow = handles.slider13.Value;
+        v.hueThresholdHigh = handles.slider14.Value;
+        v.saturationThresholdLow = handles.slider12.Value;
+        v.saturationThresholdHigh = handles.slider11.Value;
+        v.valueThresholdHigh = handles.slider10.Value;
+
+        % Convert RGB image to HSV
+        hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+        % Now apply each color band's particular thresholds to the color band
+        hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+        saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+        valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+        % Combine the masks to find where all 3 are "true."
+        % Then we will have the mask of only the green parts of the image.
+        coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+        % Filter out small objects.
+        smallestAcceptableArea = 50;
+        % Get rid of small objects.  Note: bwareaopen returns a logical.
+        coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+        % Smooth the border using a morphological closing operation, imclose().
+        structuringElement = strel('disk', 4);
+        coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+        % Fill in any holes in the regions, since they are most likely green also.
+        coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+        % You can only multiply integers if they are of the same type.
+        % (coloredObjectsMask is a logical array.)
+        % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+        % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+        coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+        % Use the colored object mask to mask out the colored-only portions of the rgb image.
+        maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+        maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+        maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+        % Concatenate the masked color bands to form the rgb image.
+        maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+        %showing thresholded image in GUI
+        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+            text(20,20,str,'Color','r');
+            hold off;
+        else
+            axes(handles.axes2); imshow(maskedRGBImage);
+        end
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -2997,8 +3332,58 @@ elseif v.pushed==3 && d.pushed==1;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-        axes(handles.axes2);
-        imshow(v.hsvA(round(k*round((nframes/maxframes),2))).cdata); %anterior spot masked video
+        v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+        %other slider values
+        v.hueThresholdLow = handles.slider13.Value;
+        v.hueThresholdHigh = handles.slider14.Value;
+        v.saturationThresholdLow = handles.slider12.Value;
+        v.saturationThresholdHigh = handles.slider11.Value;
+        v.valueThresholdHigh = handles.slider10.Value;
+
+        % Convert RGB image to HSV
+        hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+        % Now apply each color band's particular thresholds to the color band
+        hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+        saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+        valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+        % Combine the masks to find where all 3 are "true."
+        % Then we will have the mask of only the green parts of the image.
+        coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+        % Filter out small objects.
+        smallestAcceptableArea = 50;
+        % Get rid of small objects.  Note: bwareaopen returns a logical.
+        coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+        % Smooth the border using a morphological closing operation, imclose().
+        structuringElement = strel('disk', 4);
+        coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+        % Fill in any holes in the regions, since they are most likely green also.
+        coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+        % You can only multiply integers if they are of the same type.
+        % (coloredObjectsMask is a logical array.)
+        % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+        % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+        coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+        % Use the colored object mask to mask out the colored-only portions of the rgb image.
+        maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+        maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+        maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+        % Concatenate the masked color bands to form the rgb image.
+        maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+        %showing thresholded image in GUI
+        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+            text(20,20,str,'Color','r');
+            hold off;
+        else
+            axes(handles.axes2); imshow(maskedRGBImage);
+        end
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         if d.dF==1 || d.pre==1;
@@ -3022,8 +3407,58 @@ elseif v.pushed==3 && d.pushed==4;
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3);
-        axes(handles.axes2);
-        imshow(v.hsvA(round(k*round((nframes/maxframes),2))).cdata); %anterior spot masked video
+        v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+        %other slider values
+        v.hueThresholdLow = handles.slider13.Value;
+        v.hueThresholdHigh = handles.slider14.Value;
+        v.saturationThresholdLow = handles.slider12.Value;
+        v.saturationThresholdHigh = handles.slider11.Value;
+        v.valueThresholdHigh = handles.slider10.Value;
+
+        % Convert RGB image to HSV
+        hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+        % Now apply each color band's particular thresholds to the color band
+        hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+        saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+        valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+        % Combine the masks to find where all 3 are "true."
+        % Then we will have the mask of only the green parts of the image.
+        coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+        % Filter out small objects.
+        smallestAcceptableArea = 50;
+        % Get rid of small objects.  Note: bwareaopen returns a logical.
+        coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+        % Smooth the border using a morphological closing operation, imclose().
+        structuringElement = strel('disk', 4);
+        coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+        % Fill in any holes in the regions, since they are most likely green also.
+        coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+        % You can only multiply integers if they are of the same type.
+        % (coloredObjectsMask is a logical array.)
+        % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+        % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+        coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+        % Use the colored object mask to mask out the colored-only portions of the rgb image.
+        maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+        maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+        maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+        % Concatenate the masked color bands to form the rgb image.
+        maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+        %showing thresholded image in GUI
+        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+            text(20,20,str,'Color','r');
+            hold off;
+        else
+            axes(handles.axes2); imshow(maskedRGBImage);
+        end
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -3196,6 +3631,7 @@ v.name=[];
 v.events=[];
 v.skdefined=0;
 v.behav=0;
+p.import=0;
 %clears axes
 cla(handles.axes2,'reset');
 %resets frame slider
@@ -3247,12 +3683,6 @@ if sum(tf)>0;
             v.imd=convVimd;
             v.pushed=1; %signals video is loaded
             v.crop=1; %signals that video was cropped
-            %loading HSV images
-            load([v.pn '\HSV']);
-            v.hImage=hImage;
-            v.sImage=sImage;
-            v.vImage=vImage;
-            v.hsv=1; %signals that video was converted
             %loading traces
             files=dir(v.pn);
             tfA=zeros(1,length(dir(v.pn)));
@@ -3392,7 +3822,7 @@ else
     %putting each frame into variable 'v.imd'
     h=waitbar(0,'Loading');
     c=1;
-    if v.framerate>d.framerate;
+    if v.framerate>d.framerate; %making framrate identical for behavioral video
         for k=1:ceil(v.framerate/d.framerate):nframes
             v.imd(c).cdata = read(vidObj,k);
             c=c+1;
@@ -3405,8 +3835,8 @@ else
             waitbar(k/nframes,h);
         end
     end
-    sframe=size(v.imd,2)-size(d.imd,3);
-    v.imd=v.imd(1:size(d.imd,3));
+    sframe=size(v.imd,2)-size(d.imd,3); %calculating how many frames the behavioral video has more than the CI video
+    v.imd=v.imd(1:size(d.imd,3)); %making behavioral video as long as calcium imaging video
     v.pushed=1; %signals video is loaded
     close(h);
     %looking at first original picture
@@ -3421,7 +3851,7 @@ end
 
 
 
-% --- Executes on button press in pushbutton15. CROP & CONVERT IMAGE TO HSV
+% --- Executes on button press in pushbutton15. CROPPING & DOWNSAMPLING
 function pushbutton15_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton15 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -3467,43 +3897,11 @@ v.imd=imd;
 close(h);
 axes(handles.axes2); image(v.imd(1).cdata);
 
-% %checks the size of the video and performs temporal downsampling if the video is too big
-% if size(v.imd,2)>7000;
-%     v.imd=v.imd(:,1:5:size(v.imd,2)); %taking only every fifth frame
-% end
-
-frame = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-hsvImage = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-hImage=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-sImage=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-vImage=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-imd=v.imd;
-%converting video from RGB colors space to HSV
-h=waitbar(0,'Converting');
-for k=1:size(imd,2);
-    frame(k).cdata=imd(k).cdata;
-    % Convert RGB image to HSV
-    hsvImage(k).cdata= rgb2hsv(frame(k).cdata);
-    % Extract out the H, S, and V images individually
-    hImage(k,:,:) = hsvImage(k).cdata(:,:,1);
-    sImage(k,:,:) = hsvImage(k).cdata(:,:,2);
-    vImage(k,:,:) = hsvImage(k).cdata(:,:,3);
-    waitbar(k/size(imd,2),h);
-end
-v.hImage=hImage;
-v.sImage=sImage;
-v.vImage=vImage;
-v.hsv=1; %signals that video was converted
-close(h);
-
-%saving cropped and converted video
+%saving cropped video
 h=msgbox('Program might seem unresponsive, please wait!');
 filename=[v.pn '\' v.fn(1:end-4) '_converted'];
 convVimd=v.imd;
 save(filename, 'convVimd');
-%saving HSV variables
-filename=[v.pn '\HSV'];
-save(filename, 'hImage','sImage','vImage');
 close(h);
 
 msgbox('Cropping and Conversion Completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking SAVE ANTERIOR SPOT and SAVE POSTERIOR SPOT.','Success');
@@ -3548,10 +3946,13 @@ v.saturationThresholdLow = handles.slider12.Value;
 v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+ 
 % Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
 
 % Combine the masks to find where all 3 are "true."
 % Then we will have the mask of only the green parts of the image.
@@ -3581,7 +3982,14 @@ maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*ro
 maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
-axes(handles.axes2); imshow(maskedRGBImage);
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2); imshow(maskedRGBImage);
+end
 
 % --- Executes during object creation, after setting all properties.
 function slider9_CreateFcn(hObject, eventdata, handles)
@@ -3630,10 +4038,13 @@ v.saturationThresholdLow = handles.slider12.Value;
 v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow = handles.slider9.Value;
 
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+ 
 % Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
 
 % Combine the masks to find where all 3 are "true."
 % Then we will have the mask of only the green parts of the image.
@@ -3663,7 +4074,14 @@ maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*ro
 maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
-axes(handles.axes2); imshow(maskedRGBImage);
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2); imshow(maskedRGBImage);
+end
 
 % --- Executes during object creation, after setting all properties.
 function slider10_CreateFcn(hObject, eventdata, handles)
@@ -3710,10 +4128,13 @@ v.saturationThresholdLow = handles.slider12.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+ 
 % Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
 
 % Combine the masks to find where all 3 are "true."
 % Then we will have the mask of only the green parts of the image.
@@ -3743,7 +4164,14 @@ maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*ro
 maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
-axes(handles.axes2); imshow(maskedRGBImage);
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2); imshow(maskedRGBImage);
+end
 
 % --- Executes during object creation, after setting all properties.
 function slider11_CreateFcn(hObject, eventdata, handles)
@@ -3790,10 +4218,13 @@ v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+ 
 % Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
 
 % Combine the masks to find where all 3 are "true."
 % Then we will have the mask of only the green parts of the image.
@@ -3823,7 +4254,14 @@ maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*ro
 maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
-axes(handles.axes2); imshow(maskedRGBImage);
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2); imshow(maskedRGBImage);
+end
 
 % --- Executes during object creation, after setting all properties.
 function slider12_CreateFcn(hObject, eventdata, handles)
@@ -3870,10 +4308,13 @@ v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+ 
 % Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
 
 % Combine the masks to find where all 3 are "true."
 % Then we will have the mask of only the green parts of the image.
@@ -3903,7 +4344,14 @@ maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*ro
 maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
-axes(handles.axes2); imshow(maskedRGBImage);
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2); imshow(maskedRGBImage);
+end
 
 % --- Executes during object creation, after setting all properties.
 function slider13_CreateFcn(hObject, eventdata, handles)
@@ -3950,10 +4398,13 @@ v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+ 
 % Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
 
 % Combine the masks to find where all 3 are "true."
 % Then we will have the mask of only the green parts of the image.
@@ -3983,7 +4434,14 @@ maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*ro
 maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
-axes(handles.axes2); imshow(maskedRGBImage);
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2); imshow(maskedRGBImage);
+end
 
 % --- Executes during object creation, after setting all properties.
 function slider14_CreateFcn(hObject, eventdata, handles)
@@ -4078,10 +4536,13 @@ v.valueThresholdHigh = handles.slider10.Value;
 maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+    
 % Now apply each color band's particular thresholds to the color band
-hueMask = (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.hueThresholdLow) & (v.hImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.hueThresholdHigh);
-saturationMask = (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.saturationThresholdLow) & (v.sImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.saturationThresholdHigh);
-valueMask = (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) >= v.valueThresholdLow) & (v.vImage(round(round(handles.slider7.Value)*round((nframes/maxframes),2)),:,:) <= v.valueThresholdHigh);
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
 
 % Combine the masks to find where all 3 are "true."
 % Then we will have the mask of only the green parts of the image.
@@ -4115,6 +4576,7 @@ if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mous
     axes(handles.axes2); imshow(maskedRGBImage); hold on;
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
+    hold off;
 else
     axes(handles.axes2); imshow(maskedRGBImage);
 end
@@ -4132,6 +4594,104 @@ function popupmenu1_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+
+% --- Executes on button press in pushbutton36.               IMPORT PRESET
+function pushbutton36_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton36 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global v
+global d
+global p
+%defining folder
+%defining initial folder displayed in dialog window
+if isempty(p.pnpreset)==1;
+    [p.pnpreset]=uigetdir(v.pn);
+else
+    [p.pnpreset]=uigetdir(p.pnpreset);
+end
+%loading preset
+% Construct a questdlg with two options
+choice = questdlg('Which preset would you like to import?', ...
+    'Attention', ...
+    'anterior','posterior','anterior');
+% Handle response
+switch choice
+    case 'anterior'
+        load([p.pnpreset '\presetA']);
+        v.hueThresholdHigh=hueHigh;
+        v.hueThresholdLow=hueLow;
+        v.saturationThresholdLow=satHigh;
+        v.saturationThresholdHigh=satLow;
+        v.valueThresholdLow=valueLow;
+        v.valueThresholdHigh=valueHigh;
+    case 'posterior'
+        load([p.pnpreset '\presetP']);
+        v.hueThresholdHigh=hueHigh;
+        v.hueThresholdLow=hueLow;
+        v.saturationThresholdLow=satHigh;
+        v.saturationThresholdHigh=satLow;
+        v.valueThresholdLow=valueLow;
+        v.valueThresholdHigh=valueHigh;
+end
+
+handles.slider14.Value = v.hueThresholdHigh;
+handles.slider13.Value = v.hueThresholdLow;
+handles.slider12.Value = v.saturationThresholdLow;
+handles.slider11.Value = v.saturationThresholdHigh;
+handles.slider9.Value = v.valueThresholdLow;
+handles.slider10.Value = v.valueThresholdHigh;
+
+maxframes=size(d.imd,3);
+nframes=size(v.imd,2);
+
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+    
+% Now apply each color band's particular thresholds to the color band
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+% Combine the masks to find where all 3 are "true."
+% Then we will have the mask of only the green parts of the image.
+coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+% Filter out small objects.
+smallestAcceptableArea = 50;
+% Get rid of small objects.  Note: bwareaopen returns a logical.
+coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+% Smooth the border using a morphological closing operation, imclose().
+structuringElement = strel('disk', 4);
+coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+% Fill in any holes in the regions, since they are most likely green also.
+coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+% You can only multiply integers if they are of the same type.
+% (coloredObjectsMask is a logical array.)
+% We need to convert the type of coloredObjectsMask to the same data type as hImage.
+% coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+% Use the colored object mask to mask out the colored-only portions of the rgb image.
+maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+% Concatenate the masked color bands to form the rgb image.
+maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+%showing thresholded image in GUI
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2); imshow(maskedRGBImage);
+end
+hold off;
 
 
 
@@ -4168,56 +4728,6 @@ v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
-hueMask=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-saturationMask=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-valueMask=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-coloredObjectsMask=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-maskedImageR=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-maskedImageG=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-maskedImageB=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-v.hsvP = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-
-%getting green spot from all frames
-h=waitbar(0,'Extracting posterior spot for all frames');
-for k=1:size(v.imd,2);
-    % Now apply each color band's particular thresholds to the color band
-    hueMask = (v.hImage(k,:,:) >= v.hueThresholdLow) & (v.hImage(k,:,:) <= v.hueThresholdHigh);
-    saturationMask = (v.sImage(k,:,:) >= v.saturationThresholdLow) & (v.sImage(k,:,:) <= v.saturationThresholdHigh);
-    valueMask = (v.vImage(k,:,:) >= v.valueThresholdLow) & (v.vImage(k,:,:) <= v.valueThresholdHigh);
-
-    % Combine the masks to find where all 3 are "true."
-    % Then we will have the mask of only the colored parts of the image.
-    coloredObjectsMask(k).cdata = uint8(hueMask & saturationMask & valueMask);
-
-    % Filter out small objects.
-    smallestAcceptableArea = 50;
-    % Get rid of small objects.  Note: bwareaopen returns a logical.
-    coloredObjectsMask(k).cdata = uint8(bwareaopen(coloredObjectsMask(k).cdata, smallestAcceptableArea));
-    % Smooth the border using a morphological closing operation, imclose().
-    structuringElement = strel('disk', 4);
-    coloredObjectsMask(k).cdata = imclose(coloredObjectsMask(k).cdata, structuringElement);
-    % Fill in any holes in the regions.
-    coloredObjectsMask(k).cdata = imfill(logical(coloredObjectsMask(k).cdata), 'holes');
-
-    % You can only multiply integers if they are of the same type.
-    % (coloredObjectsMask is a logical array.)
-    % We need to convert the type of coloredObjectsMask to the same data type as hImage.
-    % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
-    coloredObjectsMask(k).cdata = squeeze(cast(coloredObjectsMask(k).cdata, class(v.imd(1).cdata(:,:,1))));
-
-    % Use the colored object mask to mask out the colored-only portions of the rgb image.
-    maskedImageR(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,1);
-    maskedImageG(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,2);
-    maskedImageB(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,3);
-    % Concatenate the masked color bands to form the rgb image.
-    v.hsvP(k).cdata = cat(3, maskedImageR(k).cdata, maskedImageG(k).cdata, maskedImageB(k).cdata);
-    waitbar(k/size(v.imd,2),h);
-end
-v.coloredObjectsMaskP =  coloredObjectsMask;
-v.pushed=2; %signals posterior spot was saved
-v.Pspot=1; %signals posterior spot was saved
-close(h);
-
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
@@ -4225,7 +4735,43 @@ v.v.traceP=zeros(nframes,2);
 %tracing center of the extracted posterior dot
 h=waitbar(0,'Tracing posterior spot');
 for k=1:nframes;
-    stats=regionprops(v.coloredObjectsMaskP(k).cdata, {'Centroid','Area'});
+    % Convert RGB image to HSV
+    hsvImage= rgb2hsv(v.imd(k).cdata);
+
+    % Now apply each color band's particular thresholds to the color band
+    hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+    saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+    valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+    % Combine the masks to find where all 3 are "true."
+    % Then we will have the mask of only the green parts of the image.
+    coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+    % Filter out small objects.
+    smallestAcceptableArea = 50;
+    % Get rid of small objects.  Note: bwareaopen returns a logical.
+    coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+    % Smooth the border using a morphological closing operation, imclose().
+    structuringElement = strel('disk', 4);
+    coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+    % Fill in any holes in the regions, since they are most likely green also.
+    coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+    % You can only multiply integers if they are of the same type.
+    % (coloredObjectsMask is a logical array.)
+    % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+    % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+    coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(1).cdata(:,:,1))));
+
+    % Use the colored object mask to mask out the colored-only portions of the rgb image.
+    maskedImageR = coloredObjectsMask .* v.imd(1).cdata(:,:,1);
+    maskedImageG = coloredObjectsMask .* v.imd(1).cdata(:,:,2);
+    maskedImageB = coloredObjectsMask .* v.imd(1).cdata(:,:,3);
+    % Concatenate the masked color bands to form the rgb image.
+    maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+    
+    %tracing
+    stats=regionprops(maskedRGBImage, {'Centroid','Area'});
     if ~isempty([stats.Area])
         areaArray = [stats.Area];
         [junk,idx] = max(areaArray);
@@ -4240,11 +4786,15 @@ for k=1:nframes;
     v.traceP(:,2)=y;
     waitbar(k/nframes,h);
 end
+v.pushed=2; %signals posterior spot was saved
+v.Pspot=1; %signals posterior spot was saved
 close(h);
 
 %plotting posterior trace
 v.tracePplot=v.traceP(v.traceP>0);
 v.tracePplot=reshape(v.tracePplot,[size(v.tracePplot,1)/2,2]);
+OutofBounds=100-round(length(v.tracePplot)/length(v.traceP)*100);
+str=sprintf('Mouse is out of bounds in %g percent of cases',OutofBounds);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
 if v.preset==1;
@@ -4263,8 +4813,18 @@ traceP=v.traceP;
 tracePplot=v.tracePplot;
 colorP=v.colorP;
 save(filename, 'traceP','tracePplot','colorP');
+%saving preset
+filename=[v.pn '\presetP'];
+hueHigh=v.hueThresholdHigh;
+hueLow=v.hueThresholdLow;
+satHigh=v.saturationThresholdLow;
+satLow=v.saturationThresholdHigh;
+valueLow=v.valueThresholdLow;
+valueHigh=v.valueThresholdHigh;
+save(filename, 'hueHigh','hueLow','satHigh','satLow','valueLow','valueHigh');
 
-plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP); hold off;
+plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
+text(20,20,str,'Color','r'); hold off;
 
 msgbox('Saving Completed. Please save anterior spot as well!','Success');
 
@@ -4302,56 +4862,6 @@ v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
-hueMask=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-saturationMask=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-valueMask=zeros(size(v.imd,2),size(v.imd(1).cdata,1),size(v.imd(1).cdata,2));
-coloredObjectsMask=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-maskedImageR=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-maskedImageG=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-maskedImageB=struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-v.hsvA = struct('cdata',zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),3,'uint8'));
-
-%getting green spot from all frames
-h=waitbar(0,'Extracting anterior spot for all frames');
-for k=1:size(v.imd,2);
-    % Now apply each color band's particular thresholds to the color band
-    hueMask = (v.hImage(k,:,:) >= v.hueThresholdLow) & (v.hImage(k,:,:) <= v.hueThresholdHigh);
-    saturationMask = (v.sImage(k,:,:) >= v.saturationThresholdLow) & (v.sImage(k,:,:) <= v.saturationThresholdHigh);
-    valueMask = (v.vImage(k,:,:) >= v.valueThresholdLow) & (v.vImage(k,:,:) <= v.valueThresholdHigh);
-
-    % Combine the masks to find where all 3 are "true."
-    % Then we will have the mask of only the colored parts of the image.
-    coloredObjectsMask(k).cdata = uint8(hueMask & saturationMask & valueMask);
-
-    % Filter out small objects.
-    smallestAcceptableArea = 50;
-    % Get rid of small objects.  Note: bwareaopen returns a logical.
-    coloredObjectsMask(k).cdata = uint8(bwareaopen(coloredObjectsMask(k).cdata, smallestAcceptableArea));
-    % Smooth the border using a morphological closing operation, imclose().
-    structuringElement = strel('disk', 4);
-    coloredObjectsMask(k).cdata = imclose(coloredObjectsMask(k).cdata, structuringElement);
-    % Fill in any holes in the regions.
-    coloredObjectsMask(k).cdata = imfill(logical(coloredObjectsMask(k).cdata), 'holes');
-
-    % You can only multiply integers if they are of the same type.
-    % (coloredObjectsMask is a logical array.)
-    % We need to convert the type of coloredObjectsMask to the same data type as hImage.
-    % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
-    coloredObjectsMask(k).cdata = squeeze(cast(coloredObjectsMask(k).cdata, class(v.imd(1).cdata(:,:,1))));
-
-    % Use the colored object mask to mask out the colored-only portions of the rgb image.
-    maskedImageR(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,1);
-    maskedImageG(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,2);
-    maskedImageB(k).cdata = coloredObjectsMask(k).cdata .* v.imd(1,k).cdata(:,:,3);
-    % Concatenate the masked color bands to form the rgb image.
-    v.hsvA(k).cdata = cat(3, maskedImageR(k).cdata, maskedImageG(k).cdata, maskedImageB(k).cdata);
-    waitbar(k/size(v.imd,2),h);
-end
-v.coloredObjectsMaskA = coloredObjectsMask;
-v.pushed=3; %signals anterior spot was saved
-v.Aspot=1; %signals anterior spot was saved
-close(h);
-
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
@@ -4359,7 +4869,43 @@ v.traceA=zeros(nframes,2);
 %tracing center of the extracted anterior dot
 h=waitbar(0,'Tracing anterior spot');
 for k=1:nframes;
-    stats=regionprops(v.coloredObjectsMaskA(k).cdata, {'Centroid','Area'});
+    % Convert RGB image to HSV
+    hsvImage= rgb2hsv(v.imd(k).cdata);
+
+    % Now apply each color band's particular thresholds to the color band
+    hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+    saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+    valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+    % Combine the masks to find where all 3 are "true."
+    % Then we will have the mask of only the green parts of the image.
+    coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+    % Filter out small objects.
+    smallestAcceptableArea = 50;
+    % Get rid of small objects.  Note: bwareaopen returns a logical.
+    coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+    % Smooth the border using a morphological closing operation, imclose().
+    structuringElement = strel('disk', 4);
+    coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+    % Fill in any holes in the regions, since they are most likely green also.
+    coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+    % You can only multiply integers if they are of the same type.
+    % (coloredObjectsMask is a logical array.)
+    % We need to convert the type of coloredObjectsMask to the same data type as hImage.
+    % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+    coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(1).cdata(:,:,1))));
+
+    % Use the colored object mask to mask out the colored-only portions of the rgb image.
+    maskedImageR = coloredObjectsMask .* v.imd(1).cdata(:,:,1);
+    maskedImageG = coloredObjectsMask .* v.imd(1).cdata(:,:,2);
+    maskedImageB = coloredObjectsMask .* v.imd(1).cdata(:,:,3);
+    % Concatenate the masked color bands to form the rgb image.
+    maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+    
+    %tracing
+    stats=regionprops(maskedRGBImage, {'Centroid','Area'});
     if ~isempty([stats.Area])
         areaArray = [stats.Area];
         [junk,idx] = max(areaArray);
@@ -4374,11 +4920,15 @@ for k=1:nframes;
     v.traceA(:,2)=y;
     waitbar(k/nframes,h);
 end
+v.pushed=3; %signals anterior spot was saved
+v.Aspot=1; %signals anterior spot was saved
 close(h);
 
 %plotting anterior trace
 v.traceAplot=v.traceA(v.traceA>0);
 v.traceAplot=reshape(v.traceAplot,[size(v.traceAplot,1)/2,2]);
+OutofBounds=100-round(length(v.traceAplot)/length(v.traceA)*100);
+str=sprintf('Mouse is out of bounds in %g percent of cases',OutofBounds);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
 if v.preset==1;
@@ -4397,8 +4947,18 @@ traceA=v.traceA;
 traceAplot=v.traceAplot;
 colorA=v.colorA;
 save(filename, 'traceA','traceAplot','colorA');
+%saving preset
+filename=[v.pn '\presetA'];
+hueHigh=v.hueThresholdHigh;
+hueLow=v.hueThresholdLow;
+satHigh=v.saturationThresholdLow;
+satLow=v.saturationThresholdHigh;
+valueLow=v.valueThresholdLow;
+valueHigh=v.valueThresholdHigh;
+save(filename, 'hueHigh','hueLow','satHigh','satLow','valueLow','valueHigh');
 
-plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
+plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA);
+text(20,20,str,'Color','r'); hold off;
 
 msgbox('Saving Completed. If both spots are saved,please proceed by tracing the animal!','Success');
 
@@ -4414,6 +4974,7 @@ function pushbutton12_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 if v.pushed==0;
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -4425,7 +4986,7 @@ end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
 if v.crop==0;
-    msgbox('Please crop & convert video first!','ERROR');
+    msgbox('Please crop video first!','ERROR');
     return;
 elseif d.pushed==0;
     msgbox('Please load calcium imaging video first!','ERROR');
@@ -4443,14 +5004,14 @@ elseif v.Pspot==0;
     return;
 end
 %making sure that the ROIs were plotted
-if isempty(d.perc)==1 && d.dF==0;
+if isempty(d.ROImeans)==1 || d.dF==0;
     msgbox('ROIs need to be plotted before you can see corresponding postition of the mouse with cell activity!','ATTENTION');
     return;
 end
-if d.thresh==1 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
+if d.thresh==1 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0;
     msgbox('All ROIs need to be plotted before you can see corresponding postition of the mouse with cell activity!','ATTENTION');
     return;
-elseif d.thresh==0 && size(d.ROIs,2)~=size(d.perc,2) && d.dF==0;
+elseif d.thresh==0 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0;
     msgbox('All ROIs need to be plotted before you can see corresponding postition of the mouse with cell activity!','ATTENTION');
     return;
 end
@@ -4516,87 +5077,144 @@ VelocityIncms=round(totalDistIncm/(length(v.traceAplot)/d.framerate),1); %mean v
 
 
 %defining compartments
-%question if
-% Construct a questdlg with two options
-choice = questdlg('Would you like to define regions of interest?', ...
-    'Attention', ...
-    'Yes','No','No');
-% Handle response
-switch choice
-    case 'Yes'
-        %question how many
-        prompt = {'How many?'};
-        dlg_title = 'Input';
-        num_lines = 1;
-        answer = inputdlg(prompt,dlg_title,num_lines);
-        amount=str2num(cell2mat(answer));
-        %loop of selecting compartments, giving names and calculations
-        perccomp=zeros(1,amount);
-        name=cell(1,amount);
-        for k=1:amount;
-            %selecting ROI
-            figure,image(v.imd(1).cdata);
-            str=sprintf('Please define compartment No. %d by clicking around the area!',k);
-            uiwait(msgbox(str,'Attention'));
-            ROI=roipoly;
-            %name of ROI
-            prompt = {'What do you want to call it?'};
-            dlg_title = 'Input';
-            num_lines = 1;
-            answer = inputdlg(prompt,dlg_title,num_lines);
-            name{1,k}=answer;
-            close(gcf);
+%check whether compartments have been imported
+if p.import==1
+    %loop of selecting compartments, giving names and calculations
+        perccomp=zeros(1,p.amount);
+        for k=1:p.amount;
             %calculating amount of time the mouse (the head) was in a compartment in percent
-            [y,x]=find(ROI>0);
+            [y,x]=find(p.ROImask(:,:,k)>0);
             cood=[x,y];
             v.traceAround=round(v.traceAplot);
             mhead=accumarray(v.traceAround,1);
-            Mhead=imresize(mhead, [size(ROI,1) size(ROI,2)]);
+            Mhead=imresize(mhead, [size(p.ROImask(:,:,k),1) size(p.ROImask(:,:,k),2)]);
             Mhead(Mhead<0.1)=0;
             Mhead(Mhead>0.1)=1;
-            combi=ROI+Mhead;
+            combi=p.ROImask(:,:,k)+Mhead;
             numpixel=numel(find(combi>1));
-            numpixel=numpixel*((size(mhead,1)/size(ROI,1)+size(mhead,2)/size(ROI,2))/2);
+            numpixel=numpixel*((size(mhead,1)/size(p.ROImask(:,:,k),1)+size(mhead,2)/size(p.ROImask(:,:,k),2))/2);
             perccomp(1,k)=round(numpixel/length(v.traceA)*100,2); %percent in regards to the whole time
-            Compartments.(char(name{1,k})) = perccomp(1,k);
+            Compartments.(char(p.name{1,k})) = perccomp(1,k);
         end
-    case 'No'
+        %saving table
+        T=struct2table(Compartments);
+        filename=[d.pn '\location\' d.fn(1:end-4) 'compartments.xls'];
+        writetable(T,filename);
+        %saving tracing ROIs
+        filename=[d.pn '\tracingROIs'];
+        save(filename, 'amount','name','ROImask');
+else
+    %question if
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to define regions of interest?', ...
+        'Attention', ...
+        'Yes','No','No');
+    % Handle response
+    switch choice
+        case 'Yes'
+            %question how many
+            prompt = {'How many?'};
+            dlg_title = 'Input';
+            num_lines = 1;
+            answer = inputdlg(prompt,dlg_title,num_lines);
+            amount=str2num(cell2mat(answer));
+            %loop of selecting compartments, giving names and calculations
+            perccomp=zeros(1,amount);
+            name=cell(1,amount);
+            ROImask=zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),amount);
+            for k=1:amount;
+                %selecting ROI
+                figure,image(v.imd(1).cdata);
+                str=sprintf('Please define compartment No. %d by clicking around the area!',k);
+                uiwait(msgbox(str,'Attention'));
+                ROI=roipoly;
+                ROImask(:,:,k)=ROI;
+                %name of ROI
+                prompt = {'What do you want to call it?'};
+                dlg_title = 'Input';
+                num_lines = 1;
+                answer = inputdlg(prompt,dlg_title,num_lines);
+                name{1,k}=answer;
+                close(gcf);
+                %calculating amount of time the mouse (the head) was in a compartment in percent
+                [y,x]=find(ROI>0);
+                cood=[x,y];
+                v.traceAround=round(v.traceAplot);
+                mhead=accumarray(v.traceAround,1);
+                Mhead=imresize(mhead, [size(ROI,1) size(ROI,2)]);
+                Mhead(Mhead<0.1)=0;
+                Mhead(Mhead>0.1)=1;
+                combi=ROI+Mhead;
+                numpixel=numel(find(combi>1));
+                numpixel=numpixel*((size(mhead,1)/size(ROI,1)+size(mhead,2)/size(ROI,2))/2);
+                perccomp(1,k)=round(numpixel/length(v.traceA)*100,2); %percent in regards to the whole time
+                Compartments.(char(name{1,k})) = perccomp(1,k);
+            end
+            %saving table
+            T=struct2table(Compartments);
+            filename=[d.pn '\location\' d.fn(1:end-4) 'compartments.xls'];
+            writetable(T,filename);
+            %saving tracing ROIs
+            filename=[d.pn '\tracingROIs'];
+            save(filename, 'amount','name','ROImask');
+        case 'No'
+    end
 end
 
 
 %plotting cell activity
-printyn=1; %for printing figures
-if d.dF==1;
-    d.perc=d.ROImeans;
+%checking whether mouse is out of bounds at times
+if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.traceA)
+    % Construct a questdlg with two options
+    choice = questdlg('Does the mouse ever leave the testing area?', ...
+        'Attention', ...
+        'Yes','No','No');
+    % Handle response
+    switch choice
+        case 'Yes'
+            mleft=0;
+        case 'No'
+            cood=find(v.traceP==0);
+            for k=1:length(cood)
+                v.traceP(cood(k))=v.traceP(cood(k)-1);
+            end
+            cood=find(v.traceA==0);
+            for k=1:length(cood)
+                v.traceA(cood(k))=v.traceA(cood(k)-1);
+            end
+            mleft=1;
+    end
 end
-x=zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),size(d.perc,2));
-for j=1:size(d.perc,2);
+printyn=1; %for printing figures
+x=zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),size(d.ROImeans,2));
+xts=[];
+for j=1:size(d.ROImeans,2);
     n=0;
     c=0;
     a=0;
     ArrowCoord=[];
-    for k=1:floor(length(v.traceP)/round(length(v.traceP)/size(d.perc,1),2));
-        if d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0; %quiroga spike detection
+    for k=1:floor(length(v.traceP)/round(length(v.traceP)/size(d.ROImeans,1),2));
+        if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
             c=c+1;
             a=a+1;
-            ArrowCoord{a,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
-            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)+1;
-            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)+1;
+            ArrowCoord{a,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
+            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
+            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
             xts(c,j)=k/d.framerate;
-        elseif d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0; %>=0.6
-%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)),j)+1;
+        elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0; %>=0.6
+%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
             c=c+1;
             xts(c,j)=k/d.framerate;
-%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
-        elseif d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)>0; %>=0.6
-%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)),j)+1;
+%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
+        elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0; %>=0.6
+%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
+            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
             c=c+1;
             xts(c,j)=k/d.framerate;
-%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),2)];
+%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
         end
-        if d.perc(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745) && (v.traceA(round(k*round(length(v.traceA)/size(d.perc,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.perc,1),2)),1)==0); %>=0.6
+        if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745) && (v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0); %>=0.6
             n=n+1;
         end
     end
@@ -4611,7 +5229,9 @@ for j=1:size(d.perc,2);
     %display how many percent mouse was registered out of bounds
     OoB=round(100*(n/(n+c)));
     str=sprintf('Cell fires when mouse is out of bounds in %d percent of cases',OoB);
-    text(20,20,str,'Color','r');
+    if mleft==0;
+        text(20,20,str,'Color','r');
+    end
     % plot direction
     drawArrow = @(x,y,varargin) quiver( x(1),y(1),x(2)-x(1),y(2)-y(1),0, varargin{:});
     for  k=1:size(ArrowCoord,1);
@@ -4634,8 +5254,8 @@ for j=1:size(d.perc,2);
         filename=[d.pn '\location\ROIposition'];
         field1='ROIposition';
         field2='ts';
-        value1=x;
-        value2=xts;
+        value1{j,1}=x;
+        value2{j,1}=xts;
         Positions=struct(field1,value1,field2,value2);
         OutofBounds=OoB;
         save(filename, 'Positions','OutofBounds');
@@ -4644,6 +5264,28 @@ end
 v.pushed=1; %signals to show original video again
 msgbox('Tracing Completed. ROI traces saved in folder "location"!','Success');
     
+
+% --- Executes on button press in pushbutton37.                 IMPORT ROIs
+function pushbutton37_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton37 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global v
+global p
+%defining folder
+%defining initial folder displayed in dialog window
+if isempty(p.pnpreset)==1
+    [p.pnpreset]=uigetdir(v.pn);
+else
+    [p.pnpreset]=uigetdir(p.pnpreset);
+end
+%loading preset
+load([p.pnpreset '\tracingROIs']);
+p.amount=amount;
+p.name=name;
+p.ROImask=ROImask;
+p.import=1;
+msgbox('Loading Complete.','Success');
 
 
 
