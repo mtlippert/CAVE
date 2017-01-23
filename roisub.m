@@ -126,7 +126,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 16-Jan-2017 12:52:06
+% Last Modified by GUIDE v2.5 23-Jan-2017 18:28:29
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -155,21 +155,23 @@ clear global v;
 global d
 global v
 global p
-p.pn=[];
+p.pn=[]; %path empty
 %initializing variables needed before hand
 v.pushed=0; %no video loaded
 d.pushed=0; %no video loaded
 d.bcount=0; %no. of rois selected equals zero
+d.bcountd=0; %no. of dust specs selected equals zero
 d.roisdefined=0; %no rois defined
-d.play=0;
-v.play=0;
-v.pn=[];
-v.behav=0;
-d.pn=[];
-d.thresh=0;
-d.valid=0;
+d.play=0; %play button not pressed
+v.play=0; %play button not pressed
+v.pn=[]; %behavioral video path empty
+v.behav=0; %behavior not tracked
+d.pn=[]; %CI video path empty
+d.thresh=0; %no ROI threshold
+d.valid=0; %no ROI was selcted incorrectly
 d.align=0; %signals whether images were aligned
-p.pnpreset=[];
+p.pnpreset=[]; %no color preset imported
+d.help=1; %help should be displayed
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -216,19 +218,21 @@ global p
 clear global d;
 %reinitializes global variables
 global d
-d.pushed=0;
-d.bcount=0;
-d.roisdefined=0;
-d.play=0;
-d.thresh=0;
-d.valid=0;
-d.dF=0;
-d.load=0;
-d.align=0;
-d.pre=0;
-d.mip=0;
-d.pn=[];
-%clears axes
+d.pushed=0; %no video loaded
+d.bcount=0; %no ROI selected
+d.bcountd=0; %no dust specs defined
+d.roisdefined=0; %no ROI values
+d.play=0; %play button not pressed
+d.thresh=0; %no ROI threshold
+d.valid=0; %no ROI was selcted incorrectly
+d.dF=0; %no dF/F processing was done
+d.load=0; %no ROIs were loaded
+d.align=0; %no alignment
+d.pre=0; %no preprocessing
+d.mip=0; %no maximum intensity projection
+d.pn=[]; %no CI video path
+
+%clear axes
 cla(handles.axes1,'reset');
 %resets frame slider
 handles.slider7.Value=1;
@@ -290,13 +294,13 @@ catch ME
    end
 end 
 
-%check whether ROI mask had been saved before
+%check whether video had been processed before
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn));
-    tf(k)=strcmp([d.fn(1:end-4) 'dFvid.mat'],files(k).name);
+    tf(k)=strcmp([d.fn(1:end-4) 'dFvid.mat'],files(k).name); %looking for dF/F processed video as .mat file
 end
-if sum(tf)>0;
+if sum(tf)>0; %if a file is found
     % Construct a questdlg with two options
     choice = questdlg('Would you like to load your last processed version?', ...
         'Attention', ...
@@ -309,7 +313,7 @@ if sum(tf)>0;
             load([d.pn '\' d.fn(1:end-4) 'dFvid']);
             d.imd=deltaFimd;
             close(h);
-            d.pushed=1;
+            d.pushed=1; %signals that CI video was loaded
             %loading MIP
             MaxIntensProj = max(d.imd, [], 3);
             stdIm = std(d.imd,0,3);
@@ -324,9 +328,9 @@ if sum(tf)>0;
             end
             if sum(tf)>0;
                 load([d.pn '\' d.fn(1:end-4) 'ROIs.mat']);
-                d.mask=ROImask;
-                d.ROIorder=ROIorder;
-                d.ROIs=ROIvalues;
+                d.mask=ROImask; %mask with all the ROIs
+                d.ROIorder=ROIorder; %order of the ROIs
+                d.ROIs=ROIvalues; %ROI values trhoughout the video
                 %plotting ROIs
                 colors={[0    0.4471    0.7412],...
                     [0.8510    0.3255    0.0980],...
@@ -352,7 +356,7 @@ if sum(tf)>0;
                     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
                 hold off;
-                %background
+                %calculating background
                 bg=cell(size(d.imd,3),1);
                 d.bg=cell(size(d.imd,3),1);
                 background=d.mask;
@@ -371,7 +375,7 @@ if sum(tf)>0;
                 close(h);
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
-                d.load=1;
+                d.load=1; %signals that a ROI mask was loaded
             end
             %loading original calcium imaging video
             % Construct a questdlg with two options
@@ -432,18 +436,42 @@ if sum(tf)>0;
                         close(h);
                         d.origCI=imd;
                     end
-                    d.dF=1;
+                    d.dF=1; %signals that dF/F was performed
                     load([d.pn '\' d.fn(1:end-4) 'vidalign']);
-                    d.align=vidalign;
-                    d.pre=1;
+                    d.align=vidalign; %whether alignment was applied
+                    d.pre=1; %presprocessing was performed
 
                     msgbox('Loading complete!');
+                    
+                    % Construct a questdlg with two options
+                    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
+                        'Attention', ...
+                        'YES','NO','YES');
+                    % Handle response
+                    switch choice
+                        case 'YES'
+                            d.help=1;
+                        case 'NO'
+                            d.help=0;
+                    end
                 case 'NO'
-                    d.dF=1;
+                    d.dF=1; %signals that dF/F was performed
                     load([d.pn '\' d.fn(1:end-4) 'vidalign']);
-                    d.align=vidalign;
-                    d.pre=1;
+                    d.align=vidalign; %whether alignment was applied
+                    d.pre=1; %presprocessing was performed
                     d.origCI=[];
+                    
+                    % Construct a questdlg with two options
+                    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
+                        'Attention', ...
+                        'YES','NO','YES');
+                    % Handle response
+                    switch choice
+                        case 'YES'
+                            d.help=1; %help dialogues
+                        case 'NO'
+                            d.help=0; %no help dialogues
+                    end
             end
         case 'NO'
             if length(Files)==1;
@@ -473,17 +501,28 @@ if sum(tf)>0;
 
                 d.pushed=1; %signals that file was selected
                 d.roisdefined=0; %no rois defined
-                d.b=[];
-                d.c=[];
-                d.dF=0;
-                d.load=0;
-                d.align=0;
-                d.pre=0;
-                d.mip=0;
-                d.origCI=[];
+                d.b=[]; %matrix for drawing boundaries of ROIs empty
+                d.c=[]; %matrix for drawing center of ROIs empty
+                d.dF=0; %no dF/F performed
+                d.load=0; %no ROIs loaded
+                d.align=0; %no alignment
+                d.pre=0; %no preprocessing
+                d.mip=0; %no maximum intensity projection
+                d.origCI=[]; %no original CI video
 
                 %looking at first original picture
                 axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+                % Construct a questdlg with two options
+                choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
+                    'Attention', ...
+                    'YES','NO','YES');
+                % Handle response
+                switch choice
+                    case 'YES'
+                        d.help=1;
+                    case 'NO'
+                        d.help=0;
+                end
             else
                 %putting each frame into variable 'images'
                 h=waitbar(0,'Loading');
@@ -511,17 +550,28 @@ if sum(tf)>0;
 
                 d.pushed=1; %signals that file was selected
                 d.roisdefined=0; %no rois defined
-                d.b=[];
-                d.c=[];
-                d.dF=0;
-                d.load=0;
-                d.align=0;
-                d.pre=0;
-                d.mip=0;
-                d.origCI=[];
+                d.b=[]; %matrix for drawing boundaries of ROIs empty
+                d.c=[]; %matrix for drawing center of ROIs empty
+                d.dF=0; %no dF/F performed
+                d.load=0; %no ROIs loaded
+                d.align=0; %no alignment
+                d.pre=0; %no preprocessing
+                d.mip=0; %no maximum intensity projection
+                d.origCI=[]; %no original CI video
 
                 %looking at first original picture
                 axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+                % Construct a questdlg with two options
+                choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
+                    'Attention', ...
+                    'YES','NO','YES');
+                % Handle response
+                switch choice
+                    case 'YES'
+                        d.help=1;
+                    case 'NO'
+                        d.help=0;
+                end
             end
     end
 
@@ -552,17 +602,28 @@ elseif length(Files)==1;
     
     d.pushed=1; %signals that file was selected
     d.roisdefined=0; %no rois defined
-    d.b=[];
-    d.c=[];
-    d.dF=0;
-    d.load=0;
-    d.align=0;
-    d.pre=0;
-    d.mip=0;
-    d.origCI=[];
+    d.b=[]; %matrix for drawing boundaries of ROIs empty
+    d.c=[]; %matrix for drawing center of ROIs empty
+    d.dF=0; %no dF/F performed
+    d.load=0; %no ROIs loaded
+    d.align=0; %no alignment
+    d.pre=0; %no preprocessing
+    d.mip=0; %no maximum intensity projection
+    d.origCI=[]; %no original CI video
     
     %looking at first original picture
     axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+    % Construct a questdlg with two options
+    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            d.help=1;
+        case 'NO'
+            d.help=0;
+    end
 else
     %putting each frame into variable 'images'
     h=waitbar(0,'Loading');
@@ -590,22 +651,34 @@ else
     
     d.pushed=1; %signals that file was selected
     d.roisdefined=0; %no rois defined
-    d.b=[];
-    d.c=[];
-    d.dF=0;
-    d.load=0;
-    d.align=0;
-    d.pre=0;
-    d.mip=0;
-    d.origCI=[];
+    d.b=[]; %matrix for drawing boundaries of ROIs empty
+    d.c=[]; %matrix for drawing center of ROIs empty
+    d.dF=0; %no dF/F performed
+    d.load=0; %no ROIs loaded
+    d.align=0; %no alignment
+    d.pre=0; %no preprocessing
+    d.mip=0; %no maximum intensity projection
+    d.origCI=[]; %no original CI video
     
     %looking at first original picture
     axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+    % Construct a questdlg with two options
+    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    switch choice
+        case 'YES'
+            d.help=1;
+        case 'NO'
+            d.help=0;
+    end
 end
 p.pn=d.pn;
 
-titleLabel = ['Calcium imaging video: ' d.fn];
+titleLabel = ['Calcium imaging video: ' d.fn]; %filename as title
 set(handles.text27, 'String', titleLabel);
+%if you hover with the mouse over the filename, you can see the path
 handles.text27.TooltipString=d.pn;
 textLabel = sprintf('%d / %d', 1,size(d.imd,3));
 set(handles.text36, 'String', textLabel);
@@ -636,7 +709,7 @@ if d.pre==1 || d.dF==1;
 end
 
 %handles.slider5.Value changes low in value
-if d.pushed==4 || d.roisdefined==1;
+if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
@@ -681,7 +754,7 @@ if d.pre==1 || d.dF==1;
 end
 
 %handles.slider6.Value changes low out value
-if d.pushed==4 || d.roisdefined==1;
+if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
@@ -726,7 +799,7 @@ if d.pre==1 || d.dF==1;
 end
 
 %handles.slider15.Value changes high in value
-if d.pushed==4 || d.roisdefined==1;
+if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
@@ -771,7 +844,7 @@ if d.pre==1 || d.dF==1;
 end
 
 %handles.slider16.Value changes high out value
-if d.pushed==4 || d.roisdefined==1;
+if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
     for k=1:size(d.b,1);
@@ -847,12 +920,12 @@ close(h);
 %Eliminating faulty frames
 h=waitbar(0,'Eliminating faulty frames');
 for k=1:size(meanChange,3);
-    if meanChange(1,1,k)<-(5*median(abs(meanChange)/0.6745)) || meanChange(1,1,k)>5*median(abs(meanChange)/0.6745);
-        if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1));
+    if meanChange(1,1,k)<-(5*median(abs(meanChange)/0.6745)) || meanChange(1,1,k)>5*median(abs(meanChange)/0.6745); %quiroga, if sudden change in brightness = faulty frame
+        if k+1 <= size(meanChange,3) && (meanChange(1,1,k)~=meanChange(1,1,k+1)); %if it is the last frame
             imd(:,:,k+1)=imd(:,:,k);
 %         elseif k+1 <= size(meanChange,3) && (meanChange(1,1,k)==meanChange(1,1,k+1));
 %             imd(:,:,k+1)=imd(:,:,k+3); % k+3 when the glitch lasted 2 frames!
-        else
+        else %for all other frames
             imd(:,:,k+1)=imd(:,:,k-1);
         end
     end
@@ -861,7 +934,7 @@ end
 d.imd=imd;
 close(h);
 
-d.origCI=imresize(d.imd,0.805); %keeping this file stored as original video
+d.origCI=imresize(d.imd,0.805); %keeping this file stored as original video but resized since original video is bigger than the downsampled video
 
 %flatfield correction
 H = fspecial('average',round(.08*size(d.imd,1))); %8 % blur
@@ -874,7 +947,7 @@ d.imd=d.imd(round(.1*s(1)):round(.9*s(1)),round(.1*s(2)):round(.9*s(2)),:);
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 
-d.pre=1;
+d.pre=1; %preprocessing was done
 %plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
 h=figure,plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
@@ -1053,8 +1126,8 @@ end
 
 %deltaF/F
 h=waitbar(0,'Calculating deltaF/F');
-Fmean=mean(d.imd(:,:,1:100:end),3); %% insert slight blurring filter?
-imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean);
+Fmean=mean(d.imd(:,:,1:100:end),3); %mean frame of whole video
+imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean); %frame minus meanframe divided by meanframe
     %temporal filter below was removed because of artifacts
     % [bFilt,aFilt] = butter(4,.5, 'low');
     % 
@@ -1065,7 +1138,7 @@ imddF=bsxfun(@rdivide,bsxfun(@minus,double(d.imd),Fmean),Fmean);
     % %     disp(kr);
     % end
 
-hhh = fspecial('gaussian', 5, 5);
+hhh = fspecial('gaussian', 5, 5); %gaussian blur
 %SE = strel('disk', 15);
 
 for k=1:size(d.imd,3);
@@ -1099,7 +1172,7 @@ d.ROIs=[];
 %showing resulting frame
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-d.dF=1;
+d.dF=1; %dF/F was performed
 %finding cells with maximum intensity projection and standard deviation
 MaxIntensProj = max(d.imd, [], 3);
 stdIm = std(d.imd,0,3);
@@ -1141,6 +1214,7 @@ if d.dF==0;
     return;
 end
 
+%colors for ROIs
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
     [0.9294    0.6941    0.1255],...
@@ -1152,8 +1226,8 @@ colors={[0    0.4471    0.7412],...
 
 
 %display instructions only if the button was pressed for the first time or
-%a mistake was made
-if d.bcount==0 || d.valid==1;
+%a mistake was made and you want the help
+if d.bcount==0 || d.valid==1 || d.help==1;
     d.valid=0;
     uiwait(msgbox('Please define the region of interest (ROI) by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
@@ -1161,39 +1235,39 @@ end
 %displaying picture with previously marked ROIs
 axes(handles.axes1);
 if d.bcount>0;
-    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
-    d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    singleFrame=d.mip./max(max(d.mip));
+    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8)); %selecting colors for ROIs
+    d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
+    singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
-    stat = regionprops(d.labeled,'Centroid');
+    stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
     for k=1:size(d.b,1);
         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
         plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-    end
+    end %drawing ROIs
     hold off;
-    f=getframe(handles.axes1);
+    f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
     singleFrame=f.cdata;
 elseif d.load==1;
-    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
-    singleFrame=d.mip./max(max(d.mip));
+    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8)); %selecting colors for ROIs
+    singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
-    stat = regionprops(d.labeled,'Centroid');
+    stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
     for k=1:size(d.b,1);
         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
         plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-    end
+    end %drawing ROIs
     hold off;
-    f=getframe(handles.axes1);
+    f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
     singleFrame=f.cdata;
 elseif d.bcount==0;
-    singleFrame=d.mip./max(max(d.mip));
+    singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
 end
 
 %manual ROI selection
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
-if d.bcount>0 || d.load==1;
+if d.bcount>0 || d.load==1; %resizing ROI since the figure from getframe is not the same resolution
     B=zeros(size(d.mip,1),size(d.mip,2));
     B=imresize(ROI, [size(d.mip,1) size(d.mip,2)]);
     ROI=B;
@@ -1220,9 +1294,9 @@ end
 %count times button is pressed
 d.bcount=d.bcount+1;
 
-if d.load==1;
+if d.load==1; %if a ROI mask was loaded
     d.labeled = d.labeled+(ROI*(max(max(d.labeled))+1)); %labeling of ROIs
-    d.mask = d.mask+ROI;
+    d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
     if numel(find(d.mask>1))>0;
         choice = questdlg('Would you like to remove this ROI?', ...
@@ -1231,8 +1305,8 @@ if d.load==1;
         % Handle response
         switch choice
             case 'YES'
-                d.mask=d.mask-(2*ROI);
-                d.mask(d.mask<0)=0;
+                d.mask=d.mask-(2*ROI); %removing 2*ROI since overlaps = 2
+                d.mask(d.mask<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
                 d.labeled=bwlabel(d.mask);
                 % relabel ROIs
                 n=size(d.imd,3);
@@ -3867,7 +3941,9 @@ if d.play==1 || v.play==1;
     return;
 end
 axes(handles.axes2); image(v.imd(1).cdata); %displays first image
-uiwait(msgbox('Please define the area where the mouse is running by left-click and dragging the cursor over the area! Then right click and select Copy Position, finish by double-clicking!','Attention','modal'));
+if d.help==1;
+    uiwait(msgbox('Please define the area where the mouse is running by left-click and dragging the cursor over the area! Then right click and select Copy Position, finish by double-clicking!','Attention','modal'));
+end
 %initializes interactive cropping
 h=imcrop;
 cropped=clipboard('pastespecial');
@@ -3904,7 +3980,11 @@ convVimd=v.imd;
 save(filename, 'convVimd');
 close(h);
 
-msgbox('Cropping and Conversion Completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking SAVE ANTERIOR SPOT and SAVE POSTERIOR SPOT.','Success');
+if d.help==1;
+    msgbox('Cropping and downsampling completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking SAVE ANTERIOR SPOT and SAVE POSTERIOR SPOT.','Success');
+else
+    msgbox('Cropping and downsampling completed.','Success');
+end
 
 
 
@@ -4960,7 +5040,7 @@ save(filename, 'hueHigh','hueLow','satHigh','satLow','valueLow','valueHigh');
 plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA);
 text(20,20,str,'Color','r'); hold off;
 
-msgbox('Saving Completed. If both spots are saved,please proceed by tracing the animal!','Success');
+msgbox('Saving Completed. If both spots are saved, please proceed by tracing the animal!','Success');
 
 
 
@@ -5330,7 +5410,7 @@ else
     imdMax=1/(max(max(max(d.imd))));
 end
 
-if v.skdefined==0;
+if v.skdefined==0 && d.help==1;
     uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you can push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
     %Question how many
     prompt = {'How many behaviors would you like to track? (8 maximum)'};
@@ -5464,3 +5544,57 @@ v.name=[];
 v.events=[];
 v.skdefined=0;
 v.behav=0;
+
+
+% --- Executes on button press in pushbutton38.                 REMOVE DUST
+function pushbutton38_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton38 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+global v
+if d.pushed==0;
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+end
+if d.play==1 || v.play==1;
+    msgbox('Please push stop button before proceeding!','ATTENTION');
+    return;
+end
+if d.pre==1;
+    msgbox('You have to remove dust before preprocessing!','ATTENTION');
+    return;
+end
+
+%display instructions only if the button was pressed for the first time or
+%a mistake was made and you want the help
+if d.bcountd==0 || d.help==1;
+    uiwait(msgbox('Please define the region of dust by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
+end
+
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);
+%manual dust selection
+Dust = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
+
+%check if ROI was selected correctly
+if numel(find(Dust))==0;
+    msgbox('Please select valid dust ROI!','ERROR');
+    return;
+end
+
+%count times button is pressed
+d.bcountd=d.bcountd+1;
+
+Dust=~Dust;
+Dust=cast(Dust,class(d.imd(:,:,1)));
+h=waitbar(0,'Removing dust specs');
+for k=1:size(d.imd,3)
+    d.imd(:,:,k)=Dust.*d.imd(:,:,k);
+    waitbar(k/size(d.imd,3),h);
+end
+close(h);
+%showing resulting frame
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);imshow(singleFrame);
+msgbox('Removal complete!','Success');
