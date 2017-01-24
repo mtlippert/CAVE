@@ -1953,7 +1953,7 @@ colorsb={[0    0.4    0.7],...
 % % b=fir1(256,[400 5000]/(32000/2)); %detection threshold
 % % temp=single(filter(b,1,d.ROImeans(:,1)));
 % % %or
-% [b,a]=butter(4,0.1,'high');
+[b,a]=butter(4,0.1,'high');
 % % bla=filtfilt(b,a,d.ROImeans(:,1));
     
 %dF/f and thresholded ROIs
@@ -1969,7 +1969,7 @@ if d.load==1;
             d.bgmean(i,1)=mean(d.bg{i,1});
             d.ROImeans(i,k)=(d.ROImeans(i,k)-d.bgmean(i,1))*100;
         end
-%         d.ROImeans(:,k)=filtfilt(b,a,d.ROImeans(:,k)); %high band pass filter
+        d.ROImeans(:,k)=filtfilt(b,a,d.ROImeans(:,k)); %high band pass filter
         waitbar(k/size(d.ROIs,2),h);
     end
     close(h);
