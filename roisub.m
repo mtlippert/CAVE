@@ -231,6 +231,7 @@ d.align=0; %no alignment
 d.pre=0; %no preprocessing
 d.mip=0; %no maximum intensity projection
 d.pn=[]; %no CI video path
+d.ROIv=0; %no ROI values were loaded
 
 %clear axes
 cla(handles.axes1,'reset');
@@ -330,7 +331,6 @@ if sum(tf)>0; %if a file is found
                 load([d.pn '\' d.fn(1:end-4) 'ROIs.mat']);
                 d.mask=ROImask; %mask with all the ROIs
                 d.ROIorder=ROIorder; %order of the ROIs
-                d.ROIs=ROIvalues; %ROI values trhoughout the video
                 %plotting ROIs
                 colors={[0    0.4471    0.7412],...
                     [0.8510    0.3255    0.0980],...
@@ -377,6 +377,18 @@ if sum(tf)>0; %if a file is found
                 d.roisdefined=1; %signals that ROIs were defined
                 d.load=1; %signals that a ROI mask was loaded
             end
+            %loading ROI values
+            %check whether ROI values had been saved before
+            files=dir(d.pn);
+            tf=zeros(1,length(dir(d.pn)));
+            for k=1:length(dir(d.pn));
+                tf(k)=strcmp([d.fn(1:end-4) 'ROIvalues.mat'],files(k).name);
+            end
+            if sum(tf)>0;
+                load([d.pn '\' d.fn(1:end-4) 'ROIvalues.mat']);
+                d.ROIs=ROIvalues; %ROI values trhoughout the video
+            end
+            d.ROIv=1;
             %loading original calcium imaging video
             % Construct a questdlg with two options
             choice = questdlg('Would you also like to load the original calcium imaging video?', ...
@@ -1214,6 +1226,8 @@ if d.dF==0;
     return;
 end
 
+d.ROIv=0; %resetting ROIvalues loaded, since you are changing the ROI mask now
+
 %colors for ROIs
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -1235,7 +1249,7 @@ end
 %displaying picture with previously marked ROIs
 axes(handles.axes1);
 if d.bcount>0;
-    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8)); %selecting colors for ROIs
+    colors=repmat(colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
     singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
@@ -1249,7 +1263,7 @@ if d.bcount>0;
     f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
     singleFrame=f.cdata;
 elseif d.load==1;
-    colors=repmat(colors,1,ceil(size(d.ROIs,2)/8)); %selecting colors for ROIs
+    colors=repmat(colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
     singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
     stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
@@ -1308,26 +1322,6 @@ if d.load==1; %if a ROI mask was loaded
                 d.mask=d.mask-(2*ROI); %removing 2*ROI since overlaps = 2
                 d.mask(d.mask<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
                 d.labeled=bwlabel(d.mask);
-                % relabel ROIs
-                n=size(d.imd,3);
-                CC=bwconncomp(d.mask);
-                numROIs=CC.NumObjects; %number of ROIs
-                d.imdrem=cell(size(d.imd,3),numROIs);
-                d.ROIs=cell(size(d.imd,3),numROIs);
-                h=waitbar(0,'Relabeling ROIs');
-                for j=1:n;
-                    for i=1:numROIs;
-                        ROIs=zeros(size(d.imd,1),size(d.imd,2));
-                        m = find(d.labeled==i);
-                        ROIs(m)=1;
-                        % You can only multiply integers if they are of the same type.
-                        ROIs = cast(ROIs, class(d.imd(:,:,1)));
-                        d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
-                        d.ROIs{j,i}=d.imdrem{j,i}(m);
-                    end
-                    waitbar(j/size(d.imd,3),h);
-                end
-                close(h);
                 %plotting ROIs
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 if d.dF==1 || d.pre==1;
@@ -1360,8 +1354,8 @@ if d.load==1; %if a ROI mask was loaded
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
-                for j = 1 : size(d.ROIs,2);
+                colors=repmat(colors,1,ceil(max(d.ROIorder)/8));
+                for j = 1 : max(d.ROIorder);
                     d.b{j,1} = B{j};
                     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
                     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
@@ -1381,10 +1375,9 @@ if d.load==1; %if a ROI mask was loaded
                     case 'YES'
                         %saving ROI mask
                         filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
-                        ROIvalues=d.ROIs;
                         ROImask=d.mask;
                         ROIorder=d.ROIorder;
-                        save(filename, 'ROImask','ROIorder','ROIvalues');
+                        save(filename, 'ROImask','ROIorder');
                     case 'NO'
                         return;
                 end
@@ -1412,19 +1405,7 @@ if d.load==1; %if a ROI mask was loaded
         end
     else
         d.mask(d.mask>0)=1;
-    end
-    %values from video in ROIs
-    h=waitbar(0,'Labeling ROIs');
-    imdROI=cell(size(d.imd,3),(max(max(d.labeled))));
-    for k = 1:size(d.imd,3);
-        m = find(d.labeled==(max(max(d.labeled))));
-        ROI = cast(ROI, class(d.imd(:,:,1)));
-        imdROI{k,(max(max(d.labeled)))} = ROI.*d.imd(:,:,k); %applying ROI mask to real values
-        d.ROIs{k,(max(max(d.labeled)))}= imdROI{k,(max(max(d.labeled)))}(m);
-        waitbar(k/size(d.imd,3),h);
-    end
-    close(h);
-    
+    end    
 
     %plotting ROIs
     singleFrame=d.mip;
@@ -1471,10 +1452,9 @@ if d.load==1; %if a ROI mask was loaded
 
     %saving ROI mask
     filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
-    ROIvalues=d.ROIs;
     ROImask=d.mask;
     ROIorder=d.ROIorder;
-    save(filename, 'ROImask','ROIorder','ROIvalues');
+    save(filename, 'ROImask','ROIorder');
 else
     d.labeled = d.labeled+ROI*(max(max(d.labeled))+1); %labeling of ROIs
     d.mask = d.mask+ROI;
@@ -1489,26 +1469,6 @@ else
                 d.mask=d.mask-(2*ROI);
                 d.mask(d.mask<0)=0;
                 d.labeled=bwlabel(d.mask);
-                % relabel ROIs
-                n=size(d.imd,3);
-                CC=bwconncomp(d.mask);
-                numROIs=CC.NumObjects; %number of ROIs
-                d.imdrem=cell(size(d.imd,3),numROIs);
-                d.ROIs=cell(size(d.imd,3),numROIs);
-                h=waitbar(0,'Relabeling ROIs');
-                for j=1:n;
-                    for i=1:numROIs;
-                        ROIs=zeros(size(d.imd,1),size(d.imd,2));
-                        m = find(d.labeled==i);
-                        ROIs(m)=1;
-                        % You can only multiply integers if they are of the same type.
-                        ROIs = cast(ROIs, class(d.imd(:,:,1)));
-                        d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
-                        d.ROIs{j,i}=d.imdrem{j,i}(m);
-                    end
-                    waitbar(j/size(d.imd,3),h);
-                end
-                close(h);
                 %plotting ROIs
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1;
@@ -1541,8 +1501,8 @@ else
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
-                for j = 1 : size(d.ROIs,2);
+                colors=repmat(colors,1,ceil(max(d.ROIorder)/8));
+                for j = 1 : max(d.ROIorder);
                     d.b{j,1} = B{j};
                     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
                     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
@@ -1562,10 +1522,9 @@ else
                     case 'YES'
                         %saving ROI mask
                         filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
-                        ROIvalues=d.ROIs;
                         ROImask=d.mask;
                         ROIorder=d.ROIorder;
-                        save(filename, 'ROImask','ROIorder','ROIvalues');
+                        save(filename, 'ROImask','ROIorder');
                     case 'NO'
                         return;
                 end
@@ -1592,16 +1551,6 @@ else
     else
         d.mask(d.mask>0)=1;
     end
-    %values from video in ROIs
-    h=waitbar(0,'Labeling ROIs');
-    for k = 1:size(d.imd,3);
-        m = find(d.labeled==(max(max(d.labeled))));
-        ROI = cast(ROI, class(d.imd(:,:,1)));
-        imdROI{k,(max(max(d.labeled)))} = ROI.*d.imd(:,:,k); %applying ROI mask to real values
-        d.ROIs{k,(max(max(d.labeled)))}= imdROI{k,(max(max(d.labeled)))}(m);
-        waitbar(k/size(d.imd,3),h);
-    end
-    close(h);
     
 
     %plotting ROIs
@@ -1649,10 +1598,9 @@ else
 
     %saving ROI mask
     filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
-    ROIvalues=d.ROIs;
     ROImask=d.mask;
     ROIorder=d.ROIorder;
-    save(filename, 'ROImask','ROIorder','ROIvalues');
+    save(filename, 'ROImask','ROIorder');
 end
 
 
@@ -1721,6 +1669,7 @@ d.c=[];
 d.ROIorder=[];
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
+d.ROIv=0; %no ROI values loaded
 
 if d.pre==0;
     msgbox('Please do preprocessing & Delta F/F calculation before proceeding!','ATTENTION');
@@ -1734,118 +1683,41 @@ filepath=[d.pn '\'];
 [fn,pn,~]=uigetfile([filepath '*.mat']);
 %extracts filename
 load([pn fn]);
-%checking whether path is the same as the path of the current file
-if strcmp(pn,d.pn)==1;
-    d.mask=ROImask;
-    d.ROIorder=ROIorder;
-    d.ROIs=ROIvalues;
-    %plotting ROIs
-    colors={[0    0.4471    0.7412],...
-        [0.8510    0.3255    0.0980],...
-        [0.9294    0.6941    0.1255],...
-        [0.4941    0.1843    0.5569],...
-        [0.4667    0.6745    0.1882],...
-        [0.3020    0.7451    0.9333],...
-        [0.6353    0.0784    0.1843],...
-        [0.6784    0.9216    1.0000]};
+d.mask=ROImask;
+d.ROIorder=ROIorder;
+%plotting ROIs
+colors={[0    0.4471    0.7412],...
+    [0.8510    0.3255    0.0980],...
+    [0.9294    0.6941    0.1255],...
+    [0.4941    0.1843    0.5569],...
+    [0.4667    0.6745    0.1882],...
+    [0.3020    0.7451    0.9333],...
+    [0.6353    0.0784    0.1843],...
+    [0.6784    0.9216    1.0000]};
 
+singleFrame=d.imd(:,:,round(handles.slider7.Value));
+if d.dF==1 || d.pre==1;
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
-    if d.dF==1 || d.pre==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value));
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-    else
-        axes(handles.axes1); imshow(singleFrame); hold on;
-    end
-    B=bwboundaries(d.mask); %boundaries of ROIs
-    d.labeled=bwlabel(d.mask);
-    stat = regionprops(d.labeled,'Centroid');
-    d.b=cell(length(B),1);
-    d.c=cell(length(B),1);
-    colors=repmat(colors,1,ceil(length(B)/8));
-    for j = 1 : length(B);
-        d.b{j,1} = B{j};
-        d.c{j,1} = stat(j).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end
-    hold off;
-    d.pushed=4; %signals that ROIs were selected
-    d.roisdefined=1; %signals that ROIs were defined
-else 
-    d.mask=ROImask;
-    d.ROIorder=ROIorder;
-    %plotting ROIs
-    colors={[0    0.4471    0.7412],...
-        [0.8510    0.3255    0.0980],...
-        [0.9294    0.6941    0.1255],...
-        [0.4941    0.1843    0.5569],...
-        [0.4667    0.6745    0.1882],...
-        [0.3020    0.7451    0.9333],...
-        [0.6353    0.0784    0.1843],...
-        [0.6784    0.9216    1.0000]};
-
-    singleFrame=d.imd(:,:,round(handles.slider7.Value));
-    if d.dF==1 || d.pre==1;
-        singleFrame=d.imd(:,:,round(handles.slider7.Value));
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-    else
-        axes(handles.axes1); imshow(singleFrame); hold on;
-    end
-    B=bwboundaries(d.mask); %boundaries of ROIs
-    d.labeled=bwlabel(d.mask);
-    stat = regionprops(d.labeled,'Centroid');
-    d.b=cell(length(B),1);
-    d.c=cell(length(B),1);
-    colors=repmat(colors,1,ceil(length(B)/8));
-    for j = 1 : length(B);
-        d.b{j,1} = B{j};
-        d.c{j,1} = stat(j).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end
-    hold off;
-    d.pushed=4; %signals that ROIs were selected
-    d.roisdefined=1; %signals that ROIs were defined
-
-    % label ROIs
-    background=d.mask;
-    background(background==1)=2;
-    background(background==0)=1;
-    background(background==2)=0;
-    CC=bwconncomp(d.mask);
-    numROIs=CC.NumObjects; %number of ROIs
-    d.imdThresh=cell(size(d.imd,3),numROIs);
-    d.ROIs=cell(size(d.imd,3),numROIs);
-    d.background=cell(size(d.imd,3),1);
-    d.bg=cell(size(d.imd,3),1);
-    h=waitbar(0,'Labeling ROIs');
-    for j=1:size(d.imd,3);
-        for i=1:numROIs;
-            ROIs=zeros(size(d.imd,1),size(d.imd,2));
-            m = find(d.labeled==i);
-            ROIs(m)=1;
-            % You can only multiply integers if they are of the same type.
-            ROIs = cast(ROIs, class(d.imd(:,:,1)));
-            d.imdThresh{j,i} = ROIs .* d.imd(:,:,j);
-            d.ROIs{j,d.ROIorder(i)}=d.imdThresh{j,i}(m);
-        end
-        % You can only multiply integers if they are of the same type.
-        nn = find(background==1);
-        background = cast(background, class(d.imd(:,:,1)));
-        d.background{j,1} = background .* d.imd(:,:,j);
-        d.bg{j,1}=d.background{j,1}(nn);
-        waitbar(j/size(d.imd,3),h);
-    end
-    %relabeling d.labeled
-    labels=zeros(size(d.imd,1),size(d.imd,2));
-    for i=1:numROIs;
-        m = find(d.labeled==i);
-        labels(m)=d.ROIorder(i);
-    end
-    d.labeled=labels;
-    d.load=1; %signals that a ROI mask was loaded
-    close(h);
+    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+else
+    axes(handles.axes1); imshow(singleFrame); hold on;
 end
+B=bwboundaries(d.mask); %boundaries of ROIs
+d.labeled=bwlabel(d.mask);
+stat = regionprops(d.labeled,'Centroid');
+d.b=cell(length(B),1);
+d.c=cell(length(B),1);
+colors=repmat(colors,1,ceil(length(B)/8));
+for j = 1 : length(B);
+    d.b{j,1} = B{j};
+    d.c{j,1} = stat(j).Centroid;
+    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+end
+hold off;
+d.pushed=4; %signals that ROIs were selected
+d.roisdefined=1; %signals that ROIs were defined
+d.load=1;
 msgbox('Loading complete!');
 
 
@@ -1948,6 +1820,33 @@ colorsb={[0    0.4    0.7],...
     [0.3    0.7    0.9],...
     [0.6    0.07   0.1],...
     [0.6    0.9    1]};
+
+%checking whether ROI values had been saved before and no ROI was added
+if d.ROIv==0;
+    %labeling ROIs
+    n=size(d.imd,3);
+    numROIs=max(d.ROIorder); %number of ROIs
+    d.imdrem=cell(size(d.imd,3),numROIs);
+    d.ROIs=cell(size(d.imd,3),numROIs);
+    h=waitbar(0,'Labeling ROIs');
+    for j=1:n;
+        for i=1:numROIs;
+            ROIs=zeros(size(d.imd,1),size(d.imd,2));
+            m = find(d.labeled==i);
+            ROIs(m)=1;
+            % You can only multiply integers if they are of the same type.
+            ROIs = cast(ROIs, class(d.imd(:,:,1)));
+            d.imdrem{j,i} = ROIs .* d.imd(:,:,j);
+            d.ROIs{j,i}=d.imdrem{j,i}(m);
+        end
+        waitbar(j/size(d.imd,3),h);
+    end
+    close(h);
+    %saving ROI values
+    filename=[d.pn '\' d.fn(1:end-4) 'ROIvalues'];
+    ROIvalues=d.ROIs;
+    save(filename, 'ROIvalues');
+end
 
 % % %high band pass filter of ROIvalues
 % % b=fir1(256,[400 5000]/(32000/2)); %detection threshold
