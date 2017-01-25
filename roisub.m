@@ -1377,7 +1377,8 @@ if d.load==1; %if a ROI mask was loaded
                         filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
                         ROImask=d.mask;
                         ROIorder=d.ROIorder;
-                        save(filename, 'ROImask','ROIorder');
+                        ROIlabels=d.labeled;
+                        save(filename, 'ROImask','ROIorder','ROIlabels');
                     case 'NO'
                         return;
                 end
@@ -1454,7 +1455,8 @@ if d.load==1; %if a ROI mask was loaded
     filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
     ROImask=d.mask;
     ROIorder=d.ROIorder;
-    save(filename, 'ROImask','ROIorder');
+    ROIlabels=d.labeled;
+    save(filename, 'ROImask','ROIorder','ROIlabels');
 else
     d.labeled = d.labeled+ROI*(max(max(d.labeled))+1); %labeling of ROIs
     d.mask = d.mask+ROI;
@@ -1524,7 +1526,8 @@ else
                         filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
                         ROImask=d.mask;
                         ROIorder=d.ROIorder;
-                        save(filename, 'ROImask','ROIorder');
+                        ROIlabels=d.labeled;
+                        save(filename, 'ROImask','ROIorder','ROIlabels');
                     case 'NO'
                         return;
                 end
@@ -1600,7 +1603,8 @@ else
     filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
     ROImask=d.mask;
     ROIorder=d.ROIorder;
-    save(filename, 'ROImask','ROIorder');
+    ROIlabels=d.labeled;
+    save(filename, 'ROImask','ROIorder','ROIlabels');
 end
 
 
@@ -1685,6 +1689,7 @@ filepath=[d.pn '\'];
 load([pn fn]);
 d.mask=ROImask;
 d.ROIorder=ROIorder;
+d.labeled=ROIlabels;
 %plotting ROIs
 colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -1703,7 +1708,6 @@ else
     axes(handles.axes1); imshow(singleFrame); hold on;
 end
 B=bwboundaries(d.mask); %boundaries of ROIs
-d.labeled=bwlabel(d.mask);
 stat = regionprops(d.labeled,'Centroid');
 d.b=cell(length(B),1);
 d.c=cell(length(B),1);
@@ -1852,7 +1856,7 @@ end
 % % b=fir1(256,[400 5000]/(32000/2)); %detection threshold
 % % temp=single(filter(b,1,d.ROImeans(:,1)));
 % % %or
-[b,a]=butter(4,0.1,'high');
+[b,a]=butter(1,0.02*(d.framerate/2),'high');
 % % bla=filtfilt(b,a,d.ROImeans(:,1));
     
 %dF/f and thresholded ROIs
