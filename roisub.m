@@ -331,6 +331,7 @@ if sum(tf)>0; %if a file is found
                 load([d.pn '\' d.fn(1:end-4) 'ROIs.mat']);
                 d.mask=ROImask; %mask with all the ROIs
                 d.ROIorder=ROIorder; %order of the ROIs
+                d.labeled=ROIlabels; %mask with correctly ordered labels
                 %plotting ROIs
                 colors={[0    0.4471    0.7412],...
                     [0.8510    0.3255    0.0980],...
@@ -344,14 +345,13 @@ if sum(tf)>0; %if a file is found
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 B=bwboundaries(d.mask); %boundaries of ROIs
-                d.labeled=bwlabel(d.mask);
                 stat = regionprops(d.labeled,'Centroid');
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 colors=repmat(colors,1,ceil(length(B)/8));
                 for j = 1 : length(B);
                     d.b{j,1} = B{j};
-                    d.c{j,1} = stat(j).Centroid;
+                    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
                     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
                     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
@@ -1714,7 +1714,7 @@ d.c=cell(length(B),1);
 colors=repmat(colors,1,ceil(length(B)/8));
 for j = 1 : length(B);
     d.b{j,1} = B{j};
-    d.c{j,1} = stat(j).Centroid;
+    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
 end
@@ -1856,12 +1856,29 @@ end
 % % b=fir1(256,[400 5000]/(32000/2)); %detection threshold
 % % temp=single(filter(b,1,d.ROImeans(:,1)));
 % % %or
-[b,a]=butter(1,0.02*(d.framerate/2),'high');
+[b,a]=butter(1,0.01*(d.framerate/2),'high');
 % % bla=filtfilt(b,a,d.ROImeans(:,1));
     
 %dF/f and thresholded ROIs
 if d.load==1;
     colors=repmat(colors,1,ceil(size(d.ROIs,2)/8));
+    %background
+    bg=cell(size(d.imd,3),1);
+    d.bg=cell(size(d.imd,3),1);
+    background=d.mask;
+    background(background==1)=2;
+    background(background==0)=1;
+    background(background==2)=0;
+    h=waitbar(0,'Labeling background');
+    for k = 1:size(d.imd,3);
+        % You can only multiply integers if they are of the same type.
+        nn = find(background==1);
+        background = cast(background, class(d.imd(:,:,1)));
+        d.background{k,1} = background .* d.imd(:,:,k);
+        d.bg{k,1}=d.background{k,1}(nn);
+        waitbar(k/size(d.imd,3),h);
+    end
+    close(h);
     % calculate mean grey value of ROIs in percent
     d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
     d.bgmeans=zeros(size(d.ROIs,1),1);
