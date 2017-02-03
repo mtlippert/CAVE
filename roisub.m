@@ -907,6 +907,71 @@ axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 
 
 
+% --- Executes on button press in pushbutton38.                 REMOVE DUST
+function pushbutton38_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton38 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+global v
+if d.pushed==0;
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+end
+if d.play==1 || v.play==1;
+    msgbox('Please push stop button before proceeding!','ATTENTION');
+    return;
+end
+if d.pre==1;
+    msgbox('You have to remove dust before preprocessing!','ATTENTION');
+    return;
+end
+
+%display instructions only if the button was pressed for the first time or
+%a mistake was made and you want the help
+if d.bcountd==0 || d.help==1;
+    uiwait(msgbox('Please define the region of dust by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
+end
+
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);
+%manual dust selection
+Dust = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
+
+%check if ROI was selected correctly
+if numel(find(Dust))==0;
+    msgbox('Please select valid dust ROI!','ERROR');
+    return;
+end
+
+%count times button is pressed
+d.bcountd=d.bcountd+1;
+%defining surrounding neighbourhood to approximate ROI mean values
+se=strel('disk',8,8);
+Dust2=imdilate(Dust,se);
+Dust3=Dust2-Dust;
+%invert mask in order to multiplicate it with images
+Dust=~Dust;
+
+Dust=cast(Dust,class(d.imd(:,:,1)));
+Dust3=cast(Dust3,class(d.imd(:,:,1)));
+h=waitbar(0,'Removing dust specs');
+for k=1:size(d.imd,3)
+    singleframe=d.imd(:,:,k);
+    singleframe=Dust.*singleframe;
+    meanApprox=Dust3.*singleframe;
+    meanApprox=meanApprox(meanApprox>0);
+    singleframe(singleframe<1)=round(mean(meanApprox));
+    d.imd(:,:,k)=singleframe;
+    waitbar(k/size(d.imd,3),h);
+end
+close(h);
+%showing resulting frame
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);imshow(singleFrame);
+msgbox('Removal complete!','Success');
+
+
 % --- Executes on button press in pushbutton23.               PREPROCESSING
 function pushbutton23_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton23 (see GCBO)
@@ -1850,6 +1915,7 @@ if d.ROIv==0;
     filename=[d.pn '\' d.fn(1:end-4) 'ROIvalues'];
     ROIvalues=d.ROIs;
     save(filename, 'ROIvalues');
+    d.ROIv=1;
 end
 
 % % %high band pass filter of ROIvalues
@@ -1938,7 +2004,7 @@ if d.load==1;
         set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
+        [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',4*median(abs(d.ROImeans(:,j))/0.6745)); %adapted quiroga spike detection formula
         spikes{1,j}=x;
         ts{1,j}=x/d.framerate;
         amp{1,j}=y;
@@ -2022,7 +2088,7 @@ elseif d.load==0;
     
     % calculate mean grey value of ROIs in percent
     d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
-    d.bgmeans=zeros(size(d.ROIs,1),1);
+    d.bgmean=zeros(size(d.ROIs,1),1);
     h=waitbar(0,'Calculating ROI values');
     for k=1:size(d.ROIs,2);
         for i=1:size(d.ROIs,1);
@@ -2049,7 +2115,7 @@ elseif d.load==0;
         if ismember(j,check)==1;
             figure('color','w');
         end
-        subplot(8,1,anysub(j));
+        subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1);
         plot(d.ROImeans(:,j),'Color',colors{1,j});
         axlim=get(gca,'YLim');
         ylim([-1 2*round(axlim(2)/2)]); %round to next even number
@@ -2066,19 +2132,21 @@ elseif d.load==0;
         %title('ROI values in percent');
         if ismember(j,check2)==1 || j==size(d.ROIs,2);
             xlabel('Time in seconds');
+            tlabel=get(gca,'XTickLabel');
+            for k=1:length(tlabel);
+                tlabel{k,1}=str2num(tlabel{k,1});
+            end
+            tlabel=cell2mat(tlabel);
+            tlabel=tlabel./d.framerate;
+            set(gca,'XTickLabel',tlabel);
+        else
+            set(gca,'XTickLabel',[]);
         end
         ylabel('%');
         legend(strings,'Location','eastoutside');
-        tlabel=get(gca,'XTickLabel');
-        for k=1:length(tlabel);
-            tlabel{k,1}=str2num(tlabel{k,1});
-        end
-        tlabel=cell2mat(tlabel);
-        tlabel=tlabel./d.framerate;
-        set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
-        [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',5*median(abs(d.ROImeans(:,j))/0.6745)); %quiroga spike detection formula
+        [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',4*median(abs(d.ROImeans(:,j))/0.6745)); %adapted quiroga spike detection formula
         spikes{1,j}=x;
         ts{1,j}=x/d.framerate;
         amp{1,j}=y;
@@ -2169,6 +2237,24 @@ switch choice
             path=regexprep(path,'\','/');
             print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             
+            %saving ROImask as figure
+            colors=repmat(colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
+            d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
+            singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
+            h=figure; imshow(singleFrame);hold on;
+            stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
+            for k=1:size(d.b,1);
+                d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+                plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+                text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+            end %drawing ROIs
+            hold off;
+            name=('ROImask');
+            path=[d.pn '/traces/',name,'.png'];
+            path=regexprep(path,'\','/');
+            print(h,'-dpng','-r200',path); %-depsc for vector graphic
+            close(h);
+            
             %saving table
             filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
             ROInumber=cell(size(d.ROImeans,2),1);
@@ -2240,6 +2326,24 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
 
+                %saving ROImask as figure
+                colors=repmat(colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
+                d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
+                singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
+                h=figure; imshow(singleFrame);hold on;
+                stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
+                for k=1:size(d.b,1);
+                    d.c{k,1} = stat(d.ROIorder(k)).Centroid;
+                    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
+                    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+                end %drawing ROIs
+                hold off;
+                name=('ROImask');
+                path=[d.pn '/traces/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                close(h);
+            
                 %saving table
                 filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
                 ROInumber=cell(size(d.ROImeans,2),1);
@@ -2782,7 +2886,7 @@ elseif v.pushed==2;
     coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
-    smallestAcceptableArea = 50;
+    smallestAcceptableArea = 25;
     % Get rid of small objects.  Note: bwareaopen returns a logical.
     coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
     % Smooth the border using a morphological closing operation, imclose().
@@ -2837,7 +2941,7 @@ elseif v.pushed==3;
     coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
-    smallestAcceptableArea = 50;
+    smallestAcceptableArea = 25;
     % Get rid of small objects.  Note: bwareaopen returns a logical.
     coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
     % Smooth the border using a morphological closing operation, imclose().
@@ -3042,7 +3146,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 50;
+        smallestAcceptableArea = 25;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3116,7 +3220,7 @@ elseif  v.pushed==2 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 50;
+        smallestAcceptableArea = 25;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3191,7 +3295,7 @@ elseif v.pushed==2 && d.pushed==4;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 50;
+        smallestAcceptableArea = 25;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3273,7 +3377,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 50;
+        smallestAcceptableArea = 25;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3347,7 +3451,7 @@ elseif v.pushed==3 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 50;
+        smallestAcceptableArea = 25;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3422,7 +3526,7 @@ elseif v.pushed==3 && d.pushed==4;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 50;
+        smallestAcceptableArea = 25;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3611,6 +3715,7 @@ function pushbutton7_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
+global p
 %clears cache
 %clears all global variables
 clear global v;
@@ -3830,7 +3935,13 @@ else
         end
     end
     sframe=size(v.imd,2)-size(d.imd,3); %calculating how many frames the behavioral video has more than the CI video
-    v.imd=v.imd(1:size(d.imd,3)); %making behavioral video as long as calcium imaging video
+    if sframe<0
+        for k=1:abs(sframe);
+        v.imd(1,size(v.imd,2)+1)=v.imd(1,size(v.imd,2)); %making behavioral video as long as calcium imaging video
+        end
+    else
+        v.imd=v.imd(1:size(d.imd,3)); %making behavioral video as long as calcium imaging video
+    end
     v.pushed=1; %signals video is loaded
     close(h);
     %looking at first original picture
@@ -3959,7 +4070,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4051,7 +4162,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4141,7 +4252,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4231,7 +4342,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4321,7 +4432,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4411,7 +4522,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4549,7 +4660,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4660,7 +4771,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 50;
+smallestAcceptableArea = 25;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4748,7 +4859,7 @@ for k=1:nframes;
     coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
-    smallestAcceptableArea = 50;
+    smallestAcceptableArea = 25;
     % Get rid of small objects.  Note: bwareaopen returns a logical.
     coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
     % Smooth the border using a morphological closing operation, imclose().
@@ -4882,7 +4993,7 @@ for k=1:nframes;
     coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
-    smallestAcceptableArea = 50;
+    smallestAcceptableArea = 25;
     % Get rid of small objects.  Note: bwareaopen returns a logical.
     coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
     % Smooth the border using a morphological closing operation, imclose().
@@ -5180,7 +5291,11 @@ if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.trac
             end
             cood=find(v.traceA==0);
             for k=1:length(cood)
-                v.traceA(cood(k))=v.traceA(cood(k)-1);
+                if k==1
+                    v.traceA(cood(k))=v.traceA(cood(k)+1);
+                else
+                    v.traceA(cood(k))=v.traceA(cood(k)-1);
+                end
             end
             mleft=1;
     end
@@ -5464,57 +5579,3 @@ v.name=[];
 v.events=[];
 v.skdefined=0;
 v.behav=0;
-
-
-% --- Executes on button press in pushbutton38.                 REMOVE DUST
-function pushbutton38_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton38 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-global d
-global v
-if d.pushed==0;
-    msgbox('Please select folder first!','ATTENTION');
-    return;
-end
-if d.play==1 || v.play==1;
-    msgbox('Please push stop button before proceeding!','ATTENTION');
-    return;
-end
-if d.pre==1;
-    msgbox('You have to remove dust before preprocessing!','ATTENTION');
-    return;
-end
-
-%display instructions only if the button was pressed for the first time or
-%a mistake was made and you want the help
-if d.bcountd==0 || d.help==1;
-    uiwait(msgbox('Please define the region of dust by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
-end
-
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-axes(handles.axes1);
-%manual dust selection
-Dust = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
-
-%check if ROI was selected correctly
-if numel(find(Dust))==0;
-    msgbox('Please select valid dust ROI!','ERROR');
-    return;
-end
-
-%count times button is pressed
-d.bcountd=d.bcountd+1;
-
-Dust=~Dust;
-Dust=cast(Dust,class(d.imd(:,:,1)));
-h=waitbar(0,'Removing dust specs');
-for k=1:size(d.imd,3)
-    d.imd(:,:,k)=Dust.*d.imd(:,:,k);
-    waitbar(k/size(d.imd,3),h);
-end
-close(h);
-%showing resulting frame
-singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-axes(handles.axes1);imshow(singleFrame);
-msgbox('Removal complete!','Success');
