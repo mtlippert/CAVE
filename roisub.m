@@ -119,14 +119,15 @@ function varargout = roisub(varargin)
 %
 %       SOURCES USED: threshold.m; SimpleColorDetectionByHue; Mohammed Ali
 %       2016 Paper 'An integrative approach for analyzing hundreds of
-%       neurons in task performing mice using wide-field calcium imaging.'
+%       neurons in task performing mice using wide-field calcium imaging.',
+%       Image Alignment Toolbox (IAT).
 %       
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 23-Jan-2017 18:28:29
+% Last Modified by GUIDE v2.5 08-Feb-2017 15:04:00
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -232,6 +233,7 @@ d.pre=0; %no preprocessing
 d.mip=0; %no maximum intensity projection
 d.pn=[]; %no CI video path
 d.ROIv=0; %no ROI values were loaded
+d.ROImeans=[]; %no ROI values have been calculated
 
 %clear axes
 cla(handles.axes1,'reset');
@@ -1027,7 +1029,7 @@ axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFra
 d.pre=1; %preprocessing was done
 %plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
-h=figure,plot(squeeze(meanChange)),title('Mean brightness over frames'),xlabel('Number of frames'),ylabel('Brightness in uint16');
+h=figure;plot(squeeze(meanChange));title('Mean brightness over frames');xlabel('Number of frames');ylabel('Brightness in uint16');
 name=('Mean Change');
 path=[d.pn '/',name,'.png'];
 path=regexprep(path,'\','/');
@@ -1051,7 +1053,7 @@ if d.play==1 || v.play==1;
     return;
 end
 if d.pre==0;
-    msgbox('Please do preprocessing before proceeding!','ATTENTION');
+    msgbox('Please do preprocessing before aligning!','ATTENTION');
     return;
 end
 % adapted from source: http://de.mathworks.com/help/vision/examples/video-stabilization-using-point-feature-matching.html
@@ -1060,91 +1062,89 @@ if d.dF==1;
      return
 end
 
+%saves original in different variable
+d.origCI=d.imd;
+
+%define ROI that is used for transformation
+axes(handles.axes1);
+a=imcrop;
+cropped=clipboard('pastespecial');
+cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
+%checks if cropping coordinates are valid
+if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0;
+    msgbox('Please select valid cropping area! Check the instructions again.','ERROR');
+    return;
+end
+cc=floor(cropCoordinates);
+%cropping frames
+ROI=zeros(cc(4)+1,cc(3)+1,size(d.imd,3));
+h=waitbar(0,'Extracting ROI');
+for k=1:size(d.imd,3);
+    ROI(:,:,k)=d.imd(cc(2):cc(2)+cc(4),cc(1):cc(1)+cc(3),k);
+    ROI(:,:,k)=wiener2(imgaussfilt(imadjust(imsharpen(imadjust(ROI(:,:,k)./max(max(ROI(:,:,k))))))),[6 6]);
+    waitbar(k/size(d.imd,3),h);
+end
+close(h);
+
 if handles.radiobutton1.Value==1;
     %SURF feature detection to align images
-    imgA = d.imd(:,:,1);
-    imgC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
-    imgC(:,:,1) =  d.imd(:,:,1);
+    imgA = ROI(:,:,1);
+    imdC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
+    imdC(:,:,1) = d.imd(:,:,1);
     %aligning images to first image
     h=waitbar(0,'Aligning images');
     for k=1:size(d.imd,3)-1;
-        imgB=d.imd(:,:,k+1);
-        % figure(1); imshowpair(imgA,imgB,'ColorChannels','red-cyan');
-        %detecting SURF features in first image and following images
-        pointsA = detectSURFFeatures(imgA);
-        pointsB = detectSURFFeatures(imgB);
-    %     if isempty(pointsA)==1;
-    % %         pointsA = detectHarrisFeatures(imgA);
-    % %         pointsB = detectHarrisFeatures(imgB);
-    %         [optimizer,metric] = imregconfig('monomodal');
-    %         for j=1:size(d.imd,3)-1;
-    %             imgB=d.imd(:,:,j+1);
-    %             imgC(:,:,j+1) = imregister(imgB,imgA,'rigid',optimizer,metric);
-    %             waitbar(j/(size(d.imd,3)-1),h);
-    %         end
-    %         d.imd=imgC;singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    %         axes(handles.axes1); imshow(singleFrame);
-    %         close(h);
-    %         % d.pushed=2; %signals that images were aligned
-    %         msgbox('Aligning Completed.','Success');
-    %         break
-    %     end
-        %extract FREAK descriptors for the SURF features
-        [featuresA, pointsA] = extractFeatures(imgA, pointsA);
-        [featuresB, pointsB] = extractFeatures(imgB, pointsB);
-        %match features of both pictures
-        indexPairs = matchFeatures(featuresA, featuresB);
-        pointsA = pointsA(indexPairs(:, 1), :);
-        pointsB = pointsB(indexPairs(:, 2), :);
-        %extract location coordinates of matched points
-        pointsA=pointsA.Location;
-        pointsB=pointsB.Location;
-        %if there are no matching points, set the matrix to zeros
-        if isempty(pointsA)==1;
-            pointsA=zeros(1,2);
-        end
-        if isempty(pointsB)==1;
-            pointsB=zeros(1,2);
-        end
-        %calculate shifting vector from matched points, how was the points
-        %shifted from A to B
-        tvector=[round(mean(pointsA(:,2)-pointsB(:,2))) round(mean(pointsA(:,1)-pointsB(:,1)))];
-        if sum(tvector)<=5 && sum(tvector)>=-5 || sum(tvector)>=100 || sum(tvector)<=-100; %boundaries for not changing current image
-            imgC(:,:,k+1)=imgB;
+        imgB=ROI(:,:,k+1);
+        imdB=d.imd(:,:,k+1);
+        [d1, l1]=iat_surf(imgA);
+        [d2, l2]=iat_surf(imgB);
+        [map, matches, imgInd, tmpInd]=iat_match_features_mex(double(d1),double(d2),1);
+        X1 = l1(imgInd,1:2);
+        X2 = l2(tmpInd,1:2);
+        X1h = iat_homogeneous_coords (X1');
+        X2h = iat_homogeneous_coords (X2');
+        [inliers, ransacWarp]=iat_ransac( X2h, X1h,'translation');
+        [M,N] = size(imdB);
+        if isempty(ransacWarp)==1;
+            imdC(:,:,k+1)=imdB;
         else
-            imgC(:,:,k+1)=circshift(imgB,tvector);
+            [wimage, support] = iat_inverse_warping(imdB, ransacWarp, 'translation', 1:N, 1:M);
+            wimage(wimage<1)=mean(mean(wimage));
+            imdC(:,:,k+1)=wimage;
         end
-        % figure(1); imshowpair(imgA,imgC(:,:,k+1),'ColorChannels','red-cyan');
-        waitbar(k/(size(d.imd,3)-1),h);
+        waitbar(k/(size(ROI,3)-1),h);
     end
-    d.imd=imgC;
+    d.imd=imdC;
     %showing resulting frame
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     close(h);
+    msgbox('Aligning Completed.','Success');
 else
     %Lucas Kanade algorithm to align images
-    transform = 'euclidean';
+    transform = 'translation';
     % parameters for ECC and Lucas-Kanade 
     par = [];
     par.levels =    2;
     par.iterations = 30;
     par.transform = transform;
-    tmp= d.imd(:,:,1);
-    imgC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
-    imgC(:,:,1) =  d.imd(:,:,1);
+    tmp= ROI(:,:,1);
+    imdC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
+    imdC(:,:,1) =  d.imd(:,:,1);
     h=waitbar(0,'Aligning images');
     for k=1:size(d.imd,3)-1;
-        img=d.imd(:,:,k+1);
+        img=ROI(:,:,k+1);
+        imd=d.imd(:,:,k+1);
         [LKWarp]=iat_LucasKanade(img,tmp,par);
         % Compute the warped image and visualize the error
-        [wimageLK, supportLK] = iat_inverse_warping(img, LKWarp, par.transform, 1:size(tmp,2),1:size(tmp,1));
+        [wimageLK, supportLK] = iat_inverse_warping(imd, LKWarp, par.transform, 1:size(d.imd,2),1:size(d.imd,1));
 %         % draw mosaic
 %         LKMosaic = iat_mosaic(tmp,img,[LKWarp; 0 0 1]);
-        imgC(:,:,k)=wimageLK;
-        waitbar(k/(size(d.imd,3)-1),h);
+        wimageLK(wimageLK<1)=mean(mean(wimageLK));
+        imdC(:,:,k+1)=wimageLK;
+        waitbar(k/(size(ROI,3)-1),h);
     end
-    d.imd=imgC;
+    d.imd=imdC;
     %showing resulting frame
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
@@ -1154,19 +1154,6 @@ end
 
 d.align=1; %signals that images were aligned
 msgbox('Aligning Completed.','Success');
-if d.pushed==4;
-    %resets all varibles needed for selecting ROIs
-    d.bcount=0; %signals ROI button was not pressed
-    d.pushed=1; %signals video was loaded
-    d.ROIs=[];
-    d.labeled = zeros(size(d.imd,1),size(d.imd,2));
-    d.bg=[];
-    d.b=[];
-    d.c=[];
-    d.roisdefined=0; %signals no ROIs were selected
-    msgbox('Please re-select ROIs!','ATTENTION');
-    return;
-end
 
 
 % --- Executes on button press in pushbutton28.            RESETS ALIGNMENT
@@ -1176,6 +1163,10 @@ function pushbutton28_Callback(hObject, eventdata, handles)
 global d
 d.imd=d.origCI;
 d.align=0; %signals that image alignment was reset
+d.dF=0;
+%showing resulting frame
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 msgbox('Alignment reset!');
 
 
@@ -1710,8 +1701,8 @@ end
 
 singleFrame=d.mip;
 if d.dF==1;
-    singleFrame=d.imd(:,:,round(handles.slider7.Value))*imdMax;
-    axes(handles.axes1);imshow(singleFrame); colormap(handles.axes1, gray);
+    axes(handles.axes1);
+    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 else
     axes(handles.axes1); imshow(singleFrame);
 end
@@ -1747,6 +1738,8 @@ elseif d.dF==0;
     msgbox('Please do Delta F/F calculation before proceeding!','ATTENTION');
     return;
 end
+
+uiwait(msgbox('Select a *ROIs.mat file!'));
 
 filepath=[d.pn '\'];
 [fn,pn,~]=uigetfile([filepath '*.mat']);
@@ -1975,10 +1968,10 @@ if d.load==1;
         if ismember(j,check)==1;
             figure('color','w');
         end
-        subplot(8,1,anysub(j));
+        subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1);
         plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
         axlim=get(gca,'YLim');
-        ylim([-1 2*round(axlim(2)/2)]); %round to next even number
+        ylim([min(d.ROImeans(:,j)) 2*round((axlim(2)+1)/2)]); %round to next even number
         if v.behav==1;
             axlim=get(gca,'YLim');
             for l=1:v.amount;
@@ -1992,16 +1985,18 @@ if d.load==1;
         %title('ROI values in percent');
         if ismember(j,check2)==1 || j==size(d.ROIs,2);
             xlabel('Time in seconds');
+            tlabel=get(gca,'XTickLabel');
+            for k=1:length(tlabel);
+                tlabel{k,1}=str2num(tlabel{k,1});
+            end
+            tlabel=cell2mat(tlabel);
+            tlabel=tlabel./d.framerate;
+            set(gca,'XTickLabel',tlabel);
+        else
+            set(gca,'XTickLabel',[]);
         end
         ylabel('%');
         legend(strings,'Location','eastoutside');
-        tlabel=get(gca,'XTickLabel');
-        for k=1:length(tlabel);
-            tlabel{k,1}=str2num(tlabel{k,1});
-        end
-        tlabel=cell2mat(tlabel);
-        tlabel=tlabel./d.framerate;
-        set(gca,'XTickLabel',tlabel);
         set(gca, 'box', 'off');
         hold on;
         [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',4*median(abs(d.ROImeans(:,j))/0.6745)); %adapted quiroga spike detection formula
@@ -2118,7 +2113,7 @@ elseif d.load==0;
         subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1);
         plot(d.ROImeans(:,j),'Color',colors{1,j});
         axlim=get(gca,'YLim');
-        ylim([-1 2*round(axlim(2)/2)]); %round to next even number
+        ylim([min(d.ROImeans(:,j)) 2*round((axlim(2)+1)/2)]); %round to next even number
         if v.behav==1;
             axlim=get(gca,'YLim');
             for l=1:v.amount;
@@ -2338,10 +2333,11 @@ switch choice
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
                 end %drawing ROIs
                 hold off;
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 name=('ROImask');
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
-                print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                print(h,'-dpng',path); %-depsc for vector graphic
                 close(h);
             
                 %saving table
@@ -2409,16 +2405,16 @@ if d.dF==0; %saving video if it was not processed further
     origCIconv=origCIconv./max(max(max(origCIconv)));
 
     filename=[d.pn '\' d.fn(1:end-4)];
-    v = VideoWriter(filename,'Grayscale AVI');
-    v.FrameRate=d.framerate;
-    open(v);
+    vid = VideoWriter(filename,'Grayscale AVI');
+    vid.FrameRate=d.framerate;
+    open(vid);
     for k=1:size(d.imd,3);
         singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 %             figure(100),imshow(singleFrame);
-        writeVideo(v,singleFrame);
+        writeVideo(vid,singleFrame);
         waitbar(k/size(d.imd,3),h);
     end
-    close(v);
+    close(vid);
     close(h);
 %         close(gcf);
     msgbox('Saving video completed.');
@@ -2506,33 +2502,34 @@ elseif isempty(d.origCI)==1&&d.pushed==4;
                     origCIconv=origCIconv./max(max(max(origCIconv)));
 
                     filename=[d.pn '\' d.fn(1:end-4)];
-                    v = VideoWriter(filename,'Grayscale AVI');
-                    v.FrameRate=d.framerate;
-                    open(v);
+                    vid = VideoWriter(filename,'Grayscale AVI');
+                    vid.FrameRate=d.framerate;
+                    open(vid);
                     for k=1:size(d.imd,3);
                         singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
             %             figure(100),imshow(singleFrame);
-                        writeVideo(v,singleFrame);
+                        writeVideo(vid,singleFrame);
                         waitbar(k/size(d.imd,3),h);
                     end
-                    close(v);
+                    close(vid);
                     close(h);
             %         close(gcf);
                     msgbox('Saving video completed.');
                 case 'dF/F'
                     h=waitbar(0,'Saving calcium imaging video');
                     filename=[d.pn '\' d.fn(1:end-4) 'dF'];
-                    v = VideoWriter(filename,'Grayscale AVI');
-                    v.FrameRate=d.framerate;
-                    open(v);
+                    vid = VideoWriter(filename,'Grayscale AVI');
+                    vid.FrameRate=d.framerate;
+                    imdMax=1/(max(max(max(d.imd))));
+                    open(vid);
                     for k = 1:size(d.imd,3);
                         frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
                         frame(frame<0)=0;
 
-                        writeVideo(v,frame);
+                        writeVideo(vid,frame);
                         waitbar(k/size(d.imd,3),h);
                     end
-                    close(v);
+                    close(vid);
                     close(h);
                     msgbox('Saving video completed.');
                 case 'Combined'
@@ -2595,9 +2592,9 @@ elseif isempty(d.origCI)==1&&d.pushed==4;
                     imdconv=imdconv.*imdMax;
 
                     filename=[d.pn '\' d.fn(1:end-4) 'combo'];
-                    v = VideoWriter(filename,'Uncompressed AVI');
-                    v.FrameRate=d.framerate;
-                    open(v);
+                    vid = VideoWriter(filename,'Uncompressed AVI');
+                    vid.FrameRate=d.framerate;
+                    open(vid);
                     for k=1:size(d.imd,3);
                         singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
                         figure(100),imshow(singleFrame);
@@ -2608,10 +2605,10 @@ elseif isempty(d.origCI)==1&&d.pushed==4;
                         set(hh, 'AlphaData', imdconv(:,:,k));
                         f=getframe(gcf);
                         newframe=f.cdata;
-                        writeVideo(v,singleFrame);
+                        writeVideo(vid,singleFrame);
                         waitbar(k/size(d.imd,3),h);
                     end
-                    close(v);
+                    close(vid);
                     close(h);
                     close(gcf);
                     msgbox('Saving video completed.');
@@ -2620,17 +2617,17 @@ elseif isempty(d.origCI)==1&&d.pushed==4;
         case 'NO'
             h=waitbar(0,'Saving calcium imaging video');
             filename=[d.pn '\' d.fn(1:end-4) 'dF'];
-            v = VideoWriter(filename,'Grayscale AVI');
-            v.FrameRate=d.framerate;
-            open(v);
+            vid = VideoWriter(filename,'Grayscale AVI');
+            vid.FrameRate=d.framerate;
+            open(vid);
             for k = 1:size(d.imd,3);
                 frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
                 frame(frame<0)=0;
 
-                writeVideo(v,frame);
+                writeVideo(vid,frame);
                 waitbar(k/size(d.imd,3),h);
             end
-            close(v);
+            close(vid);
             close(h);
             msgbox('Saving video completed.');
     end
@@ -2638,43 +2635,24 @@ else
     % Construct a questdlg with two options
     choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
         'Attention', ...
-        'Original','dF/F','Combined','Original');
+        'dF/F','Combined','dF/F');
     % Handle response
     switch choice
-        case 'Original'
-            %converting original CI video to double precision and to values between 1 and 0
-            h=waitbar(0,'Saving calcium imaging video');
-            origCIconv=double(d.origCI);
-            origCIconv=origCIconv./max(max(max(origCIconv)));
-
-            filename=[d.pn '\' d.fn(1:end-4)];
-            v = VideoWriter(filename,'Grayscale AVI');
-            v.FrameRate=d.framerate;
-            open(v);
-            for k=1:size(d.imd,3);
-                singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    %             figure(100),imshow(singleFrame);
-                writeVideo(v,singleFrame);
-                waitbar(k/size(d.imd,3),h);
-            end
-            close(v);
-            close(h);
-    %         close(gcf);
-            msgbox('Saving video completed.');
         case 'dF/F'
             h=waitbar(0,'Saving calcium imaging video');
             filename=[d.pn '\' d.fn(1:end-4) 'dF'];
-            v = VideoWriter(filename,'Grayscale AVI');
-            v.FrameRate=d.framerate;
-            open(v);
+            vid = VideoWriter(filename,'Grayscale AVI');
+            vid.FrameRate=d.framerate;
+            imdMax=1/(max(max(max(d.imd))));
+            open(vid);
             for k = 1:size(d.imd,3);
                 frame = d.imd(:,:,k)*imdMax; %scaling images so that values are between 0 and 1 and the maximum value of d.imd is almost 1 d.imd(:,:,k)*(floor((1/max(max(max(d.imd))))));
                 frame(frame<0)=0;
 
-                writeVideo(v,frame);
+                writeVideo(vid,frame);
                 waitbar(k/size(d.imd,3),h);
             end
-            close(v);
+            close(vid);
             close(h);
             msgbox('Saving video completed.');
         case 'Combined'
@@ -2737,9 +2715,9 @@ else
             imdconv=imdconv.*imdMax;
 
             filename=[d.pn '\' d.fn(1:end-4) 'combo'];
-            v = VideoWriter(filename,'Uncompressed AVI');
-            v.FrameRate=d.framerate;
-            open(v);
+            vid = VideoWriter(filename,'Uncompressed AVI');
+            vid.FrameRate=d.framerate;
+            open(vid);
             for k=1:size(d.imd,3);
                 singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
                 figure(100),imshow(singleFrame);
@@ -2750,10 +2728,10 @@ else
                 set(hh, 'AlphaData', imdconv(:,:,k));
                 f=getframe(gcf);
                 newframe=f.cdata;
-                writeVideo(v,singleFrame);
+                writeVideo(vid,singleFrame);
                 waitbar(k/size(d.imd,3),h);
             end
-            close(v);
+            close(vid);
             close(h);
             close(gcf);
             msgbox('Saving video completed.');
@@ -2813,6 +2791,23 @@ colors={[0    0.4471    0.7412],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
+
+if v.pushed>1;
+    if v.preset==1;
+        % Green preset values
+        color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    elseif v.preset==2;
+        % Pink preset values
+        color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    elseif v.preset==3;
+        % Yellow preset values
+        color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    elseif v.preset==4;
+        % Blue preset values
+        color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    end
+end
+
 if d.pushed==4;
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
     colors=repmat(colors,1,(ceil(size(d.b,1)/8)));
@@ -2886,7 +2881,7 @@ elseif v.pushed==2;
     coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
-    smallestAcceptableArea = 25;
+    smallestAcceptableArea = v.smallestArea;
     % Get rid of small objects.  Note: bwareaopen returns a logical.
     coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
     % Smooth the border using a morphological closing operation, imclose().
@@ -2910,13 +2905,22 @@ elseif v.pushed==2;
 
     %showing thresholded image in GUI
     if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-        axes(handles.axes2); imshow(maskedRGBImage); hold on;
+        axes(handles.axes2); 
+        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        set(gcf,'renderer','OpenGL');
+        alpha(grid,0.1);
         str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
         text(20,20,str,'Color','r');
         hold off;
     else
-        axes(handles.axes2); imshow(maskedRGBImage);
+        axes(handles.axes2);
+        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        set(gcf,'renderer','OpenGL');
+        alpha(grid,0.1);
+        hh=imshow(color);
+        set(hh, 'AlphaData', maskedRGBImage(:,:,1));
     end
+    hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==3;
@@ -2941,7 +2945,7 @@ elseif v.pushed==3;
     coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
     % Filter out small objects.
-    smallestAcceptableArea = 25;
+    smallestAcceptableArea = v.smallestArea;
     % Get rid of small objects.  Note: bwareaopen returns a logical.
     coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
     % Smooth the border using a morphological closing operation, imclose().
@@ -2965,13 +2969,22 @@ elseif v.pushed==3;
 
     %showing thresholded image in GUI
     if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-        axes(handles.axes2); imshow(maskedRGBImage); hold on;
+        axes(handles.axes2); 
+        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        set(gcf,'renderer','OpenGL');
+        alpha(grid,0.1);
         str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
         text(20,20,str,'Color','r');
         hold off;
     else
-        axes(handles.axes2); imshow(maskedRGBImage);
+        axes(handles.axes2);
+        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        set(gcf,'renderer','OpenGL');
+        alpha(grid,0.1);
+        hh=imshow(color);
+        set(hh, 'AlphaData', maskedRGBImage(:,:,1));
     end
+    hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
@@ -3034,6 +3047,23 @@ colors={[0    0.4471    0.7412],...
     [0.3020    0.7451    0.9333],...
     [0.6353    0.0784    0.1843],...
     [0.6784    0.9216    1.0000]};
+
+if v.pushed>1;
+    if v.preset==1;
+        % Green preset values
+        color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    elseif v.preset==2;
+        % Pink preset values
+        color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    elseif v.preset==3;
+        % Yellow preset values
+        color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    elseif v.preset==4;
+        % Blue preset values
+        color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+    end
+end
+
 if d.pushed==4;
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
     colors=repmat(colors,1,ceil(size(d.b,1)/8));
@@ -3146,7 +3176,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 25;
+        smallestAcceptableArea = v.smallestArea;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3170,13 +3200,22 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
 
         %showing thresholded image in GUI
         if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            axes(handles.axes2); 
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
             str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
             text(20,20,str,'Color','r');
             hold off;
         else
-            axes(handles.axes2); imshow(maskedRGBImage);
+            axes(handles.axes2);
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
+            hh=imshow(color);
+            set(hh, 'AlphaData', maskedRGBImage(:,:,1));
         end
+        hold off;
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -3220,7 +3259,7 @@ elseif  v.pushed==2 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 25;
+        smallestAcceptableArea = v.smallestArea;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3244,13 +3283,22 @@ elseif  v.pushed==2 && d.pushed==1;
 
         %showing thresholded image in GUI
         if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            axes(handles.axes2); 
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
             str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
             text(20,20,str,'Color','r');
             hold off;
         else
-            axes(handles.axes2); imshow(maskedRGBImage);
+            axes(handles.axes2);
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
+            hh=imshow(color);
+            set(hh, 'AlphaData', maskedRGBImage(:,:,1));
         end
+        hold off;
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         if d.dF==1 || d.pre==1;
@@ -3295,7 +3343,7 @@ elseif v.pushed==2 && d.pushed==4;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 25;
+        smallestAcceptableArea = v.smallestArea;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3319,13 +3367,22 @@ elseif v.pushed==2 && d.pushed==4;
 
         %showing thresholded image in GUI
         if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            axes(handles.axes2); 
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
             str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
             text(20,20,str,'Color','r');
             hold off;
         else
-            axes(handles.axes2); imshow(maskedRGBImage);
+            axes(handles.axes2);
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
+            hh=imshow(color);
+            set(hh, 'AlphaData', maskedRGBImage(:,:,1));
         end
+        hold off;
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -3377,7 +3434,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 25;
+        smallestAcceptableArea = v.smallestArea;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3401,13 +3458,22 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
 
         %showing thresholded image in GUI
         if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            axes(handles.axes2); 
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
             str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
             text(20,20,str,'Color','r');
             hold off;
         else
-            axes(handles.axes2); imshow(maskedRGBImage);
+            axes(handles.axes2);
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
+            hh=imshow(color);
+            set(hh, 'AlphaData', maskedRGBImage(:,:,1));
         end
+        hold off;
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -3451,7 +3517,7 @@ elseif v.pushed==3 && d.pushed==1;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 25;
+        smallestAcceptableArea = v.smallestArea;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3475,13 +3541,22 @@ elseif v.pushed==3 && d.pushed==1;
 
         %showing thresholded image in GUI
         if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            axes(handles.axes2); 
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
             str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
             text(20,20,str,'Color','r');
             hold off;
         else
-            axes(handles.axes2); imshow(maskedRGBImage);
+            axes(handles.axes2);
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
+            hh=imshow(color);
+            set(hh, 'AlphaData', maskedRGBImage(:,:,1));
         end
+        hold off;
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         if d.dF==1 || d.pre==1;
@@ -3526,7 +3601,7 @@ elseif v.pushed==3 && d.pushed==4;
         coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
         % Filter out small objects.
-        smallestAcceptableArea = 25;
+        smallestAcceptableArea = v.smallestArea;
         % Get rid of small objects.  Note: bwareaopen returns a logical.
         coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
         % Smooth the border using a morphological closing operation, imclose().
@@ -3550,13 +3625,22 @@ elseif v.pushed==3 && d.pushed==4;
 
         %showing thresholded image in GUI
         if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-            axes(handles.axes2); imshow(maskedRGBImage); hold on;
+            axes(handles.axes2); 
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
             str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
             text(20,20,str,'Color','r');
             hold off;
         else
-            axes(handles.axes2); imshow(maskedRGBImage);
+            axes(handles.axes2);
+            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            set(gcf,'renderer','OpenGL');
+            alpha(grid,0.1);
+            hh=imshow(color);
+            set(hh, 'AlphaData', maskedRGBImage(:,:,1));
         end
+        hold off;
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1;
@@ -3730,6 +3814,7 @@ v.name=[];
 v.events=[];
 v.skdefined=0;
 v.behav=0;
+v.smallestArea=25;
 p.import=0;
 %clears axes
 cla(handles.axes2,'reset');
@@ -4012,13 +4097,135 @@ save(filename, 'convVimd');
 close(h);
 
 if d.help==1;
-    msgbox('Cropping and downsampling completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking SAVE ANTERIOR SPOT and SAVE POSTERIOR SPOT.','Success');
+    msgbox('Cropping and downsampling completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking PREVIEW ANTERIOR SPOT and PREVIEW POSTERIOR SPOT. If you have only one spot select only ANTERIOR SPOT','Success');
 else
     msgbox('Cropping and downsampling completed.','Success');
 end
 
 
 
+
+
+% --- Executes on slider movement.                                SPOT SIZE
+function slider22_Callback(hObject, eventdata, handles)
+% hObject    handle to slider22 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+global v
+global d
+
+v.smallestArea=round(handles.slider22.Value);
+
+if v.pushed==0;
+    v.imd=[];
+    nframes=[];
+elseif v.pushed==1;
+    v.hsvA=[];
+    v.hsvP=[];
+    nframes=size(v.imd,2);
+elseif v.pushed>=1;
+    nframes=size(v.imd,2);
+end
+if d.pushed==0;
+    d.imd=[];
+    maxframes=size(v.imd,2);
+    handles.slider7.Max=maxframes;
+else
+    maxframes=size(d.imd,3);
+    handles.slider7.Max=maxframes;
+end
+
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
+v.valueThresholdLow=handles.slider9.Value; %slider9 value for value threshold low
+%other slider values
+v.hueThresholdLow = handles.slider13.Value;
+v.hueThresholdHigh = handles.slider14.Value;
+v.saturationThresholdLow = handles.slider12.Value;
+v.saturationThresholdHigh = handles.slider11.Value;
+v.valueThresholdHigh = handles.slider10.Value;
+
+% Convert RGB image to HSV
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+
+% Now apply each color band's particular thresholds to the color band
+hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
+saturationMask = (hsvImage(:,:,2) >= v.saturationThresholdLow) & (hsvImage(:,:,2) <= v.saturationThresholdHigh);
+valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.valueThresholdHigh);
+
+% Combine the masks to find where all 3 are "true."
+% Then we will have the mask of only the green parts of the image.
+coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
+
+% Filter out small objects.
+smallestAcceptableArea = v.smallestArea;
+% Get rid of small objects.  Note: bwareaopen returns a logical.
+coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+% Smooth the border using a morphological closing operation, imclose().
+structuringElement = strel('disk', 4);
+coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);
+% Fill in any holes in the regions, since they are most likely green also.
+coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
+
+% You can only multiply integers if they are of the same type.
+% (coloredObjectsMask is a logical array.)
+% We need to convert the type of coloredObjectsMask to the same data type as hImage.
+% coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
+coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+
+% Use the colored object mask to mask out the colored-only portions of the rgb image.
+maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
+maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
+maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+% Concatenate the masked color bands to form the rgb image.
+maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
+
+%showing thresholded image in GUI
+if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
+    text(20,20,str,'Color','r');
+    hold off;
+else
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
+end
+hold off;
+textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+set(handles.text36, 'String', textLabel);
+
+% --- Executes during object creation, after setting all properties.
+function slider22_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider22 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
 
 
 
@@ -4046,6 +4253,20 @@ elseif d.pushed==0;
     return;
 end
 
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
 maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
@@ -4070,7 +4291,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4094,13 +4315,22 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
+hold off;
 
 % --- Executes during object creation, after setting all properties.
 function slider9_CreateFcn(hObject, eventdata, handles)
@@ -4138,6 +4368,20 @@ elseif d.pushed==0;
     return;
 end
 
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
 maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
@@ -4162,7 +4406,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4186,13 +4430,22 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
+hold off;
 
 % --- Executes during object creation, after setting all properties.
 function slider10_CreateFcn(hObject, eventdata, handles)
@@ -4229,6 +4482,21 @@ elseif d.pushed==0;
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
+
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
 maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 v.saturationThresholdHigh = handles.slider11.Value; %slider11 value for saturation threshold high
@@ -4252,7 +4520,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4276,13 +4544,22 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
+hold off;
 
 % --- Executes during object creation, after setting all properties.
 function slider11_CreateFcn(hObject, eventdata, handles)
@@ -4319,6 +4596,21 @@ elseif d.pushed==0;
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
+
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
 maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 v.saturationThresholdLow = handles.slider12.Value; %slider12 value for saturation threshold low
@@ -4342,7 +4634,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4366,13 +4658,22 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
+hold off;
 
 % --- Executes during object creation, after setting all properties.
 function slider12_CreateFcn(hObject, eventdata, handles)
@@ -4409,6 +4710,21 @@ elseif d.pushed==0;
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
+
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
 maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 v.hueThresholdLow = handles.slider13.Value; %slider13 value for hue threshold low
@@ -4432,7 +4748,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4456,13 +4772,22 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
+hold off;
 
 % --- Executes during object creation, after setting all properties.
 function slider13_CreateFcn(hObject, eventdata, handles)
@@ -4499,6 +4824,21 @@ elseif d.pushed==0;
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
+
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
 maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 v.hueThresholdHigh = handles.slider14.Value; %slider14 value for hue threshold high
@@ -4522,7 +4862,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4546,13 +4886,22 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
+hold off;
 
 % --- Executes during object creation, after setting all properties.
 function slider14_CreateFcn(hObject, eventdata, handles)
@@ -4604,6 +4953,7 @@ if v.preset==1;
     saturationThresholdHigh = 1;
     valueThresholdLow = 0;
     valueThresholdHigh = 0.8;
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 elseif v.preset==2;
     % Pink preset values
     hueThresholdLow = 0.80;
@@ -4612,6 +4962,7 @@ elseif v.preset==2;
     saturationThresholdHigh = 1;
     valueThresholdLow = 0.0;
     valueThresholdHigh = 0.8;
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 elseif v.preset==3;
     % Yellow preset values
     hueThresholdLow = 0.12;
@@ -4620,6 +4971,7 @@ elseif v.preset==3;
     saturationThresholdHigh = 1;
     valueThresholdLow = 0;
     valueThresholdHigh = 0.8;
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 elseif v.preset==4;
     % Blue preset values
     hueThresholdLow = 0.62;
@@ -4628,6 +4980,7 @@ elseif v.preset==4;
     saturationThresholdHigh = 1;
     valueThresholdLow = 0.7;
     valueThresholdHigh = 1;
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
 
 handles.slider14.Value = hueThresholdHigh;
@@ -4660,7 +5013,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4684,12 +5037,20 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
 
@@ -4748,6 +5109,20 @@ switch choice
         v.valueThresholdHigh=valueHigh;
 end
 
+if v.preset==1;
+    % Green preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==2;
+    % Pink preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==3;
+    % Yellow preset values
+    color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+elseif v.preset==4;
+    % Blue preset values
+    color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
+end
+
 handles.slider14.Value = v.hueThresholdHigh;
 handles.slider13.Value = v.hueThresholdLow;
 handles.slider12.Value = v.saturationThresholdLow;
@@ -4771,7 +5146,7 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
 % Filter out small objects.
-smallestAcceptableArea = 25;
+smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
 coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
 % Smooth the border using a morphological closing operation, imclose().
@@ -4795,12 +5170,20 @@ maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not mouse out of bounds or spot not detected!
-    axes(handles.axes2); imshow(maskedRGBImage); hold on;
+    axes(handles.axes2); 
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
     str=sprintf('Mouse out of bounds, please select a frame where the mouse is visible! Otherwise lower saturation threshold manually!');
     text(20,20,str,'Color','r');
     hold off;
 else
-    axes(handles.axes2); imshow(maskedRGBImage);
+    axes(handles.axes2);
+    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    set(gcf,'renderer','OpenGL');
+    alpha(grid,0.1);
+    hh=imshow(color);
+    set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
 
@@ -5111,8 +5494,19 @@ elseif v.Aspot==0;
     msgbox('Please select anterior colored spot!','ERROR');
     return;
 elseif v.Pspot==0;
-    msgbox('Please select posterior colored spot!','ERROR');
-    return;
+    % Construct a questdlg with two options
+    choice = questdlg('Do you have only one colored spot on your animal?', ...
+        'Attention', ...
+        'Yes','No','Yes');
+    % Handle response
+    switch choice
+        case 'Yes'
+            v.tracePplot=[];
+            v.traceP=[];
+        case 'No'
+            msgbox('Then please select posterior colored spot!','Attention');
+            return;
+    end
 end
 %making sure that the ROIs were plotted
 if isempty(d.ROImeans)==1 || d.dF==0;
@@ -5128,11 +5522,16 @@ elseif d.thresh==0 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0;
 end
 
 %plotting posterior trace
-a=figure, image(v.imd(1).cdata); hold on;
-plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
-
-%plotting anterior trace
-plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
+if v.Pspot==1;
+    a=figure, image(v.imd(1).cdata); hold on;
+    plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
+    %plotting anterior trace
+    plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
+else
+    a=figure, image(v.imd(1).cdata); hold on;
+    %plotting anterior trace
+    plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
+end
 
 %saving plot
 % checking whether ROI traces had been saved before
@@ -5285,9 +5684,11 @@ if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.trac
         case 'Yes'
             mleft=0;
         case 'No'
-            cood=find(v.traceP==0);
-            for k=1:length(cood)
-                v.traceP(cood(k))=v.traceP(cood(k)-1);
+            if v.Pspot==1;
+                cood=find(v.traceP==0);
+                for k=1:length(cood)
+                    v.traceP(cood(k))=v.traceP(cood(k)-1);
+                end
             end
             cood=find(v.traceA==0);
             for k=1:length(cood)
@@ -5299,6 +5700,8 @@ if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.trac
             end
             mleft=1;
     end
+else
+    mleft=1;
 end
 printyn=1; %for printing figures
 x=zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),size(d.ROImeans,2));
@@ -5308,29 +5711,37 @@ for j=1:size(d.ROImeans,2);
     c=0;
     a=0;
     ArrowCoord=[];
-    for k=1:floor(length(v.traceP)/round(length(v.traceP)/size(d.ROImeans,1),2));
-        if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
-            c=c+1;
-            a=a+1;
-            ArrowCoord{a,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
-            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
-            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
-            xts(c,j)=k/d.framerate;
-        elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0; %>=0.6
-%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
-            c=c+1;
-            xts(c,j)=k/d.framerate;
-%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
-        elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0; %>=0.6
-%         drawArrow([v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)],[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)],'MaxHeadSize',10,'LineWidth',3,'Color',[1 0 0]);
-            x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
-            c=c+1;
-            xts(c,j)=k/d.framerate;
-%             ArrowCoord{c,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
-        end
-        if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745) && (v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0); %>=0.6
-            n=n+1;
+    for k=1:floor(length(v.traceA)/round(length(v.traceA)/size(d.ROImeans,1),2));
+        if v.Pspot==0;
+            if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
+                c=c+1;
+                a=a+1;
+                x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
+                xts(c,j)=k/d.framerate;
+            elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0; %>=0.6
+                n=n+1;
+                xts(c,j)=k/d.framerate;
+            end
+        else
+            if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
+                c=c+1;
+                a=a+1;
+                ArrowCoord{a,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
+                x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
+                x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
+                xts(c,j)=k/d.framerate;
+            elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0; %>=0.6
+                x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
+                c=c+1;
+                xts(c,j)=k/d.framerate;
+            elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %>=0.6
+                x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
+                c=c+1;
+                xts(c,j)=k/d.framerate;
+            end
+            if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745) && (v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0); %>=0.6
+                n=n+1;
+            end
         end
     end
     %plot cell activity
@@ -5338,7 +5749,7 @@ for j=1:size(d.ROImeans,2);
     string=sprintf('ROI No.%d',j);
     title(string);
     cellactive=imresize(imresize(x,0.25),4);
-    colormap(jet),grid=imagesc(cellactive(:,:,j)),cb=colorbar,cb.Label.String = 'Relative position distribution';
+    colormap(jet);grid=imagesc(cellactive(:,:,j));cb=colorbar;cb.Label.String = 'Relative position distribution';
     set(gcf,'renderer','OpenGL');
     alpha(grid,0.75);
     %display how many percent mouse was registered out of bounds
@@ -5348,11 +5759,13 @@ for j=1:size(d.ROImeans,2);
         text(20,20,str,'Color','r');
     end
     % plot direction
-    drawArrow = @(x,y,varargin) quiver( x(1),y(1),x(2)-x(1),y(2)-y(1),0, varargin{:});
-    for  k=1:size(ArrowCoord,1);
-        drawArrow([ArrowCoord{k,j}(1,1) ArrowCoord{k,j}(1,2)],[ArrowCoord{k,j}(2,1) ArrowCoord{k,j}(2,2)],'MaxHeadSize',5,'LineWidth',1,'Color',[1 0 0]);
+    if v.Pspot==1;
+        drawArrow = @(x,y,varargin) quiver( x(1),y(1),x(2)-x(1),y(2)-y(1),0, varargin{:});
+        for  k=1:size(ArrowCoord,1);
+            drawArrow([ArrowCoord{k,j}(1,1) ArrowCoord{k,j}(1,2)],[ArrowCoord{k,j}(2,1) ArrowCoord{k,j}(2,2)],'MaxHeadSize',5,'LineWidth',1,'Color',[1 0 0]);
+        end
+        hold off;
     end
-    hold off;
     %saving plots
     if printyn==1
         name=sprintf('ROI%d_trace',j);
@@ -5445,8 +5858,10 @@ else
     imdMax=1/(max(max(max(d.imd))));
 end
 
-if v.skdefined==0 && d.help==1;
-    uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you can push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
+if v.skdefined==0;
+    if d.help==1;
+        uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you can push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
+    end
     %Question how many
     prompt = {'How many behaviors would you like to track? (8 maximum)'};
     dlg_title = 'Input';
@@ -5491,11 +5906,13 @@ if  v.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(1/d.framerate);
-        if k==size(d.imd,3);
+        if k==size(v.imd,2);
             d.stop=1;
             d.play=0;
         end
         if d.stop==1;
+            d.stop=1;
+            d.play=0;
             colors={[0    0.4471    0.7412],...
                     [0.8510    0.3255    0.0980],...
                     [0.9294    0.6941    0.1255],...
@@ -5510,7 +5927,11 @@ if  v.pushed==1;
                 v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
                 %timebars
                 bars=diff(v.events.(char(v.name{1,j})));
+                bars(size(v.imd,2))=0;
                 v.barstart.(char(v.name{1,j}))=find(bars==1);
+                if numel(find(bars==1))>numel(find(bars==-1));
+                    v.barstart.(char(v.name{1,j}))=v.barstart.(char(v.name{1,j}))(1:numel(find(bars==-1)),1);
+                end
                 v.barwidth.(char(v.name{1,j}))=find(bars==-1)-v.barstart.(char(v.name{1,j}));
                 area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',colors{1,j},'facecolor',colors{1,j},'facealpha',0.5),hold on;
                 str(end+1)={char(v.name{1,j})};
@@ -5573,9 +5994,11 @@ function pushbutton35_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton35 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+global v
 v.amount=[];
 v.shortkey=[];
 v.name=[];
 v.events=[];
 v.skdefined=0;
 v.behav=0;
+msgbox('Behavioral detection was reset!');

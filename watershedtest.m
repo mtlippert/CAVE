@@ -6,14 +6,14 @@ MIP=d.mip/max(max(d.mip));
 % imshow(MIP);
 
 mask = adapthisteq(MIP);
-% figure
-% imshow(mask)
+figure
+imshow(mask)
 background = imopen(mask,strel('disk',15));
 MIP2 = mask - background;
-% figure,imshow(I2)
+figure,imshow(I2)
 MIP3 = imadjust(MIP2);
-% figure,imshow(I3);
-% figure,imshow(im2bw(I3,0.65));
+figure,imshow(I3);
+figure,imshow(im2bw(I3,0.65));
 I4=im2bw(MIP3,0.65);
 smallestAcceptableArea = 15;
 structuringElement = strel('disk', 2);
@@ -114,12 +114,12 @@ title('Colored watershed label matrix (Lrgb)')
 % end
 % vk=find(maxROI==round(mean(maxROI)));
 % th_value=v(vk)
-% 
-th_MIP=im2bw(MIP, th_value);
+
+th_MIP=im2bw(MIP, 0.55); %th_value
 smallestAcceptableArea = 15;
 structuringElement = strel('disk', 2);
 th_clean_MIP = imclose(bwareaopen(th_MIP,smallestAcceptableArea),structuringElement);
-D = bwdist(~th_clean_MIP);
+D = bwdist(~th_clean_MIP,'euclidean');
 figure;
 imshow(D,[],'InitialMagnification','fit');
 title('Distance transform of ~bw');
