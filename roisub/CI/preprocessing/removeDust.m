@@ -1,5 +1,4 @@
-function [] = removeDust(singleFrame)
-global d
+function [imd,bcountd] = removeDust(singleFrame,bcountd,imd)
 
 %manual dust selection
 Dust = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
@@ -11,7 +10,7 @@ if numel(find(Dust))==0;
 end
 
 %count times button is pressed
-d.bcountd=d.bcountd+1;
+bcountd=bcountd+1;
 %defining surrounding neighbourhood to approximate ROI mean values
 se=strel('disk',8,8);
 Dust2=imdilate(Dust,se);
@@ -19,16 +18,17 @@ Dust3=Dust2-Dust;
 %invert mask in order to multiplicate it with images
 Dust=~Dust;
 
-Dust=cast(Dust,class(d.imd(:,:,1)));
-Dust3=cast(Dust3,class(d.imd(:,:,1)));
+Dustc=cast(Dust,class(imd(:,:,1)));
+Dust3c=cast(Dust3,class(imd(:,:,1)));
 h=waitbar(0,'Removing dust specs');
-for k=1:size(d.imd,3)
-    singleframe=d.imd(:,:,k);
-    singleframe=Dust.*singleframe;
-    meanApprox=Dust3.*singleframe;
+nframes=size(imd,3);
+for k=1:nframes
+    singleframe=imd(:,:,k);
+    singleframe=Dustc.*singleframe;
+    meanApprox=Dust3c.*singleframe;
     meanApprox=meanApprox(meanApprox>0);
     singleframe(singleframe<1)=round(mean(meanApprox));
-    d.imd(:,:,k)=singleframe;
-    waitbar(k/size(d.imd,3),h);
+    imd(:,:,k)=singleframe;
+    waitbar(k/nframes,h);
 end
 close(h);

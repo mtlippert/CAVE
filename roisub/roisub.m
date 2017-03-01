@@ -347,11 +347,15 @@ if sum(tf)>0; %if a file is found
                 case 'YES'
                     if length(Files)==1;
                         %function for loading TIFF stack
-                        [imd] = loadCIstack;
+                        pn=d.pn;
+                        fn=d.fn;
+                        [imd] = loadCIstack(pn,fn);
                         d.origCI=imd;
                     else
                         %function for loading single TIFFs together
-                        [imd] = loadCIsingle;
+                        pn=d.pn;
+                        fn=d.fn;
+                        [imd] = loadCIsingle(pn,fn,Files);
                         d.origCI=imd;
                     end
                     d.dF=1; %signals that dF/F was performed
@@ -394,7 +398,9 @@ if sum(tf)>0; %if a file is found
         case 'NO'
             if length(Files)==1;
                 %function for loading TIFF stack
-                [imd] = loadCIstack;
+                pn=d.pn;
+                fn=d.fn;
+                [imd] = loadCIstack(pn,fn);
                 d.imd=imd;
 
                 d.pushed=1; %signals that file was selected
@@ -423,7 +429,9 @@ if sum(tf)>0; %if a file is found
                 end
             else
                 %function for loading single TIFFs together
-                [imd] = loadCIsingle;
+                pn=d.pn;
+                fn=d.fn;
+                [imd] = loadCIsingle(pn,fn,Files);
                 d.imd=imd;
 
                 d.pushed=1; %signals that file was selected
@@ -455,7 +463,9 @@ if sum(tf)>0; %if a file is found
 
 elseif length(Files)==1;
     %function for loading TIFF stack
-    [imd] = loadCIstack;
+    pn=d.pn;
+    fn=d.fn;
+    [imd] = loadCIstack(pn,fn);
     d.imd=imd;
     
     d.pushed=1; %signals that file was selected
@@ -484,7 +494,9 @@ elseif length(Files)==1;
     end
 else
     %function for loading single TIFFs together
-    [imd] = loadCIsingle;
+    pn=d.pn;
+    fn=d.fn;
+    [imd] = loadCIsingle(pn,fn,Files);
     d.imd=imd;
     
     d.pushed=1; %signals that file was selected
@@ -764,7 +776,11 @@ singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.V
 axes(handles.axes1);
 
 %function for removing dust
-removeDust(singleFrame);
+bcountd=d.bcountd;
+imd=d.imd;
+[imd,bcountd] = removeDust(singleFrame,bcountd,imd);
+d.bcountd=bcountd;
+d.imd=imd;
 
 %showing resulting frame
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
@@ -790,12 +806,12 @@ close(h);
 
 %function for eliminating faulty frames
 [imd] = faultyFrames(imd);
-d.imd=imd;
 
-d.origCI=imresize(d.imd,0.805); %keeping this file stored as original video but resized since original video is bigger than the downsampled video
+d.origCI=imresize(imd,0.805); %keeping this file stored as original video but resized since original video is bigger than the downsampled video
 
 %function for flatfield correction
-flatFieldCorrection;
+[imdd] = flatFieldCorrection(imd);
+d.imd=imdd;
 
 %showing resulting frame
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
@@ -852,7 +868,8 @@ if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4
 end
 cc=floor(cropCoordinates);
 %function for extracting and enhancing alignment ROI
-[ROI] = alignmentROI(cc);
+imd=d.imd;
+[ROI] = alignmentROI(cc,imd);
 
 if handles.radiobutton1.Value==1;
     %function for using subpixel registration algorithm
@@ -863,7 +880,8 @@ if handles.radiobutton1.Value==1;
     axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 else
     %function for using LucasKanade algorithm
-    [imdC] = lucasKanade(ROI);
+    imd=d.imd;
+    [imdC] = lucasKanade(ROI,imd);
     d.imd=imdC;
     %showing resulting frame
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
@@ -907,7 +925,12 @@ if d.dF==1;
 end
 
 %function for calculating deltaF/F
-deltaFF;
+imd=d.imd;
+pn=d.pn;
+fn=d.fn;
+align=d.align;
+[imddFF] = deltaFF(imd,pn,fn,align);
+d.imd=imddFF;
 
 %variable initialization for ROI processing
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
@@ -1005,7 +1028,6 @@ end
 %manual ROI selection
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
 if d.bcount>0 || d.load==1; %resizing ROI since the figure from getframe is not the same resolution
-    B=zeros(size(d.mip,1),size(d.mip,2));
     B=imresize(ROI, [size(d.mip,1) size(d.mip,2)]);
     ROI=B;
 end
@@ -1885,12 +1907,16 @@ elseif isempty(d.origCI)==1&&d.pushed==4;
             Files = dir(filePattern);
             if length(Files)==1;
                 %function for loading TIFF stack
-                [imd] = loadCIstack;
+                pn=d.pn;
+                fn=d.fn;
+                [imd] = loadCIstack(pn,fn);
                 d.origCI=imd;
                 d.origCI=imresize(d.imd,0.805); %keeping this file stored as original video but resized since original video is bigger than the downsampled video
             else
                 %function for loading single TIFFs together
-                [imd] = loadCIsingle;
+                pn=d.pn;
+                fn=d.fn;
+                [imd] = loadCIsingle(pn,fn,Files);
                 d.origCI=imd;
                 d.origCI=imresize(d.imd,0.805); %keeping this file stored as original video but resized since original video is bigger than the downsampled video
             end
