@@ -1,35 +1,34 @@
-function [sframe] = loadBV
-global v
-global d
+function [sframe,imd,pushed] = loadBV(dframerate,dsize,pn,fn)
 
 %loading raw video
-v.vid = VideoReader([v.pn '\' v.fn]);
+vid = VideoReader([pn '\' fn]);
 
 %defining dimensions of video
-nframes=get(v.vid,'NumberOfFrames');
-vidObj = VideoReader([v.pn '\' v.fn]);
+nframes=get(vid,'NumberOfFrames');
+vidObj = VideoReader([pn '\' fn]);
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
-v.framerate=vidObj.FrameRate;
-v.imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
+vframerate=vidObj.FrameRate;
+imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
 
 %putting each frame into variable 'v.imd'
 h=waitbar(0,'Loading');
 c=1;
-if v.framerate>d.framerate;
-    for k=1:ceil(v.framerate/d.framerate):nframes
-        v.imd(c).cdata = read(vidObj,k);
+rate=ceil(vframerate/dframerate);
+if vframerate>dframerate;
+    for k=1:rate:nframes
+        imd(c).cdata = read(vidObj,k);
         c=c+1;
         waitbar(k/nframes,h);
     end
 else
     for k=1:nframes
-        v.imd(c).cdata = read(vidObj,k);
+        imd(c).cdata = read(vidObj,k);
         c=c+1;
         waitbar(k/nframes,h);
     end
 end
-sframe=size(v.imd,2)-size(d.imd,3);
-v.imd=v.imd(1:size(d.imd,3));
-v.pushed=1; %signals video is loaded
+sframe=size(imd,2)-dsize;
+imd=imd(1:dsize);
+pushed=1; %signals video is loaded
 close(h);

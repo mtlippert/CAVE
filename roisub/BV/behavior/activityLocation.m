@@ -10,36 +10,37 @@ for j=1:size(d.ROImeans,2);
     n=0;
     c=0;
     a=0;
+    threshold=5*median(abs(d.ROImeans(:,j))/0.6745);
     ArrowCoord=[];
     for k=1:floor(length(v.traceA)/round(length(v.traceA)/size(d.ROImeans,1),2));
         if v.Pspot==0;
-            if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
+            if d.ROImeans(k,j)>threshold  && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
                 c=c+1;
                 a=a+1;
                 x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
                 xts(c,j)=k/d.framerate;
-            elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0; %>=0.6
+            elseif d.ROImeans(k,j)>threshold  && v.traceA(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0; %>=0.6
                 n=n+1;
                 xts(c,j)=k/d.framerate;
             end
         else
-            if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
+            if d.ROImeans(k,j)>threshold  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %quiroga spike detection
                 c=c+1;
                 a=a+1;
                 ArrowCoord{a,j}=[v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1);v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2) v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)];
                 x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
                 x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
                 xts(c,j)=k/d.framerate;
-            elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0; %>=0.6
+            elseif d.ROImeans(k,j)>threshold  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)>0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0; %>=0.6
                 x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),2)),round(v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)),j)+1;
                 c=c+1;
                 xts(c,j)=k/d.framerate;
-            elseif d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745)  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %>=0.6
+            elseif d.ROImeans(k,j)>threshold  && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0 && v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)>0; %>=0.6
                 x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)=x(round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),2)),round(v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)),j)+1;
                 c=c+1;
                 xts(c,j)=k/d.framerate;
             end
-            if d.ROImeans(k,j)>5*median(abs(d.ROImeans(:,j))/0.6745) && (v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0); %>=0.6
+            if d.ROImeans(k,j)>threshold && (v.traceA(round(k*round(length(v.traceA)/size(d.ROImeans,1),2)),1)==0 && v.traceP(round(k*round(length(v.traceP)/size(d.ROImeans,1),2)),1)==0); %>=0.6
                 n=n+1;
             end
         end

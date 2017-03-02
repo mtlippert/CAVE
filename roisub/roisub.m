@@ -173,6 +173,7 @@ d.valid=0; %no ROI was selcted incorrectly
 d.align=0; %signals whether images were aligned
 p.pnpreset=[]; %no color preset imported
 d.help=1; %help should be displayed
+d.alignCI=[]; %alignment video is empty
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -229,6 +230,7 @@ d.valid=0; %no ROI was selcted incorrectly
 d.dF=0; %no dF/F processing was done
 d.load=0; %no ROIs were loaded
 d.align=0; %no alignment
+d.alignCI=[]; %alignment video is empty
 d.pre=0; %no preprocessing
 d.mip=0; %no maximum intensity projection
 d.pn=[]; %no CI video path
@@ -898,6 +900,10 @@ function pushbutton28_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton28 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 global d
+if isempty(d.alignCI)==1
+    msgbox('You did not align anything.')
+    return;
+end
 d.imd=d.alignCI;
 d.align=0; %signals that image alignment was reset
 d.dF=0;
@@ -1551,18 +1557,18 @@ if d.ROIv==0;
     n=size(d.imd,3);
     numROIs=max(d.ROIorder); %number of ROIs
     d.ROIs=cell(size(d.imd,3),numROIs);
+    ROIs=zeros(size(d.imd,1),size(d.imd,2));
     h=waitbar(0,'Labeling ROIs');
     for j=1:n;
         for i=1:numROIs;
-            ROIs=zeros(size(d.imd,1),size(d.imd,2));
             m = find(d.labeled==i);
             ROIs(m)=1;
             % You can only multiply integers if they are of the same type.
-            ROIs = cast(ROIs, class(d.imd(:,:,1)));
-            imdrem= ROIs .* d.imd(:,:,j);
+            ROIsc = cast(ROIs, class(d.imd(:,:,1)));
+            imdrem= ROIsc .* d.imd(:,:,j);
             d.ROIs{j,i}=imdrem(m);
         end
-        waitbar(j/size(d.imd,3),h);
+        waitbar(j/n,h);
     end
     close(h);
     %saving ROI values
@@ -1577,7 +1583,11 @@ end
 colors=repmat(d.colors,1,ceil(size(d.ROIs,2)/8));
 
 %function for calculating ROI fluorescence values
-ROIFvalues(a,b);
+imd=d.imd;
+mask=d.mask;
+ROIs=d.ROIs;
+[ROImeans] = ROIFvalues(a,b,imd,mask,ROIs);
+d.ROImeans=ROImeans;
 % plotting ROI values
 NoofSpikes=zeros(size(d.ROIs,2),1);
 spikes=cell(1,size(d.ROIs,2));
@@ -1884,11 +1894,12 @@ if d.dF==0; %saving video if it was not processed further
     filename=[d.pn '\' d.fn(1:end-4)];
     vid = VideoWriter(filename,'Grayscale AVI');
     vid.FrameRate=d.framerate;
+    nframes=size(d.imd,3);
     open(vid);
-    for k=1:size(d.imd,3);
+    for k=1:nframes
         singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         writeVideo(vid,singleFrame);
-        waitbar(k/size(d.imd,3),h);
+        waitbar(k/nframes,h);
     end
     close(vid);
     close(h);
@@ -1939,7 +1950,8 @@ elseif isempty(d.origCI)==1&&d.pushed==4;
                     savedFF(pn,fn,framerate,imd);
                 case 'Combined'
                     %function for saving combined video
-                    saveCombi(handles);
+                    imd=d.imd; mask=d.mask; pn=d.pn; fn=d.fn; origCI=d.origCI; framerate=d.framerate;
+                    saveCombi(handles,imd,mask,fn,pn,origCI,framerate);
             end
             
         case 'NO'
@@ -1960,7 +1972,8 @@ else
             savedFF(pn,fn,framerate,imd);
         case 'Combined'
             %function for saving combined video
-            saveCombi(handles);
+            imd=d.imd; mask=d.mask; pn=d.pn; fn=d.fn; origCI=d.origCI; framerate=d.framerate;
+            saveCombi(handles,imd,mask,fn,pn,origCI,framerate);
     end
 end
 
@@ -2735,7 +2748,10 @@ if sum(tf)>0;
             end
         case 'NO'
             %function for loading behavioral video
-            [sframe] = loadBV;
+            dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn;
+            [sframe,imd,pushed] = loadBV(dframerate,dsize,pn,fn);
+            v.imd=imd;
+            v.pushed=pushed;
             %looking at first original picture
             axes(handles.axes2); image(v.imd(1).cdata);
             titleLabel = ['Behavioral video: ' v.fn];
@@ -2745,7 +2761,10 @@ if sum(tf)>0;
     end
 else
     %function for loading behavioral video
-    [sframe] = loadBV;
+    dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn;
+    [sframe,imd,pushed] = loadBV(dframerate,dsize,pn,fn);
+    v.imd=imd;
+    v.pushed=pushed;
     %looking at first original picture
     axes(handles.axes2); image(v.imd(1).cdata);
     titleLabel = ['Behavioral video: ' v.fn];
@@ -3583,6 +3602,14 @@ v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
+thresh.hueThresholdHigh=v.hueThresholdHigh;
+thresh.hueThresholdLow=v.hueThresholdLow;
+thresh.saturationThresholdLow=v.saturationThresholdLow;
+thresh.saturationThresholdHigh=v.saturationThresholdHigh;
+thresh.valueThresholdLow=v.valueThresholdLow;
+thresh.valueThresholdHigh=v.valueThresholdHigh;
+thresh.smallestArea=v.smallestArea;
+
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
@@ -3591,7 +3618,8 @@ v.traceP=zeros(nframes,2);
 h=waitbar(0,'Tracing posterior spot');
 for k=1:nframes;
     %function for spot mask and center coordinates extraction
-    [x,y] = savespot(x,y,k);
+    imd=v.imd(k).cdata;
+    [x,y] = savespot(x,y,k,thresh,imd);
     waitbar(k/nframes,h);
 end
 v.traceP(:,1)=x; %coordinates of the animal center
@@ -3673,6 +3701,14 @@ v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
+thresh.hueThresholdHigh=v.hueThresholdHigh;
+thresh.hueThresholdLow=v.hueThresholdLow;
+thresh.saturationThresholdLow=v.saturationThresholdLow;
+thresh.saturationThresholdHigh=v.saturationThresholdHigh;
+thresh.valueThresholdLow=v.valueThresholdLow;
+thresh.valueThresholdHigh=v.valueThresholdHigh;
+thresh.smallestArea=v.smallestArea;
+
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
 y=zeros(nframes,1);
@@ -3681,7 +3717,8 @@ v.traceA=zeros(nframes,2);
 h=waitbar(0,'Tracing anterior spot');
 for k=1:nframes;
     %function for spot mask and center coordinates extraction
-    [x,y] = savespot(x,y,k);
+    imd=v.imd(k).cdata;
+    [x,y] = savespot(x,y,k,thresh,imd);
     waitbar(k/nframes,h);
 end
 v.traceA(:,1)=x; %coordinates of the animal center
