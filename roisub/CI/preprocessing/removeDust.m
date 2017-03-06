@@ -4,7 +4,7 @@ function [imd,bcountd] = removeDust(singleFrame,bcountd,imd)
 Dust = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
 
 %check if ROI was selected correctly
-if numel(find(Dust))==0;
+if numel(find(Dust))==0
     msgbox('Please select valid dust ROI!','ERROR');
     return;
 end

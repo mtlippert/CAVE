@@ -15,9 +15,9 @@ imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
 h=waitbar(0,'Loading');
 c=1;
 rate=ceil(vframerate/dframerate);
-if vframerate>dframerate;
+if vframerate>dframerate
     for k=1:rate:nframes
-        imd(c).cdata = read(vidObj,k);
+        imd(c).cdata = read(vidObj,k); %#ok<*VIDREAD>
         c=c+1;
         waitbar(k/nframes,h);
     end

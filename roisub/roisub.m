@@ -256,7 +256,7 @@ handles.slider15.Value=1;
 handles.slider6.Value=0;
 handles.slider16.Value=1;
 
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
@@ -264,14 +264,14 @@ end
 % ms.UseParallel = true; %initializes parallel processing
 
 %defining initial folder displayed in dialog window
-if isempty(p.pn)==1;
+if isempty(p.pn)==1
     [d.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
 else
     [d.pn]=uigetdir(p.pn);
 end
 
 %clears old behavioral video if new calcium imaging video is loaded
-if v.pushed==1 && strcmp(v.pn,d.pn)==0;
+if v.pushed==1 && strcmp(v.pn,d.pn)==0
     %clears cache
     %clears all global variables
     clear global v;
@@ -283,7 +283,7 @@ end
 %extracts filename
 filePattern = fullfile(d.pn, '*.tif'); % *.tiff for 2-P
 Files = dir(filePattern);
-if size(Files,1)==0;
+if size(Files,1)==0
     msgbox('This folder does not contain a TIFF file!','ATTENTION');
     return;
 end
@@ -311,10 +311,10 @@ end
 %check whether video had been processed before
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
-for k=1:length(dir(d.pn));
+for k=1:length(dir(d.pn))
     tf(k)=strcmp([d.fn(1:end-4) 'dFvid.mat'],files(k).name); %looking for dF/F processed video as .mat file
 end
-if sum(tf)>0; %if a file is found
+if sum(tf)>0 %if a file is found
     % Construct a questdlg with two options
     choice = questdlg('Would you like to load your last processed version?', ...
         'Attention', ...
@@ -331,11 +331,11 @@ if sum(tf)>0; %if a file is found
             stat = regionprops(d.labeled,'Centroid'); %center of the ROIs
             d.b=cell(length(B),1);
             d.c=cell(length(B),1);
-            d.colors=repmat(d.colors,1,ceil(length(B)/8));
-            for j = 1 : length(B);
+            colors=repmat(d.colors,1,ceil(length(B)/8));
+            for j = 1 : length(B)
                 d.b{j,1} = B{j};
                 d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-                plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(j)});
+                plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
                 text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
             end
             hold off;
@@ -347,7 +347,7 @@ if sum(tf)>0; %if a file is found
             % Handle response
             switch choice
                 case 'YES'
-                    if length(Files)==1;
+                    if length(Files)==1
                         %function for loading TIFF stack
                         pn=d.pn;
                         fn=d.fn;
@@ -398,7 +398,7 @@ if sum(tf)>0; %if a file is found
                     end
             end
         case 'NO'
-            if length(Files)==1;
+            if length(Files)==1
                 %function for loading TIFF stack
                 pn=d.pn;
                 fn=d.fn;
@@ -463,7 +463,7 @@ if sum(tf)>0; %if a file is found
             end
     end
 
-elseif length(Files)==1;
+elseif length(Files)==1
     %function for loading TIFF stack
     pn=d.pn;
     fn=d.fn;
@@ -551,20 +551,20 @@ function slider5_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.pre==1 || d.dF==1;
+if d.pre==1 || d.dF==1
     msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
     return;
 end
 
 %handles.slider5.Value changes low in value
-if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
+if d.pushed==4 || d.roisdefined==1 %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
     text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
     end
@@ -596,20 +596,20 @@ function slider6_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.pre==1 || d.dF==1;
+if d.pre==1 || d.dF==1
     msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
     return;
 end
 
 %handles.slider6.Value changes low out value
-if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
+if d.pushed==4 || d.roisdefined==1 %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
     text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
     end
@@ -641,20 +641,20 @@ function slider15_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.pre==1 || d.dF==1;
+if d.pre==1 || d.dF==1
     msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
     return;
 end
 
 %handles.slider15.Value changes high in value
-if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
+if d.pushed==4 || d.roisdefined==1 %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
     text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
     end
@@ -686,20 +686,20 @@ function slider16_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.pre==1 || d.dF==1;
+if d.pre==1 || d.dF==1
     msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
     return;
 end
 
 %handles.slider16.Value changes high out value
-if d.pushed==4 || d.roisdefined==1; %if ROIs were defined
+if d.pushed==4 || d.roisdefined==1 %if ROIs were defined
     singleFrame=imadjust(d.origCI(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1); imshow(singleFrame); hold on;
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2);
     text(d.c{k,1}(1),d.c{k,1}(2),num2str(k));
     end
@@ -730,7 +730,7 @@ function pushbutton22_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
@@ -754,22 +754,22 @@ function pushbutton38_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
-if d.pre==1;
+if d.pre==1
     msgbox('You have to remove dust before preprocessing!','ATTENTION');
     return;
 end
 
 %display instructions only if the button was pressed for the first time or
 %a mistake was made and you want the help
-if d.bcountd==0 || d.help==1;
+if d.bcountd==0 || d.help==1
     uiwait(msgbox('Please define the region of dust by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
 
@@ -796,7 +796,7 @@ function pushbutton23_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
-if d.pre==1;
+if d.pre==1
     msgbox('You already did preprocessing!','ATTENTION');
     return;
 end
@@ -837,20 +837,20 @@ function pushbutton9_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
-if d.pre==0;
+if d.pre==0
     msgbox('Please do preprocessing before aligning!','ATTENTION');
     return;
 end
 % adapted from source: http://de.mathworks.com/help/vision/examples/video-stabilization-using-point-feature-matching.html
-if d.dF==1;
+if d.dF==1
      msgbox('Please align before calculating dF/F.','Attention');
      return
 end
@@ -864,7 +864,7 @@ a=imcrop;
 cropped=clipboard('pastespecial');
 cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
 %checks if cropping coordinates are valid
-if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0;
+if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0
     msgbox('Please select valid cropping area! Check the instructions again.','ERROR');
     return;
 end
@@ -873,7 +873,7 @@ cc=floor(cropCoordinates);
 imd=d.imd;
 [ROI] = alignmentROI(cc,imd);
 
-if handles.radiobutton1.Value==1;
+if handles.radiobutton1.Value==1
     %function for using subpixel registration algorithm
     [imdC] = subpixel(ROI);
     d.imd=imdC;
@@ -920,12 +920,12 @@ function pushbutton25_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 
-if d.pre==0;
+if d.pre==0
     msgbox('Please do preprocessing before proceeding!','ATTENTION');
     return;
 end
 
-if d.dF==1;
+if d.dF==1
     msgbox('You already did delta F/F calculation!','ATTENTION');
     return;
 end
@@ -952,7 +952,7 @@ d.dF=1; %dF/F was performed
 MaxIntensProj = max(d.imd, [], 3);
 stdIm = std(d.imd,0,3);
 d.mip=MaxIntensProj./stdIm;
-if handles.radiobutton2.Value==1;
+if handles.radiobutton2.Value==1
     h=figure;imagesc(d.mip);title('Maximum Intensity Projection');
 else
     h=figure;imagesc(d.mip);title('Maximum Intensity Projection');
@@ -976,15 +976,15 @@ function pushbutton3_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
-if d.dF==0;
+if d.dF==0
     msgbox('Please perform Delta F/F calculation before selection ROIs!','ATTENTION');
     return;
 end
@@ -993,60 +993,60 @@ d.ROIv=0; %resetting ROIvalues loaded, since you are changing the ROI mask now
 
 %display instructions only if the button was pressed for the first time or
 %a mistake was made and you want the help
-if d.bcount==0 || d.valid==1 || d.help==1;
+if d.bcount==0 || d.valid==1 || d.help==1
     d.valid=0;
     uiwait(msgbox('Please define the region of interest (ROI) by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
 
 %displaying picture with previously marked ROIs
 axes(handles.axes1);
-if d.bcount>0;
-    d.colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
+if d.bcount>0
+    colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
     singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
     stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
+        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
     end %drawing ROIs
     hold off;
     f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
     singleFrame=f.cdata;
-elseif d.load==1;
-    d.colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
+elseif d.load==1
+    colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
     singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
     stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
+        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
     end %drawing ROIs
     hold off;
     f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
     singleFrame=f.cdata;
-elseif d.bcount==0;
+elseif d.bcount==0
     singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
 end
 
 %manual ROI selection
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
-if d.bcount>0 || d.load==1; %resizing ROI since the figure from getframe is not the same resolution
+if d.bcount>0 || d.load==1 %resizing ROI since the figure from getframe is not the same resolution
     B=imresize(ROI, [size(d.mip,1) size(d.mip,2)]);
     ROI=B;
 end
 %check if ROI was selected correctly
-if numel(find(ROI))==0;
+if numel(find(ROI))==0
     singleFrame=d.mip;
-    if d.dF==1 || d.pre==1;
+    if d.dF==1 || d.pre==1
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
     stat = regionprops(d.labeled,'Centroid');
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
         plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1059,11 +1059,11 @@ end
 %count times button is pressed
 d.bcount=d.bcount+1;
 
-if d.load==1; %if a ROI mask was loaded
+if d.load==1 %if a ROI mask was loaded
     d.labeled = d.labeled+(ROI*(max(max(d.labeled))+1)); %labeling of ROIs
     d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
-    if numel(find(d.mask>1))>0;
+    if numel(find(d.mask>1))>0
         choice = questdlg('Would you like to remove this ROI?', ...
         'Attention', ...
         'YES','NO','YES');
@@ -1075,7 +1075,7 @@ if d.load==1; %if a ROI mask was loaded
                 d.labeled=bwlabel(d.mask);
                 %plotting ROIs
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
-                if d.dF==1 || d.pre==1;
+                if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
@@ -1083,17 +1083,17 @@ if d.load==1; %if a ROI mask was loaded
                 B=bwboundaries(d.mask); %boundaries of ROIs
                 stat = regionprops(d.labeled,'Centroid');
                 %check whether ROIs are touching
-                if length(stat)>length(B);
+                if length(stat)>length(B)
                     d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
                     d.mask = d.mask-ROI;
                     singleFrame=d.mip;
-                    if d.dF==1 || d.pre==1;
+                    if d.dF==1 || d.pre==1
                         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                     else
                         axes(handles.axes1); imshow(singleFrame); hold on;
                     end
                     stat = regionprops(d.labeled,'Centroid');
-                    for k=1:size(d.b,1);
+                    for k=1:size(d.b,1)
                         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                         plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
                         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1105,11 +1105,11 @@ if d.load==1; %if a ROI mask was loaded
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                d.colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8));
-                for j = 1 : max(d.ROIorder);
+                colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8));
+                for j = 1 : max(d.ROIorder)
                     d.b{j,1} = B{j};
                     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(j)});
+                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
                     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
                 hold off;
@@ -1136,7 +1136,7 @@ if d.load==1; %if a ROI mask was loaded
                 return;
             case 'NO'
                 singleFrame=d.mip;
-                if d.dF==1 || d.pre==1;
+                if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
@@ -1145,7 +1145,7 @@ if d.load==1; %if a ROI mask was loaded
                 d.labeled(d.labeled<0)=0;
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
                 stat = regionprops(d.labeled,'Centroid');
-                for k=1:size(d.b,1);
+                for k=1:size(d.b,1)
                     d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1161,7 +1161,7 @@ if d.load==1; %if a ROI mask was loaded
 
     %plotting ROIs
     singleFrame=d.mip;
-    if d.dF==1 || d.pre==1;
+    if d.dF==1 || d.pre==1
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
@@ -1169,17 +1169,17 @@ if d.load==1; %if a ROI mask was loaded
     B=bwboundaries(d.mask); %boundaries of ROIs
     stat = regionprops(d.labeled,'Centroid');
     %check whether ROIs are touching
-    if length(stat)>length(B);
+    if length(stat)>length(B)
         d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
         d.mask = d.mask-ROI;
         singleFrame=d.mip;
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
         else
             axes(handles.axes1); imshow(singleFrame); hold on;
         end
         stat = regionprops(d.labeled,'Centroid');
-        for k=1:size(d.b,1);
+        for k=1:size(d.b,1)
             d.c{k,1} = stat(d.ROIorder(k)).Centroid;
             plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
             text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1191,11 +1191,11 @@ if d.load==1; %if a ROI mask was loaded
     d.b=cell(length(B),1);
     d.c=cell(length(B),1);
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    d.colors=repmat(d.colors,1,ceil((max(max(d.labeled))+1)/8));
-    for j = 1 : length(B);
+    colors=repmat(d.colors,1,ceil((max(max(d.labeled))+1)/8));
+    for j = 1 : length(B)
         d.b{j,1} = B{j};
         d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(j)});
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
         text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
@@ -1212,7 +1212,7 @@ else
     d.labeled = d.labeled+ROI*(max(max(d.labeled))+1); %labeling of ROIs
     d.mask = d.mask+ROI;
     %checking if ROIs are superimposed on each other
-    if numel(find(d.mask>1))>0;
+    if numel(find(d.mask>1))>0
         choice = questdlg('Would you like to remove this ROI?', ...
         'Attention', ...
         'YES','NO','YES');
@@ -1224,7 +1224,7 @@ else
                 d.labeled=bwlabel(d.mask);
                 %plotting ROIs
                 singleFrame=d.mip;
-                if d.dF==1 || d.pre==1;
+                if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
@@ -1232,17 +1232,17 @@ else
                 B=bwboundaries(d.mask); %boundaries of ROIs
                 stat = regionprops(d.labeled,'Centroid');
                 %check whether ROIs are touching
-                if length(stat)>length(B);
+                if length(stat)>length(B)
                     d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
                     d.mask = d.mask-ROI;
                     singleFrame=d.mip;
-                    if d.dF==1 || d.pre==1;
+                    if d.dF==1 || d.pre==1
                         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                     else
                         axes(handles.axes1); imshow(singleFrame); hold on;
                     end
                     stat = regionprops(d.labeled,'Centroid');
-                    for k=1:size(d.b,1);
+                    for k=1:size(d.b,1)
                         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                         plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
                         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1254,11 +1254,11 @@ else
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                d.colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8));
-                for j = 1 : max(d.ROIorder);
+                colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8));
+                for j = 1 : max(d.ROIorder)
                     d.b{j,1} = B{j};
                     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(j)});
+                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
                     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
                 hold off;
@@ -1287,13 +1287,13 @@ else
                 d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
                 d.mask = d.mask-ROI;
                 singleFrame=d.mip;
-                if d.dF==1 || d.pre==1;
+                if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
                 stat = regionprops(d.labeled,'Centroid');
-                for k=1:size(d.b,1);
+                for k=1:size(d.b,1)
                     d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1309,7 +1309,7 @@ else
 
     %plotting ROIs
     singleFrame=d.mip;
-    if d.dF==1 || d.pre==1;
+    if d.dF==1 || d.pre==1
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
@@ -1317,17 +1317,17 @@ else
     B=bwboundaries(d.mask); %boundaries of ROIs
     stat = regionprops(d.labeled,'Centroid');
     %check whether ROIs are touching
-    if length(stat)>length(B);
+    if length(stat)>length(B)
         d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
         d.mask = d.mask-ROI;
         singleFrame=d.mip;
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
         else
             axes(handles.axes1); imshow(singleFrame); hold on;
         end
         stat = regionprops(d.labeled,'Centroid');
-        for k=1:size(d.b,1);
+        for k=1:size(d.b,1)
             d.c{k,1} = stat(d.ROIorder(k)).Centroid;
             plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
             text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1339,11 +1339,11 @@ else
     d.b=cell(length(B),1);
     d.c=cell(length(B),1);
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    d.colors=repmat(d.colors,1,ceil((max(max(d.labeled))+1)/8));
-    for j = 1 : length(B);
+    colors=repmat(d.colors,1,ceil((max(max(d.labeled))+1)/8));
+    for j = 1 : length(B)
         d.b{j,1} = B{j};
         d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(j)});
+        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
         text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
     end
     hold off;
@@ -1367,11 +1367,11 @@ function pushbutton16_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 global d
 global v
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
@@ -1388,7 +1388,7 @@ d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 
 singleFrame=d.mip;
-if d.dF==1;
+if d.dF==1
     axes(handles.axes1);
     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
 else
@@ -1418,10 +1418,10 @@ d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 d.ROIv=0; %no ROI values loaded
 
-if d.pre==0;
+if d.pre==0
     msgbox('Please do preprocessing & Delta F/F calculation before proceeding!','ATTENTION');
     return;
-elseif d.dF==0;
+elseif d.dF==0
     msgbox('Please do Delta F/F calculation before proceeding!','ATTENTION');
     return;
 end
@@ -1437,7 +1437,7 @@ d.ROIorder=ROIorder;
 d.labeled=ROIlabels;
 %plotting ROIs
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
-if d.dF==1 || d.pre==1;
+if d.dF==1 || d.pre==1
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
 else
@@ -1447,11 +1447,11 @@ B=bwboundaries(d.mask); %boundaries of ROIs
 stat = regionprops(d.labeled,'Centroid');
 d.b=cell(length(B),1);
 d.c=cell(length(B),1);
-d.colors=repmat(d.colors,1,ceil(length(B)/8));
-for j = 1 : length(B);
+colors=repmat(d.colors,1,ceil(length(B)/8));
+for j = 1 : length(B)
     d.b{j,1} = B{j};
     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(j)});
+    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
 end
 hold off;
@@ -1523,21 +1523,21 @@ function pushbutton14_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 %check whether ROIs were selected
-if d.roisdefined==0;
+if d.roisdefined==0
     msgbox('Please label ROIs first!','ERROR');
     return;
 end
 %check whether dF/F was calculated
-if d.dF==0;
+if d.dF==0
     msgbox('Please calculate Delta F/F first!','ERROR');
     return;
 end
@@ -1552,15 +1552,15 @@ colorsb={[0    0.4    0.7],...
     [0.6    0.9    1]};
 
 %checking whether ROI values had been saved before and no ROI was added
-if d.ROIv==0;
+if d.ROIv==0
     %labeling ROIs
     n=size(d.imd,3);
     numROIs=max(d.ROIorder); %number of ROIs
     d.ROIs=cell(size(d.imd,3),numROIs);
     ROIs=zeros(size(d.imd,1),size(d.imd,2));
     h=waitbar(0,'Labeling ROIs');
-    for j=1:n;
-        for i=1:numROIs;
+    for j=1:n
+        for i=1:numROIs
             m = find(d.labeled==i);
             ROIs(m)=1;
             % You can only multiply integers if they are of the same type.
@@ -1600,18 +1600,18 @@ check=(9:8:100);
 check2=(8:8:100);
 
 figure('color','w');
-for j=1:size(d.ROIs,2);
-    if ismember(j,check)==1;
+for j=1:size(d.ROIs,2)
+    if ismember(j,check)==1
         figure('color','w');
     end
     subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1);
     plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
     axlim=get(gca,'YLim');
     ylim([min(d.ROImeans(:,j)) 2*round((axlim(2)+1)/2)]); %round to next even number
-    if v.behav==1;
+    if v.behav==1
         axlim=get(gca,'YLim');
-        for l=1:v.amount;
-            for m=1:length(v.barstart.(char(v.name{1,l})));
+        for l=1:v.amount
+            for m=1:length(v.barstart.(char(v.name{1,l})))
             rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),axlim(1),v.barwidth.(char(v.name{1,l}))(m),axlim(2)*2],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
             end
         end
@@ -1619,10 +1619,10 @@ for j=1:size(d.ROIs,2);
     end
     strings=sprintf('ROI No.%d',j);
     %title('ROI values in percent');
-    if ismember(j,check2)==1 || j==size(d.ROIs,2);
+    if ismember(j,check2)==1 || j==size(d.ROIs,2)
         xlabel('Time in seconds');
         tlabel=get(gca,'XTickLabel');
-        for k=1:length(tlabel);
+        for k=1:length(tlabel)
             tlabel{k,1}=str2num(tlabel{k,1});
         end
         tlabel=cell2mat(tlabel);
@@ -1639,7 +1639,7 @@ for j=1:size(d.ROIs,2);
     spikes{1,j}=x;
     ts{1,j}=x/d.framerate;
     amp{1,j}=y;
-    if isempty(x)==0;
+    if isempty(x)==0
         plot(x,max(d.ROImeans(:,j))+0.5,'k.');
     else
         spikes{1,j}=1;
@@ -1657,14 +1657,14 @@ Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
 b=zeros(size(d.ROImeans,1),1);
 fig=figure;
 subplot(2,1,1);
-if v.behav==1;
-    for l=1:v.amount;
-        for m=1:length(v.barstart.(char(v.name{1,l})));
+if v.behav==1
+    for l=1:v.amount
+        for m=1:length(v.barstart.(char(v.name{1,l})))
         rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),size(d.ROImeans,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
         end
     end
 end
-for j=1:size(d.ROImeans,2);
+for j=1:size(d.ROImeans,2)
     plot(spikes{1,j},j,'k.');
     hold on;
     b(spikes{1,j})=b(spikes{1,j})+1;
@@ -1675,7 +1675,7 @@ for j=1:size(d.ROImeans,2);
     ylim([0 size(d.ROImeans,2)+1]);
 end
 tilabel=get(gca,'XTickLabel');
-for k=1:length(tilabel);
+for k=1:length(tilabel)
     tilabel{k,1}=str2num(tilabel{k,1});
 end
 tilabel=cell2mat(tilabel);
@@ -1688,7 +1688,7 @@ xlabel('Time in seconds');
 ylabel('Number of spikes');
 xlim([0 round(size(d.imd,3))]);
 ticlabel=get(gca,'XTickLabel');
-for k=1:length(ticlabel);
+for k=1:length(ticlabel)
     ticlabel{k,1}=str2num(ticlabel{k,1});
 end
 ticlabel=cell2mat(ticlabel);
@@ -1705,15 +1705,15 @@ switch choice
     case 'YES'
         files=dir(d.pn);
         tf=zeros(1,length(dir(d.pn)));
-        for k=1:length(dir(d.pn));
+        for k=1:length(dir(d.pn))
             tf(k)=strcmp('traces',files(k).name);
         end
-        if sum(tf)==0;
+        if sum(tf)==0
             mkdir([d.pn '\traces']);
             tnum=ceil(size(d.ROImeans,2)/8);
             hfnum=get(fig,'Number');
             numseries=(hfnum-tnum:1:hfnum-1);
-            for j=1:tnum;
+            for j=1:tnum
                 figurenum=sprintf('-f%d',numseries(j));
                 name=sprintf('traces_%d',j);
                 path=[d.pn '/traces/',name,'.png'];
@@ -1732,7 +1732,7 @@ switch choice
             singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
             h=figure; imshow(singleFrame);hold on;
             stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-            for k=1:size(d.b,1);
+            for k=1:size(d.b,1)
                 d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                 plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
                 text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1747,7 +1747,7 @@ switch choice
             %saving table
             filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
             ROInumber=cell(size(d.ROImeans,2),1);
-            for k=1:size(d.ROImeans,2);
+            for k=1:size(d.ROImeans,2)
                 ROInumber{k,1}=sprintf('ROI No.%d',k);
             end
             T=table(NoofSpikes,Frequency,Amplitude,...
@@ -1771,11 +1771,11 @@ switch choice
     
             msgbox('Done!','Attention');
         else
-            if v.behav==1;
+            if v.behav==1
                 tnum=ceil(size(d.ROImeans,2)/8);
                 hfnum=get(fig,'Number');
                 numseries=(hfnum-tnum:1:hfnum-1);
-                for j=1:tnum;
+                for j=1:tnum
                     name=sprintf('traces_behav_%d',j);
                     figurenum=sprintf('-f%d',numseries(j));
                     path=[d.pn '/traces/',name,'.png'];
@@ -1794,8 +1794,8 @@ switch choice
                 tnum=ceil(size(d.ROImeans,2)/8);
                 hfnum=get(fig,'Number');
                 numseries=(hfnum-tnum:1:hfnum-1);
-                for j=1:tnum;
-                    if v.behav==1;
+                for j=1:tnum
+                    if v.behav==1
                         name=sprintf('traces_behav_%d',j);
                     else
                         name=sprintf('traces_%d',j);
@@ -1805,7 +1805,7 @@ switch choice
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
-                if v.behav==1;
+                if v.behav==1
                     name=('rasterplot_behav');
                 else
                     name=('rasterplot');
@@ -1821,7 +1821,7 @@ switch choice
                 singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
                 h=figure; imshow(singleFrame);hold on;
                 stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-                for k=1:size(d.b,1);
+                for k=1:size(d.b,1)
                     d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -1837,7 +1837,7 @@ switch choice
                 %saving table
                 filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
                 ROInumber=cell(size(d.ROImeans,2),1);
-                for k=1:size(d.ROImeans,2);
+                for k=1:size(d.ROImeans,2)
                     ROInumber{k,1}=sprintf('ROI No.%d',k);
                 end
                 T=table(NoofSpikes,Frequency,Amplitude,...
@@ -1878,14 +1878,14 @@ function pushbutton26_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 
-if isempty(d.origCI)==1&&d.pushed==1;
+if isempty(d.origCI)==1&&d.pushed==1
     d.origCI=d.imd;
-elseif isempty(d.origCI)==1&&d.pushed==4;
+elseif isempty(d.origCI)==1&&d.pushed==4
     d.origCI=[];
 end
 
 
-if d.dF==0; %saving video if it was not processed further
+if d.dF==0 %saving video if it was not processed further
     %converting original CI video to double precision and to values between 1 and 0
     h=waitbar(0,'Saving calcium imaging video');
     origCIdou=double(d.origCI);
@@ -1905,7 +1905,7 @@ if d.dF==0; %saving video if it was not processed further
     close(h);
 %         close(gcf);
     msgbox('Saving video completed.');
-elseif isempty(d.origCI)==1&&d.pushed==4;
+elseif isempty(d.origCI)==1&&d.pushed==4
     % Construct a questdlg with two options
     choice = questdlg('Since you did not load the original CI video, you can only save the dF/F video. Do you want to load the original CI video now?', ...
         'Attention', ...
@@ -1916,7 +1916,7 @@ elseif isempty(d.origCI)==1&&d.pushed==4;
             %extracts filename
             filePattern = fullfile(d.pn, '*.tif'); % *.tiff for 2-P
             Files = dir(filePattern);
-            if length(Files)==1;
+            if length(Files)==1
                 %function for loading TIFF stack
                 pn=d.pn;
                 fn=d.fn;
@@ -1992,21 +1992,21 @@ function slider7_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global d
 global v
-if d.pushed==0 && v.pushed==0;
+if d.pushed==0 && v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if v.pushed==0;
+if v.pushed==0
     v.imd=[];
     nframes=[];
-elseif v.pushed==1;
+elseif v.pushed==1
     v.hsvA=[];
     v.hsvP=[];
     nframes=size(v.imd,2);
-elseif v.pushed>=1;
+elseif v.pushed>=1
     nframes=size(v.imd,2);
 end
-if d.pushed==0;
+if d.pushed==0
     d.imd=[];
     maxframes=size(v.imd,2);
     handles.slider7.Max=maxframes;
@@ -2018,57 +2018,57 @@ end
 cla(handles.axes1);
 cla(handles.axes2);
 
-if v.pushed>1;
-    if v.preset==1;
+if v.pushed>1
+    if v.preset==1
         % Green preset values
         color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-    elseif v.preset==2;
+    elseif v.preset==2
         % Pink preset values
         color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-    elseif v.preset==3;
+    elseif v.preset==3
         % Yellow preset values
         color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-    elseif v.preset==4;
+    elseif v.preset==4
         % Blue preset values
         color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
     end
 end
 
-if d.pushed==4;
+if d.pushed==4
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
     colors=repmat(d.colors,1,(ceil(size(d.b,1)/8)));
 end
 
-if d.pre==1 && d.pushed==1;
+if d.pre==1 && d.pushed==1
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
-    if d.dF==1 || d.pre==1;
+    if d.dF==1 || d.pre==1
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif d.pushed==1;
+elseif d.pushed==1
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1);
-    if d.dF==1 || d.pre==1;
+    if d.dF==1 || d.pre==1
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
         imshow(singleFrame);
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif d.pushed==4;
+elseif d.pushed==4
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
-    if d.dF==1 || d.pre==1;
+    if d.dF==1 || d.pre==1
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
     end
     stat = regionprops(d.labeled,'Centroid');
-    for k=1:size(d.b,1);
+    for k=1:size(d.b,1)
         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
         plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
@@ -2077,19 +2077,19 @@ elseif d.pushed==4;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
-if v.pushed==1 && d.pushed>=1;
+if v.pushed==1 && d.pushed>=1
     axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif v.pushed==1;
+elseif v.pushed==1
     axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif v.pushed==2;
+elseif v.pushed==2
     %function for masking the colored spot of the animal
     [maskedRGBImage] = spotmask(nframes,maxframes,handles);
     %showing masked image in GUI
-    if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+    if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
         axes(handles.axes2); 
         grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
         set(gcf,'renderer','OpenGL');
@@ -2108,11 +2108,11 @@ elseif v.pushed==2;
     hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif v.pushed==3;
+elseif v.pushed==3
     %function for masking the colored spot of the animal
     [maskedRGBImage] = spotmask(nframes,maxframes,handles);
     %showing masked image in GUI
-    if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+    if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
         axes(handles.axes2); 
         grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
         set(gcf,'renderer','OpenGL');
@@ -2156,20 +2156,20 @@ global d
 global v
 d.stop=0;
 %checks if a video file was selected
-if v.pushed==0 && d.pushed==0;
+if v.pushed==0 && d.pushed==0
     msgbox('Please select folder first!','ERROR');
     return;
-elseif v.pushed==0;
+elseif v.pushed==0
     v.imd=[];
     nframes=[];
-elseif v.pushed==1;
+elseif v.pushed==1
     v.hsvA=[];
     v.hsvP=[];
     nframes=size(v.imd,2);
-elseif v.pushed>=1;
+elseif v.pushed>=1
     nframes=size(v.imd,2);
 end
-if d.pushed==0;
+if d.pushed==0
     d.imd=[];
     maxframes=size(v.imd,2);
 else
@@ -2179,37 +2179,37 @@ end
 cla(handles.axes1);
 cla(handles.axes2);
 
-if v.pushed>1;
-    if v.preset==1;
+if v.pushed>1
+    if v.preset==1
         % Green preset values
         color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-    elseif v.preset==2;
+    elseif v.preset==2
         % Pink preset values
         color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-    elseif v.preset==3;
+    elseif v.preset==3
         % Yellow preset values
         color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-    elseif v.preset==4;
+    elseif v.preset==4
         % Blue preset values
         color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
     end
 end
 
-if d.pushed==4;
+if d.pushed==4
     d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
     colors=repmat(d.colors,1,ceil(size(d.b,1)/8));
 end
 
 %if both videos were loaded
-if v.pushed==1 && d.pre==1 && d.pushed==1;
+if v.pushed==1 && d.pre==1 && d.pushed==1
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         axes(handles.axes2);
         image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             axes(handles.axes1); imshow(singleFrame);
@@ -2217,24 +2217,24 @@ if v.pushed==1 && d.pre==1 && d.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif v.pushed==1 && d.pushed==1;
+elseif v.pushed==1 && d.pushed==1
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
-        axes(handles.axes2);
+    for k=round(handles.slider7.Value):size(d.imd,3)
+        axes(handles.axes2); %#ok<*LAXES>
         image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             imshow(singleFrame);
@@ -2243,30 +2243,30 @@ elseif v.pushed==1 && d.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif v.pushed==1 && d.pushed==4;
+elseif v.pushed==1 && d.pushed==4
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         axes(handles.axes2);
         image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
         else
             imshow(singleFrame);hold on;
         end
         stat = regionprops(d.labeled,'Centroid');
-        for j=1:size(d.b,1);
+        for j=1:size(d.b,1)
             d.c{j,1} = stat(d.ROIorder(j)).Centroid;
             plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
             text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
@@ -2276,23 +2276,23 @@ elseif v.pushed==1 && d.pushed==4;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif v.pushed==2 && d.pre==1 && d.pushed==1;
+elseif v.pushed==2 && d.pre==1 && d.pushed==1
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(nframes,maxframes,handles);
         %showing masked image in GUI
-        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+        if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
             grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
@@ -2311,7 +2311,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
         hold off;
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             axes(handles.axes1); imshow(singleFrame);
@@ -2319,23 +2319,23 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif  v.pushed==2 && d.pushed==1;
+elseif  v.pushed==2 && d.pushed==1
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(nframes,maxframes,handles);
         %showing masked image in GUI
-        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+        if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
             grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
@@ -2354,7 +2354,7 @@ elseif  v.pushed==2 && d.pushed==1;
         hold off;
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             imshow(singleFrame);
@@ -2363,23 +2363,23 @@ elseif  v.pushed==2 && d.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif v.pushed==2 && d.pushed==4;
+elseif v.pushed==2 && d.pushed==4
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(nframes,maxframes,handles);
         %showing masked image in GUI
-        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+        if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
             grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
@@ -2398,13 +2398,13 @@ elseif v.pushed==2 && d.pushed==4;
         hold off;
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
         else
             imshow(singleFrame);hold on;
         end
         stat = regionprops(d.labeled,'Centroid');
-        for j=1:size(d.b,1);
+        for j=1:size(d.b,1)
             d.c{j,1} = stat(d.ROIorder(j)).Centroid;
             plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
             text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
@@ -2414,23 +2414,23 @@ elseif v.pushed==2 && d.pushed==4;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif v.pushed==3 && d.pre==1 && d.pushed==1;
+elseif v.pushed==3 && d.pre==1 && d.pushed==1
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(nframes,maxframes,handles);
         %showing masked image in GUI
-        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+        if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
             grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
@@ -2449,7 +2449,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
         hold off;
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             axes(handles.axes1); imshow(singleFrame);
@@ -2457,23 +2457,23 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif v.pushed==3 && d.pushed==1;
+elseif v.pushed==3 && d.pushed==1
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(nframes,maxframes,handles);
         %showing masked image in GUI
-        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+        if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
             grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
@@ -2492,7 +2492,7 @@ elseif v.pushed==3 && d.pushed==1;
         hold off;
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             imshow(singleFrame);
@@ -2501,23 +2501,23 @@ elseif v.pushed==3 && d.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif v.pushed==3 && d.pushed==4;
+elseif v.pushed==3 && d.pushed==4
     d.play=1;
     v.play=1;
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(nframes,maxframes,handles);
         %showing masked image in GUI
-        if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+        if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
             grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
@@ -2536,13 +2536,13 @@ elseif v.pushed==3 && d.pushed==4;
         hold off;
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
         else
             imshow(singleFrame);hold on;
         end
         stat = regionprops(d.labeled,'Centroid');
-        for j=1:size(d.b,1);
+        for j=1:size(d.b,1)
             d.c{j,1} = stat(d.ROIorder(j)).Centroid;
             plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
             text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
@@ -2552,12 +2552,12 @@ elseif v.pushed==3 && d.pushed==4;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             v.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
@@ -2565,12 +2565,12 @@ end
 
 
 %if only calcium video was loaded
-if d.pre==1 && d.pushed<4;
+if d.pre==1 && d.pushed<4
     d.play=1;
     axes(handles.axes1);
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         singleFrame=d.imd(:,:,round(handles.slider7.Value));
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             axes(handles.axes1); imshow(singleFrame);
@@ -2579,20 +2579,20 @@ if d.pre==1 && d.pushed<4;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif d.pushed==1;
+elseif d.pushed==1
     d.play=1;
     axes(handles.axes1); %original video
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        if d.dF==1 || d.pre==1;
+        if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
             imshow(singleFrame);
@@ -2601,26 +2601,26 @@ elseif d.pushed==1;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
-elseif d.pushed==4;
+elseif d.pushed==4
     d.play=1;
     axes(handles.axes1); %video with ROIs
-    for k=round(handles.slider7.Value):size(d.imd,3);
+    for k=round(handles.slider7.Value):size(d.imd,3)
     singleFrame=d.imd(:,:,k);
-    if d.dF==1 || d.pre==1;
+    if d.dF==1 || d.pre==1
         imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
         imshow(singleFrame);hold on;
     end
     stat = regionprops(d.labeled,'Centroid');
-    for j=1:size(d.b,1);
+    for j=1:size(d.b,1)
         d.c{j,1} = stat(d.ROIorder(j)).Centroid;
         plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
         text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
@@ -2630,11 +2630,11 @@ elseif d.pushed==4;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(0.1);
-        if k==size(d.imd,3);
+        if k==size(d.imd,3)
             d.play=0;
             d.stop=1;
         end
-        if d.stop==1;
+        if d.stop==1
             return;
         end
     end
@@ -2648,7 +2648,7 @@ function pushbutton21_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
@@ -2677,7 +2677,7 @@ global p
 %clears all global variables
 clear global v;
 %reinitializes global variables
-global v
+global v %#ok<*REDEF>
 v.pushed=0;
 v.play=0;
 v.pn=[];
@@ -2694,13 +2694,13 @@ cla(handles.axes2,'reset');
 %resets frame slider
 handles.slider7.Value=1;
 
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 
 %checks whether calcium imaging video was loaded
-if d.pushed==0;
+if d.pushed==0
     msgbox('Please select calcium imaging video first!','ATTENTION');
     return;
 end        
@@ -2711,7 +2711,7 @@ v.crop=0; %signals video is not cropped
 v.hsv=0; %signals video is not converted to hsv color space
 v.Pspot=0; %signals green spot is not saved
 v.Aspot=0; %signals pink spot is not saved
-if d.pushed>=1;
+if d.pushed>=1
     [v.pn]=uigetdir(d.pn);
 else
     [v.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
@@ -2723,10 +2723,10 @@ Files = dir(filePattern);
 v.fn = Files(1).name;
 files=dir(v.pn);
 tf=zeros(1,length(dir(v.pn)));
-for k=1:length(dir(v.pn));
+for k=1:length(dir(v.pn))
     tf(k)=strcmp([v.fn(1:end-4) '_converted.mat'],files(k).name);
 end
-if sum(tf)>0;
+if sum(tf)>0
     % Construct a questdlg with two options
     choice = questdlg('Would you like to load your last processed version?', ...
         'Attention', ...
@@ -2741,7 +2741,7 @@ if sum(tf)>0;
             titleLabel = ['Behavioral video: ' v.fn];
             set(handles.text28, 'String', titleLabel);
             handles.text28.TooltipString=v.pn;
-            if sum(tfb)>0;
+            if sum(tfb)>0
                 msgbox(cat(2, {'Loading Completed. Your shortkeys are:'}, skeys),'Success');
             else
                 msgbox(sprintf('Loading Completed.'),'Success');
@@ -2784,16 +2784,16 @@ function pushbutton15_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
 axes(handles.axes2); image(v.imd(1).cdata); %displays first image
-if d.help==1;
+if d.help==1
     uiwait(msgbox('Please define the area where the animal is running by left-click and dragging the cursor over the area! Then right click and select Copy Position, finish by double-clicking!','Attention','modal'));
 end
 %initializes interactive cropping
@@ -2801,7 +2801,7 @@ h=imcrop;
 cropped=clipboard('pastespecial');
 cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
 %checks if cropping coordinates are valid
-if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0;
+if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0
     msgbox('Please select valid cropping area! Check the instructions again.','ERROR');
     return;
 end
@@ -2819,7 +2819,7 @@ convVimd=v.imd;
 save(filename, 'convVimd');
 close(h);
 
-if d.help==1;
+if d.help==1
     msgbox('Cropping and downsampling completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking PREVIEW ANTERIOR SPOT and PREVIEW POSTERIOR SPOT. If you have only one spot select only ANTERIOR SPOT','Success');
 else
     msgbox('Cropping and downsampling completed.','Success');
@@ -2842,17 +2842,17 @@ global d
 
 v.smallestArea=round(handles.slider22.Value);
 
-if v.pushed==0;
+if v.pushed==0
     v.imd=[];
     nframes=[];
-elseif v.pushed==1;
+elseif v.pushed==1
     v.hsvA=[];
     v.hsvP=[];
     nframes=size(v.imd,2);
-elseif v.pushed>=1;
+elseif v.pushed>=1
     nframes=size(v.imd,2);
 end
-if d.pushed==0;
+if d.pushed==0
     d.imd=[];
     maxframes=size(v.imd,2);
     handles.slider7.Max=maxframes;
@@ -2861,16 +2861,16 @@ else
     handles.slider7.Max=maxframes;
 end
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -2879,7 +2879,7 @@ end
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -2922,30 +2922,30 @@ function slider9_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -2957,7 +2957,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -2997,30 +2997,30 @@ function slider10_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -3032,7 +3032,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -3072,30 +3072,30 @@ function slider11_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -3107,7 +3107,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -3147,30 +3147,30 @@ function slider12_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -3182,7 +3182,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -3222,30 +3222,30 @@ function slider13_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -3257,7 +3257,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -3297,30 +3297,30 @@ function slider14_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -3332,7 +3332,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -3375,24 +3375,23 @@ function popupmenu1_Callback(hObject, eventdata, handles)
 
 global d
 global v
-global p
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 
 %determining popup choice
 v.preset=handles.popupmenu1.Value;
-if v.preset==1;
+if v.preset==1
     % Green preset values
     hueThresholdLow = 0.25;
     hueThresholdHigh = 0.55;
@@ -3401,7 +3400,7 @@ if v.preset==1;
     valueThresholdLow = 0;
     valueThresholdHigh = 0.8;
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     hueThresholdLow = 0.80;
     hueThresholdHigh = 1;
@@ -3410,7 +3409,7 @@ elseif v.preset==2;
     valueThresholdLow = 0.0;
     valueThresholdHigh = 0.8;
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     hueThresholdLow = 0.12;
     hueThresholdHigh = 0.25;
@@ -3419,7 +3418,7 @@ elseif v.preset==3;
     valueThresholdLow = 0;
     valueThresholdHigh = 0.8;
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     hueThresholdLow = 0.62;
     hueThresholdHigh = 1;
@@ -3444,7 +3443,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -3487,7 +3486,7 @@ global d
 global p
 %defining folder
 %defining initial folder displayed in dialog window
-if isempty(p.pnpreset)==1;
+if isempty(p.pnpreset)==1
     [p.pnpreset]=uigetdir(v.pn);
 else
     [p.pnpreset]=uigetdir(p.pnpreset);
@@ -3521,16 +3520,16 @@ end
 
 handles.popupmenu1.Value=v.preset;
 
-if v.preset==1;
+if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==2;
+elseif v.preset==2
     % Pink preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==3;
+elseif v.preset==3
     % Yellow preset values
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
-elseif v.preset==4;
+elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
@@ -3549,7 +3548,7 @@ nframes=size(v.imd,2);
 [maskedRGBImage] = spotmask(nframes,maxframes,handles);
 
 %showing thresholded image in GUI
-if numel(find(maskedRGBImage))==0; %check if color spot is in image, if not animal out of bounds or spot not detected!
+if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
     grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
@@ -3577,20 +3576,20 @@ function pushbutton10_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
@@ -3616,7 +3615,7 @@ y=zeros(nframes,1);
 v.traceP=zeros(nframes,2);
 %tracing center of the extracted posterior dot
 h=waitbar(0,'Tracing posterior spot');
-for k=1:nframes;
+for k=1:nframes
     %function for spot mask and center coordinates extraction
     imd=v.imd(k).cdata;
     [x,y] = savespot(x,y,k,thresh,imd);
@@ -3635,13 +3634,13 @@ OutofBounds=100-round(length(v.tracePplot)/length(v.traceP)*100);
 str=sprintf('Animal is out of bounds in %g percent of cases',OutofBounds);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
-if v.preset==1;
+if v.preset==1
     v.colorP=('g');
-elseif v.preset==2;
+elseif v.preset==2
     v.colorP=('r');
-elseif v.preset==3;
+elseif v.preset==3
     v.colorP=('y');
-elseif v.preset==4;
+elseif v.preset==4
     v.colorP=('b');
 end
 
@@ -3676,20 +3675,20 @@ function pushbutton11_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
@@ -3715,7 +3714,7 @@ y=zeros(nframes,1);
 v.traceA=zeros(nframes,2);
 %tracing center of the extracted anterior dot
 h=waitbar(0,'Tracing anterior spot');
-for k=1:nframes;
+for k=1:nframes
     %function for spot mask and center coordinates extraction
     imd=v.imd(k).cdata;
     [x,y] = savespot(x,y,k,thresh,imd);
@@ -3734,13 +3733,13 @@ OutofBounds=100-round(length(v.traceAplot)/length(v.traceA)*100);
 str=sprintf('Animal is out of bounds in %g percent of cases',OutofBounds);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
-if v.preset==1;
+if v.preset==1
     v.colorA=('g');
-elseif v.preset==2;
+elseif v.preset==2
     v.colorA=('r');
-elseif v.preset==3;
+elseif v.preset==3
     v.colorA=('y');
-elseif v.preset==4;
+elseif v.preset==4
     v.colorA=('b');
 end
 
@@ -3778,32 +3777,31 @@ function pushbutton12_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
-global p
-if v.pushed==0;
+if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.play==1 || v.play==1;
+if d.play==1 || v.play==1
     msgbox('PLEASE PUSH STOP BUTTON BEFORE PROCEEDING!','PLEASE PUSH STOP BUTTON');
     return;
 end
 %checks whether video was cropped and converted and whether the
 %corresponding video was loaded
-if v.crop==0;
+if v.crop==0
     msgbox('Please crop video first!','ERROR');
     return;
-elseif d.pushed==0;
+elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
 %checks whether spots were selected
-if v.Aspot==0 && v.Pspot==0;
+if v.Aspot==0 && v.Pspot==0
     msgbox('Please select colored spots!','ERROR');
     return;
-elseif v.Aspot==0;
+elseif v.Aspot==0
     msgbox('Please select anterior colored spot!','ERROR');
     return;
-elseif v.Pspot==0;
+elseif v.Pspot==0
     % Construct a questdlg with two options
     choice = questdlg('Do you have only one colored spot on your animal?', ...
         'Attention', ...
@@ -3819,26 +3817,26 @@ elseif v.Pspot==0;
     end
 end
 %making sure that the ROIs were plotted
-if isempty(d.ROImeans)==1 || d.dF==0;
+if isempty(d.ROImeans)==1 || d.dF==0
     msgbox('ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
     return;
 end
-if d.thresh==1 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0;
+if d.thresh==1 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0
     msgbox('All ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
     return;
-elseif d.thresh==0 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0;
+elseif d.thresh==0 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0
     msgbox('All ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
     return;
 end
 
 %plotting posterior trace
-if v.Pspot==1;
-    a=figure, image(v.imd(1).cdata); hold on;
+if v.Pspot==1
+    a=figure; image(v.imd(1).cdata); hold on;
     plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
     %plotting anterior trace
     plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
 else
-    a=figure, image(v.imd(1).cdata); hold on;
+    a=figure; image(v.imd(1).cdata); hold on;
     %plotting anterior trace
     plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
 end
@@ -3847,10 +3845,10 @@ end
 % checking whether ROI traces had been saved before
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
-for k=1:length(dir(d.pn));
+for k=1:length(dir(d.pn))
     tf(k)=strcmp('location',files(k).name);
 end
-if sum(tf)==0;
+if sum(tf)==0
     mkdir([d.pn '\location']);
 else
     rmdir([d.pn '\location'],'s');
@@ -3873,13 +3871,13 @@ dist=sqrt(x.^2+y.^2);
 totalDistInPx=sum(dist(dist>1 & dist<40)); %movement is consider at least 1 pixel and at most 40 pixels at once
 
 %pixel in cm
-h=figure,image(v.imd(1).cdata);hold on;
+h=figure;image(v.imd(1).cdata);hold on;
 uiwait(msgbox('Please define the length of one side of the testing area by dragging a line, right-clicking, select "Copy Position" and close the figure. Then press "Next", "Finish"!','Attention'));
 a=imline;
 uiwait(h);
 cropped=clipboard('pastespecial');
 testsizepixel=round(str2num(cell2mat(cropped.A_pastespecial)));
-testsizepixel=round(sqrt((abs(testsizepixel(2,1)-testsizepixel(1,1)))^2+(abs(testsizepixel(2,2)-testsizepixel(1,2)))^2))
+testsizepixel=round(sqrt((abs(testsizepixel(2,1)-testsizepixel(1,1)))^2+(abs(testsizepixel(2,2)-testsizepixel(1,2)))^2));
 prompt = {'Enter real length in cm:'};
 dlg_title = 'Input';
 num_lines = 1;
@@ -3911,7 +3909,7 @@ if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.trac
         case 'Yes'
             mleft=0;
         case 'No'
-            if v.Pspot==1;
+            if v.Pspot==1
                 cood=find(v.traceP==0);
                 for k=1:length(cood)
                     v.traceP(cood(k))=v.traceP(cood(k)-1);
@@ -3975,24 +3973,24 @@ global d
 global v
 d.stop=0;
 %checks if a video file was selected
-if v.pushed==0 && d.pushed==0;
+if v.pushed==0 && d.pushed==0
     msgbox('Please select folder first!','ERROR');
     return;
-elseif v.pushed==0;
+elseif v.pushed==0
     v.imd=[];
-elseif v.pushed==1;
+elseif v.pushed==1
     v.hsvA=[];
     v.hsvP=[];
 end
-if d.pushed==0;
+if d.pushed==0
     d.imd=[];
     maxframes=size(v.imd,2);
 else
     maxframes=size(d.imd,3);
 end
 
-if v.skdefined==0;
-    if d.help==1;
+if v.skdefined==0
+    if d.help==1
         uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
     end
     %Question how many
@@ -4000,7 +3998,7 @@ if v.skdefined==0;
     dlg_title = 'Amount';
     num_lines = 1;
     answer = inputdlg(prompt,dlg_title,num_lines);
-    if str2num(cell2mat(answer))>8;
+    if str2num(cell2mat(answer))>8
         uiwait(msgbox('Please define only up to 8 behaviors!'));
         return
     end
@@ -4008,7 +4006,7 @@ if v.skdefined==0;
     %loop of naming behaviors
     v.shortkey=cell(1,v.amount);
     v.name=cell(1,v.amount);
-    for k=1:v.amount;
+    for k=1:v.amount
         %shortkey
         str=sprintf('Please define shortkey No. %d.',k);
         prompt = {str};
@@ -4029,42 +4027,42 @@ if v.skdefined==0;
 end
     
 
-if  v.pushed==1;
+if  v.pushed==1
     v.play=1;
     axes(handles.axes2);
-    for k=round(handles.slider7.Value):size(v.imd,2);
+    for k=round(handles.slider7.Value):size(v.imd,2)
         v.k=k;
         image(v.imd(k).cdata); %original video
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(1/d.framerate);
-        if k==size(v.imd,2);
+        if k==size(v.imd,2)
             d.stop=1;
             d.play=0;
             v.play=0;
         end
-        if d.stop==1;
+        if d.stop==1
             d.stop=1;
             d.play=0;
             a=figure;
             str={};
-            for j=1:v.amount;
+            for j=1:v.amount
                 v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
                 %timebars
                 bars=diff(v.events.(char(v.name{1,j})));
                 bars(size(v.imd,2))=0;
                 v.barstart.(char(v.name{1,j}))=find(bars==1);
-                if numel(find(bars==1))>numel(find(bars==-1));
+                if numel(find(bars==1))>numel(find(bars==-1))
                     v.barstart.(char(v.name{1,j}))=v.barstart.(char(v.name{1,j}))(1:numel(find(bars==-1)),1);
                 end
                 v.barwidth.(char(v.name{1,j}))=find(bars==-1)-v.barstart.(char(v.name{1,j}));
-                area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',colors{1,j},'facecolor',colors{1,j},'facealpha',0.5),hold on;
-                str(end+1)={char(v.name{1,j})};
+                area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
+                str(end+1)={char(v.name{1,j})}; %#ok<AGROW>
             end
             xlabel('Time in seconds');
             tlabel=get(gca,'XTickLabel');
-            for i=1:length(tlabel);
+            for i=1:length(tlabel)
                 tlabel{i,1}=str2num(tlabel{i,1});
             end
                 tlabel=cell2mat(tlabel);
@@ -4108,7 +4106,7 @@ global v
 % determine the key that was pressed 
  keyPressed = eventdata.Key;
 
- for k=1:v.amount;
+ for k=1:v.amount
      if strcmpi(keyPressed,v.shortkey{1,k})
          v.events.(char(v.name{1,k}))(v.k)=1;
      end
@@ -4150,7 +4148,7 @@ function Documentation_Callback(hObject, eventdata, handles)
 path=cd;
 filePattern = fullfile(path, '*.docx');
 Files = dir(filePattern);
-if isempty(Files)==1;
+if isempty(Files)==1
    msgbox('Please change the current directory to ./roisub!');
    return;
 end

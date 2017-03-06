@@ -6,7 +6,7 @@ vid = VideoWriter(filename,'Grayscale AVI');
 vid.FrameRate=framerate;
 
 open(vid);
-for k = 1:size(imd,3);
+for k = 1:size(imd,3)
     %scaling images between values of 0 and 1
     imdpos=imd(:,:,k)+abs(min(min(imd(:,:,k))));
     imdscale=imdpos./max(max(imdpos));

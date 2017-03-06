@@ -16,10 +16,10 @@ figure,imagesc(d.mip),title('Maximum Intensity Projection');
 %check whether ROI mask had been saved before
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
-for k=1:length(dir(d.pn));
+for k=1:length(dir(d.pn))
     tf(k)=strcmp([d.fn(1:end-4) 'ROIs.mat'],files(k).name);
 end
-if sum(tf)>0; %if a file is found
+if sum(tf)>0 %if a file is found
     load([d.pn '\' d.fn(1:end-4) 'ROIs.mat']);
     d.mask=ROImask; %mask with all the ROIs
     d.ROIorder=ROIorder; %order of the ROIs
@@ -32,7 +32,7 @@ if sum(tf)>0; %if a file is found
     background(background==2)=0;
     background = cast(background, class(d.imd(:,:,1)));
     h=waitbar(0,'Labeling background');
-    for k = 1:size(d.imd,3);
+    for k = 1:size(d.imd,3)
         % You can only multiply integers if they are of the same type.
         d.background{k,1} = background .* d.imd(:,:,k);
         d.bg{k,1}=d.background{k,1}(background==1);
@@ -47,10 +47,10 @@ end
 %check whether ROI values had been saved before
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
-for k=1:length(dir(d.pn));
+for k=1:length(dir(d.pn))
     tf(k)=strcmp([d.fn(1:end-4) 'ROIvalues.mat'],files(k).name);
 end
-if sum(tf)>0;
+if sum(tf)>0
     load([d.pn '\' d.fn(1:end-4) 'ROIvalues.mat']);
     d.ROIs=ROIvalues; %ROI values trhoughout the video
 end

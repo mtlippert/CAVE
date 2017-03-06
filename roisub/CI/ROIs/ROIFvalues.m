@@ -21,8 +21,8 @@ close(h);
 ROImeans=zeros(size(ROIs,1),size(ROIs,2));
 numROIs=size(ROIs,2);
 h=waitbar(0,'Calculating ROI values');
-for k=1:numROIs;
-    for i=1:nframes;
+for k=1:numROIs
+    for i=1:nframes
         ROIm=mean(ROIs{i,k});
         bgmean=mean(bg{i,1});
         ROImeans(i,k)=(ROIm-bgmean)*100;

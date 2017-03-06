@@ -8,7 +8,7 @@ global p
 if p.import==1
     %loop of selecting compartments, giving names and calculations
         perccomp=zeros(1,p.amount);
-        for k=1:p.amount;
+        for k=1:p.amount
             %calculating amount of time the mouse (the head) was in a compartment in percent
             [y,x]=find(p.ROImask(:,:,k)>0);
             cood=[x,y];
@@ -49,7 +49,7 @@ else
             perccomp=zeros(1,amount);
             name=cell(1,amount);
             ROImask=zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2),amount);
-            for k=1:amount;
+            for k=1:amount
                 %selecting ROI
                 figure,image(v.imd(1).cdata);
                 str=sprintf('Please define compartment No. %d by clicking around the area!',k);

@@ -12,25 +12,25 @@ v.crop=1; %signals that video was cropped
 files=dir(v.pn);
 tfA=zeros(1,length(dir(v.pn)));
 tfP=zeros(1,length(dir(v.pn)));
-for k=1:length(dir(v.pn));
+for k=1:length(dir(v.pn))
     tfA(k)=strcmp('traceA.mat',files(k).name);
     tfP(k)=strcmp('traceP.mat',files(k).name);
 end
-if sum(tfA)>0;
+if sum(tfA)>0
     load([v.pn '\traceA']);
     v.traceA=traceA;
     v.traceAplot=traceAplot;
     v.colorA=colorA;
     v.Aspot=1;
 end
-if sum(tfP)>0;
+if sum(tfP)>0
     load([v.pn '\traceP']);
     v.traceP=traceP;
     v.tracePplot=tracePplot;
     v.colorP=colorP;
     v.Pspot=1;
 end
-if sum(tfA)>0&&sum(tfP)>0;
+if sum(tfA)>0&&sum(tfP)>0
     %plotting trace
     figure, image(v.imd(1).cdata); hold on;
     plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
@@ -39,10 +39,10 @@ end
 %loading behavior
 files=dir(v.pn);
 tfb=zeros(1,length(dir(v.pn)));
-for k=1:length(dir(v.pn));
+for k=1:length(dir(v.pn))
     tfb(k)=strcmp('Behavior.mat',files(k).name);
 end
-if sum(tfb)>0;
+if sum(tfb)>0
     %saving positions at ROIs
     load([v.pn '\Behavior']);
     v.amount=Amount;
@@ -57,15 +57,15 @@ if sum(tfb)>0;
     figure;
     str={};
     skeys={};
-    for j=1:v.amount;
+    for j=1:v.amount
         v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
         area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
-        str(end+1)={char(v.name{1,j})};
+        str(end+1)={char(v.name{1,j})}; %#ok<*AGROW>
         skeys(end+1)={char(v.shortkey{1,j})};
     end
     xlabel('Time in seconds');
     tlabel=get(gca,'XTickLabel');
-    for k=1:length(tlabel);
+    for k=1:length(tlabel)
         tlabel{k,1}=str2num(tlabel{k,1});
     end
     tlabel=cell2mat(tlabel);

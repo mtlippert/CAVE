@@ -20,7 +20,7 @@ end
 
 %putting each frame into variable 'Images'
 h=waitbar(0,'Loading');
-for k = 1:frames;
+for k = 1:frames
     % Read in image into an array.
     imdd = imread(fullFileName,k);
     if eightBit==false

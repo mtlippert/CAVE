@@ -20,7 +20,7 @@ end
 
 %putting each frame into variable 'images'
 h=waitbar(0,'Loading');
-for k = 1:length(Files);
+for k = 1:length(Files)
     baseFileName = Files(k).name;
     fullFileName = fullfile([pn '\' baseFileName]);
     imdd = imread(fullFileName);
