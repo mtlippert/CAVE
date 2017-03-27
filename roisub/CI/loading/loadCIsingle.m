@@ -12,10 +12,10 @@ Image = imread(fullFileName,1);
 if strcmpi(class(Image), 'uint8')
     % Flag for 256 gray levels.
     eightBit = true;
-    imd=uint8(zeros(Width,Height,frames)); %video preallocation
+    imd=uint8(zeros(Height,Width,frames)); %video preallocation
 else
     eightBit = false;
-    imd=uint16(zeros(Width,Height,frames)); %video preallocation
+    imd=uint16(zeros(Height,Width,frames)); %video preallocation
 end
 
 %putting each frame into variable 'images'
@@ -27,6 +27,8 @@ for k = 1:length(Files)
     if eightBit==false
         imddou=double(imdd);
         imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*65535);
+    else
+        imd(:,:,k)=imdd;
     end
     waitbar(k/length(Files),h);
 end

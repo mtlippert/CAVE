@@ -256,7 +256,7 @@ handles.slider15.Value=1;
 handles.slider6.Value=0;
 handles.slider16.Value=1;
 
-if d.play==1 || v.play==1
+if d.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
@@ -275,9 +275,20 @@ if v.pushed==1 && strcmp(v.pn,d.pn)==0
     %clears cache
     %clears all global variables
     clear global v;
+    %reinitializes global variables
+    global v %#ok<*TLEV,*REDEF>
+    v.pushed=0;
+    v.play=0;
+    v.pn=[];
+    v.amount=[];
+    v.shortkey=[];
+    v.name=[];
+    v.events=[];
+    v.skdefined=0;
+    v.behav=0;
+    v.smallestArea=25;
     %clears axes
     cla(handles.axes2,'reset');
-    return;
 end
 
 %extracts filename
@@ -324,21 +335,26 @@ if sum(tf)>0 %if a file is found
         case 'YES'
             %function for loading last processed version
             loadlastCI;
-            %plotting ROIs
-            singleFrame=d.imd(:,:,round(handles.slider7.Value));
-            axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-            B=bwboundaries(d.mask); %boundaries of ROIs
-            stat = regionprops(d.labeled,'Centroid'); %center of the ROIs
-            d.b=cell(length(B),1);
-            d.c=cell(length(B),1);
-            colors=repmat(d.colors,1,ceil(length(B)/8));
-            for j = 1 : length(B)
-                d.b{j,1} = B{j};
-                d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-                plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-                text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+            if sum(sum(d.mask))==0
+                %plotting ROIs
+                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+                B=bwboundaries(d.mask); %boundaries of ROIs
+                stat = regionprops(d.labeled,'Centroid'); %center of the ROIs
+                d.b=cell(length(B),1);
+                d.c=cell(length(B),1);
+                colors=repmat(d.colors,1,ceil(length(B)/8));
+                for j = 1 : length(B)
+                    d.b{j,1} = B{j};
+                    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
+                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
+                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+                end
+                hold off;
+            else
+                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
             end
-            hold off;
             %loading original calcium imaging video
             % Construct a questdlg with two options
             choice = questdlg('Would you also like to load the original calcium imaging video?', ...
@@ -351,8 +367,14 @@ if sum(tf)>0 %if a file is found
                         %function for loading TIFF stack
                         pn=d.pn;
                         fn=d.fn;
-                        [imd] = loadCIstack(pn,fn);
-                        d.origCI=imd;
+                        [imd,origCI,pre] = loadCIstack(pn,fn);
+                        if pre==0
+                            d.origCI=imd;
+                        else
+                            d.origCI=origCI;
+                            uiwait(msgbox('The file was too big to load the unprocessed clacium imaging video!'));
+                        end
+                        d.pre=pre;
                     else
                         %function for loading single TIFFs together
                         pn=d.pn;
@@ -402,7 +424,9 @@ if sum(tf)>0 %if a file is found
                 %function for loading TIFF stack
                 pn=d.pn;
                 fn=d.fn;
-                [imd] = loadCIstack(pn,fn);
+                [imd,origCI,pre] = loadCIstack(pn,fn);
+                d.origCI=origCI;
+                d.pre=pre;
                 d.imd=imd;
 
                 d.pushed=1; %signals that file was selected
@@ -412,7 +436,6 @@ if sum(tf)>0 %if a file is found
                 d.dF=0; %no dF/F performed
                 d.load=0; %no ROIs loaded
                 d.align=0; %no alignment
-                d.pre=0; %no preprocessing
                 d.mip=0; %no maximum intensity projection
                 d.origCI=[]; %no original CI video
 
@@ -467,7 +490,9 @@ elseif length(Files)==1
     %function for loading TIFF stack
     pn=d.pn;
     fn=d.fn;
-    [imd] = loadCIstack(pn,fn);
+    [imd,origCI,pre] = loadCIstack(pn,fn);
+    d.origCI=origCI;
+    d.pre=pre;
     d.imd=imd;
     
     d.pushed=1; %signals that file was selected
@@ -477,7 +502,6 @@ elseif length(Files)==1
     d.dF=0; %no dF/F performed
     d.load=0; %no ROIs loaded
     d.align=0; %no alignment
-    d.pre=0; %no preprocessing
     d.mip=0; %no maximum intensity projection
     d.origCI=[]; %no original CI video
     
@@ -534,6 +558,7 @@ set(handles.text27, 'String', titleLabel);
 handles.text27.TooltipString=d.pn;
 textLabel = sprintf('%d / %d', 1,size(d.imd,3));
 set(handles.text36, 'String', textLabel);
+handles.slider7.Max=size(d.imd,3);
 
 msgbox('Loading Completed.','Success');
 
@@ -1596,8 +1621,8 @@ amp=cell(1,size(d.ROIs,2));
 %initializing that only 8 subplots will be in one figure
 onesub=(1:8);
 anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
-check=(9:8:100);
-check2=(8:8:100);
+check=(9:8:200);
+check2=(8:8:200);
 
 figure('color','w');
 for j=1:size(d.ROIs,2)
@@ -1703,6 +1728,7 @@ choice = questdlg('Would you like to save these traces?', ...
 % Handle response
 switch choice
     case 'YES'
+        f=msgbox('Please wait...');
         files=dir(d.pn);
         tf=zeros(1,length(dir(d.pn)));
         for k=1:length(dir(d.pn))
@@ -1738,6 +1764,7 @@ switch choice
                 text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
             end %drawing ROIs
             hold off;
+            set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
             name=('ROImask');
             path=[d.pn '/traces/',name,'.png'];
             path=regexprep(path,'\','/');
@@ -1769,6 +1796,7 @@ switch choice
             filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
             save(filename, 'traces');
     
+            close(f);
             msgbox('Done!','Attention');
         else
             if v.behav==1
@@ -1859,6 +1887,7 @@ switch choice
                 filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
                 save(filename, 'traces');
 
+                close(f);
                 msgbox('Done!','Attention');
             end
         end
@@ -2720,11 +2749,13 @@ end
 %check whether converted video had been saved before
 filePattern = fullfile(v.pn, '*.mp4');
 Files = dir(filePattern);
-v.fn = Files(1).name;
+for j=1:length(Files)
+    v.fn{j} = Files(j).name;
+end
 files=dir(v.pn);
 tf=zeros(1,length(dir(v.pn)));
 for k=1:length(dir(v.pn))
-    tf(k)=strcmp([v.fn(1:end-4) '_converted.mat'],files(k).name);
+    tf(k)=strcmp([v.fn{1}(1:end-4) '_converted.mat'],files(k).name);
 end
 if sum(tf)>0
     % Construct a questdlg with two options
@@ -2748,8 +2779,10 @@ if sum(tf)>0
             end
         case 'NO'
             %function for loading behavioral video
-            dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn;
-            [sframe,imd,pushed] = loadBV(dframerate,dsize,pn,fn);
+            dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
+            [sframe,imd,pushed,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+            d.imd=dimd;
+            d.ROIv=dROIv;
             v.imd=imd;
             v.pushed=pushed;
             %looking at first original picture
@@ -2761,8 +2794,10 @@ if sum(tf)>0
     end
 else
     %function for loading behavioral video
-    dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn;
-    [sframe,imd,pushed] = loadBV(dframerate,dsize,pn,fn);
+    dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
+    [sframe,imd,pushed,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+    d.imd=dimd;
+    d.ROIv=dROIv;
     v.imd=imd;
     v.pushed=pushed;
     %looking at first original picture
@@ -2814,9 +2849,9 @@ axes(handles.axes2); image(v.imd(1).cdata);
 
 %saving cropped video
 h=msgbox('Saving progress... Program might seem unresponsive, please wait!');
-filename=[v.pn '\' v.fn(1:end-4) '_converted'];
+filename=[v.pn '\' v.fn{1}(1:end-4) '_converted.mat'];
 convVimd=v.imd;
-save(filename, 'convVimd');
+save(filename, 'convVimd','-v7.3');
 close(h);
 
 if d.help==1
@@ -3912,13 +3947,19 @@ if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.trac
             if v.Pspot==1
                 cood=find(v.traceP==0);
                 for k=1:length(cood)
-                    v.traceP(cood(k))=v.traceP(cood(k)-1);
+                    if k==1
+                        row=find(v.traceP>0,1,'first');
+                        v.traceP(cood(k),:)=v.traceP(row,:);
+                    else
+                        v.traceP(cood(k))=v.traceP(cood(k)-1);
+                    end
                 end
             end
             cood=find(v.traceA==0);
             for k=1:length(cood)
                 if k==1
-                    v.traceA(cood(k))=v.traceA(cood(k)+1);
+                    row=find(v.traceP>0,1,'first');
+                    v.traceA(cood(k),:)=v.traceA(row,:);
                 else
                     v.traceA(cood(k))=v.traceA(cood(k)-1);
                 end
@@ -4027,7 +4068,7 @@ if v.skdefined==0
 end
     
 
-if  v.pushed==1
+if  v.pushed>=1
     v.play=1;
     axes(handles.axes2);
     for k=round(handles.slider7.Value):size(v.imd,2)

@@ -4,7 +4,7 @@ global d
 
 %loading cropped and converted video
 h=msgbox('Loading... please wait!');
-load([v.pn '\' v.fn(1:end-4) '_converted']);
+load([v.pn '\' v.fn{1}(1:end-4) '_converted']);
 v.imd=convVimd;
 v.pushed=1; %signals video is loaded
 v.crop=1; %signals that video was cropped
@@ -73,5 +73,7 @@ if sum(tfb)>0
     set(gca,'XTickLabel',tlabel);
     legend(str);
     hold off;
+else
+    skeys={};
 end
 close(h);

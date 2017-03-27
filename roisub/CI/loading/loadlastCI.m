@@ -42,6 +42,10 @@ if sum(tf)>0 %if a file is found
     d.pushed=4; %signals that ROIs were selected
     d.roisdefined=1; %signals that ROIs were defined
     d.load=1; %signals that a ROI mask was loaded
+else
+    d.mask=zeros(size(d.imd,1),size(d.imd,2));
+    d.labeled = zeros(size(d.imd,1),size(d.imd,2));
+    d.ROIs=[];
 end
 %loading ROI values
 %check whether ROI values had been saved before
