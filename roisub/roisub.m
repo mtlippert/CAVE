@@ -335,7 +335,7 @@ if sum(tf)>0 %if a file is found
         case 'YES'
             %function for loading last processed version
             loadlastCI;
-            if sum(sum(d.mask))==0
+            if sum(sum(d.mask))~=0
                 %plotting ROIs
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
@@ -1720,6 +1720,92 @@ ticlabel=cell2mat(ticlabel);
 ticlabel=ticlabel./d.framerate;
 set(gca,'XTickLabel',ticlabel);
 
+%calculating statistics if behavior is avaiable
+if v.behav==1
+    names=fieldnames(v.barstart); %names of defined behaviors
+    for k=1:size(spikes,2),numspikes(1,k)=numel(spikes{1,k});end %total number of spikes per cell
+    for j=1:v.amount
+        %creating array with framenumbers where certain behavior was
+        %detected
+        behavior=[];
+        for k=1:length(v.barstart.(names{j,1}))
+            behavior=[behavior,v.barstart.(names{j,1})(k):v.barstart.(names{j,1})(k)+v.barwidth.(names{j,1})(k)];
+        end
+        behaviors.(names{j,1})=behavior';
+        %determining whether a spike was detected during a defined behavior
+        %in a logical manner
+        spklogic=cell(1,size(spikes,2));
+        for i=1:size(spikes,2)
+            for h=1:length(spikes{1,i})
+                spklogic{1,i}(h,1)=ismember(spikes{1,i}(h),behaviors.(names{j,1}));
+            end
+            spksum(1,i)=sum(spklogic{1,i});
+        end
+        spkbehav.(names{j,1}).real=spksum; %actual number os spikes per cell
+        spkbehav.(names{j,1}).total=sum(spkbehav.(names{j,1}).real); %total number of spikes for all cells
+        total(j,1)=spkbehav.(names{j,1}).total; %variable for later easy addition
+        text{j,1}=[names{j,1},' ']; %variable for later easy addition
+        spkbehav.(names{j,1}).percent=spkbehav.(names{j,1}).real./numspikes*100; %relative number of spikes in the behavior to outside
+        spkbehav.(names{j,1}).totalpercent=sum(spkbehav.(names{j,1}).real)/sum(numspikes)*100; %relative total number of spikes for all cells
+        percent(1,j)=spkbehav.(names{j,1}).totalpercent; %variable for later easy addition
+    end
+    spkbehav.total=sum(total); %total number of spikes within all behaviors
+    spkbehav.totalpercent=spkbehav.total/sum(numspikes)*100; %relative total number of spikes within all behaviors
+    %converting number of cells to logical array saying whether there was
+    %spikes or not
+    statlogic=zeros(1,size(spikes,2));
+    statlogical=zeros(v.amount,size(spikes,2));
+    for m=1:v.amount
+        statlogic(1,:)=spkbehav.(names{m,1}).real;
+        statlogic(statlogic>0)=1;
+        statlogical(m,:)=statlogic;
+        statcells.(names{m,1})=sum(statlogical(m,:));
+    end
+    sumstat=sum(statlogical,1); %all behaviors added up to determine whether some cells are not active during the defined behaviors,
+    %some are only active for one bahvior, or for multiple or all behaviors
+    statcells.conall=numel(find(sumstat==v.amount))/size(spikes,2)*100; %cells active druing all behaviors
+    statcells.single=numel(find(sumstat==1))/size(spikes,2)*100; %cells active for only one behavior
+    statcells.con=numel(find(sumstat>=2 & sumstat<v.amount))/size(spikes,2)*100; %cells active for more than one behavior but not all behaviors
+    statcells.null=numel(find(sumstat==0))/size(spikes,2)*100; %cells not active during any behavior
+    singlecells=zeros(1,v.amount);
+    %renaming of variable for cells active for only one behavior
+    for n=1:v.amount
+        statcells.(names{n,1})=(statcells.(names{n,1})-numel(find(sumstat==v.amount)))/size(spikes,2)*100;
+        singlecells(1,n)=statcells.(names{n,1});
+    end
+    %plotting pie charts
+    %overall spike distribution
+    percentValues=[percent 100-sum(percent)];
+    figure,h=pie(percentValues);
+    title('Spikes detected within defined behaviors');
+    hText = findobj(h,'Type','text'); % text object handles
+    percentText = get(hText,'String'); % percent values
+    txt=[text;'No behavior '];
+    combinedtxt = strcat(txt,percentText); % strings and percent values
+    for n=1:v.amount+1
+        hText(n).String = combinedtxt(n);
+    end
+    %cell distribution
+    percentValues=[singlecells statcells.con statcells.conall statcells.null];
+    logicalVal=percentValues; logicalVal(logicalVal>0)=1;
+    figure,h=pie(percentValues);
+    title('Percentage of cells within defined behaviors');
+    hText = findobj(h,'Type','text'); % text object handles
+    percentText = get(hText,'String'); % percent values
+    txt=[text;'conditional ';'all ';'none '];
+    c=0;
+    for l=1:length(txt)
+        if logicalVal(l)==1
+            c=c+1;
+            txtfinal(c,1)=txt(l);
+        end
+    end
+    combinedtxt = strcat(txtfinal,percentText); % strings and percent values
+    for n=1:length(txtfinal)
+        hText(n).String = combinedtxt(n);
+    end
+end
+
 %saving traces
 % Construct a questdlg with two options
 choice = questdlg('Would you like to save these traces?', ...
@@ -1815,6 +1901,22 @@ switch choice
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
+                %saving piecharts
+                name=('piechart_behav');
+                figurenum=sprintf('-f%d',hfnum+1);
+                path=[d.pn '/traces/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
+                name=('piechart_cells');
+                figurenum=sprintf('-f%d',hfnum+2);
+                path=[d.pn '/traces/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
+                %saving data
+                filename=[d.pn '\traces\spkbehavior_' ];
+                save(filename, 'spkbehav');
+                filename=[d.pn '\traces\cellstatistics_'];
+                save(filename, 'statcells');
                 msgbox('Done!','Attention');
             else
                 rmdir([d.pn '\traces'],'s');
