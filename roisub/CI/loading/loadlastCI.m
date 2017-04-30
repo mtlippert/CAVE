@@ -24,21 +24,6 @@ if sum(tf)>0 %if a file is found
     d.mask=ROImask; %mask with all the ROIs
     d.ROIorder=ROIorder; %order of the ROIs
     d.labeled=ROIlabels; %mask with correctly ordered labels
-    %calculating background
-    d.bg=cell(size(d.imd,3),1);
-    background=d.mask;
-    background(background==1)=2;
-    background(background==0)=1;
-    background(background==2)=0;
-    background = cast(background, class(d.imd(:,:,1)));
-    h=waitbar(0,'Labeling background');
-    for k = 1:size(d.imd,3)
-        % You can only multiply integers if they are of the same type.
-        d.background{k,1} = background .* d.imd(:,:,k);
-        d.bg{k,1}=d.background{k,1}(background==1);
-        waitbar(k/size(d.imd,3),h);
-    end
-    close(h);
     d.pushed=4; %signals that ROIs were selected
     d.roisdefined=1; %signals that ROIs were defined
     d.load=1; %signals that a ROI mask was loaded

@@ -1613,7 +1613,9 @@ mask=d.mask;
 ROIs=d.ROIs;
 [ROImeans] = ROIFvalues(a,b,imd,mask,ROIs);
 d.ROImeans=ROImeans;
+
 % plotting ROI values
+g=msgbox('Please wait...!');
 NoofSpikes=zeros(size(d.ROIs,2),1);
 spikes=cell(1,size(d.ROIs,2));
 ts=cell(1,size(d.ROIs,2));
@@ -1678,6 +1680,7 @@ Frequency=round(NoofSpikes./(size(d.imd,3)/d.framerate),2);
 %calculating highest amplitude change
 Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
 
+
 %plotting raster plot
 b=zeros(size(d.ROImeans,1),1);
 fig=figure;
@@ -1719,11 +1722,17 @@ end
 ticlabel=cell2mat(ticlabel);
 ticlabel=ticlabel./d.framerate;
 set(gca,'XTickLabel',ticlabel);
+try
+    close(g);
+catch
+end
 
 %calculating statistics if behavior is avaiable
 if v.behav==1
     names=fieldnames(v.barstart); %names of defined behaviors
-    for k=1:size(spikes,2),numspikes(1,k)=numel(spikes{1,k});end %total number of spikes per cell
+    spkfreq=[];
+    spkno=b;
+    spkbehavno=0;
     for j=1:v.amount
         %creating array with framenumbers where certain behavior was
         %detected
@@ -1732,79 +1741,108 @@ if v.behav==1
             behavior=[behavior,v.barstart.(names{j,1})(k):v.barstart.(names{j,1})(k)+v.barwidth.(names{j,1})(k)];
         end
         behaviors.(names{j,1})=behavior';
-        %determining whether a spike was detected during a defined behavior
-        %in a logical manner
-        spklogic=cell(1,size(spikes,2));
-        for i=1:size(spikes,2)
-            for h=1:length(spikes{1,i})
-                spklogic{1,i}(h,1)=ismember(spikes{1,i}(h),behaviors.(names{j,1}));
-            end
-            spksum(1,i)=sum(spklogic{1,i});
-        end
-        spkbehav.(names{j,1}).real=spksum; %actual number os spikes per cell
-        spkbehav.(names{j,1}).total=sum(spkbehav.(names{j,1}).real); %total number of spikes for all cells
-        total(j,1)=spkbehav.(names{j,1}).total; %variable for later easy addition
-        text{j,1}=[names{j,1},' ']; %variable for later easy addition
-        spkbehav.(names{j,1}).percent=spkbehav.(names{j,1}).real./numspikes*100; %relative number of spikes in the behavior to outside
-        spkbehav.(names{j,1}).totalpercent=sum(spkbehav.(names{j,1}).real)/sum(numspikes)*100; %relative total number of spikes for all cells
-        percent(1,j)=spkbehav.(names{j,1}).totalpercent; %variable for later easy addition
+        spkbehav=b(behaviors.(names{j,1}),1);
+        spkbehavno=spkbehavno+length(spkbehav);
+        spkno(behaviors.(names{j,1}),1)=0;
+        spkbsum=sum(spkbehav);
+        spkfreq.(names{j,1})=spkbsum/(length(spkbehav)/d.framerate);
     end
-    spkbehav.total=sum(total); %total number of spikes within all behaviors
-    spkbehav.totalpercent=spkbehav.total/sum(numspikes)*100; %relative total number of spikes within all behaviors
-    %converting number of cells to logical array saying whether there was
-    %spikes or not
-    statlogic=zeros(1,size(spikes,2));
-    statlogical=zeros(v.amount,size(spikes,2));
-    for m=1:v.amount
-        statlogic(1,:)=spkbehav.(names{m,1}).real;
-        statlogic(statlogic>0)=1;
-        statlogical(m,:)=statlogic;
-        statcells.(names{m,1})=sum(statlogical(m,:));
-    end
-    sumstat=sum(statlogical,1); %all behaviors added up to determine whether some cells are not active during the defined behaviors,
-    %some are only active for one bahvior, or for multiple or all behaviors
-    statcells.conall=numel(find(sumstat==v.amount))/size(spikes,2)*100; %cells active druing all behaviors
-    statcells.single=numel(find(sumstat==1))/size(spikes,2)*100; %cells active for only one behavior
-    statcells.con=numel(find(sumstat>=2 & sumstat<v.amount))/size(spikes,2)*100; %cells active for more than one behavior but not all behaviors
-    statcells.null=numel(find(sumstat==0))/size(spikes,2)*100; %cells not active during any behavior
-    singlecells=zeros(1,v.amount);
-    %renaming of variable for cells active for only one behavior
-    for n=1:v.amount
-        statcells.(names{n,1})=(statcells.(names{n,1})-numel(find(sumstat==v.amount)))/size(spikes,2)*100;
-        singlecells(1,n)=statcells.(names{n,1});
-    end
-    %plotting pie charts
-    %overall spike distribution
-    percentValues=[percent 100-sum(percent)];
-    figure,h=pie(percentValues);
-    title('Spikes detected within defined behaviors');
-    hText = findobj(h,'Type','text'); % text object handles
-    percentText = get(hText,'String'); % percent values
-    txt=[text;'No behavior '];
-    combinedtxt = strcat(txt,percentText); % strings and percent values
-    for n=1:v.amount+1
-        hText(n).String = combinedtxt(n);
-    end
-    %cell distribution
-    percentValues=[singlecells statcells.con statcells.conall statcells.null];
-    logicalVal=percentValues; logicalVal(logicalVal>0)=1;
-    figure,h=pie(percentValues);
-    title('Percentage of cells within defined behaviors');
-    hText = findobj(h,'Type','text'); % text object handles
-    percentText = get(hText,'String'); % percent values
-    txt=[text;'conditional ';'all ';'none '];
-    c=0;
-    for l=1:length(txt)
-        if logicalVal(l)==1
-            c=c+1;
-            txtfinal(c,1)=txt(l);
-        end
-    end
-    combinedtxt = strcat(txtfinal,percentText); % strings and percent values
-    for n=1:length(txtfinal)
-        hText(n).String = combinedtxt(n);
-    end
+    spkfreq.nobehavior=sum(spkno)/(spkbehavno/d.framerate);
 end
+% if v.behav==1
+%     names=fieldnames(v.barstart); %names of defined behaviors
+%     for k=1:size(spikes,2),numspikes(1,k)=numel(spikes{1,k});end %total number of spikes per cell
+%     for j=1:v.amount
+%         %creating array with framenumbers where certain behavior was
+%         %detected
+%         behavior=[];
+%         for k=1:length(v.barstart.(names{j,1}))
+%             behavior=[behavior,v.barstart.(names{j,1})(k):v.barstart.(names{j,1})(k)+v.barwidth.(names{j,1})(k)];
+%         end
+%         behaviors.(names{j,1})=behavior';
+%         %determining whether a spike was detected during a defined behavior
+%         %in a logical manner
+%         spklogic=cell(1,size(spikes,2));
+%         for i=1:size(spikes,2)
+%             for h=1:length(spikes{1,i})
+%                 spklogic{1,i}(h,1)=ismember(spikes{1,i}(h),behaviors.(names{j,1}));
+%             end
+%             spksum(1,i)=sum(spklogic{1,i});
+%         end
+%         spkbehav.(names{j,1}).real=spksum; %actual number os spikes per cell
+%         spkbehav.(names{j,1}).total=sum(spkbehav.(names{j,1}).real); %total number of spikes for all cells
+%         total(j,1)=spkbehav.(names{j,1}).total; %variable for later easy addition
+%         texting{j,1}=[names{j,1},' ']; %variable for later easy addition
+%         spkbehav.(names{j,1}).percent=spkbehav.(names{j,1}).real./numspikes*100; %relative number of spikes in the behavior to outside
+%         spkbehav.(names{j,1}).totalpercent=sum(spkbehav.(names{j,1}).real)/sum(numspikes)*100; %relative total number of spikes for all cells
+%         percent(1,j)=spkbehav.(names{j,1}).totalpercent; %variable for later easy addition
+%     end
+%     spkbehav.total=sum(total); %total number of spikes within all behaviors
+%     spkbehav.totalpercent=spkbehav.total/sum(numspikes)*100; %relative total number of spikes within all behaviors
+%     %converting number of cells to logical array saying whether there was
+%     %spikes or not
+%     statlogic=zeros(1,size(spikes,2));
+%     statlogical=zeros(v.amount,size(spikes,2));
+%     for m=1:v.amount
+%         statlogic(1,:)=spkbehav.(names{m,1}).real;
+%         statlogic(statlogic>0)=1;
+%         statlogical(m,:)=statlogic;
+%         statcells.(names{m,1})=sum(statlogical(m,:));
+%     end
+%     sumstat=sum(statlogical,1); %all behaviors added up to determine whether some cells are not active during the defined behaviors,
+%     %some are only active for one bahvior, or for multiple or all behaviors
+%     statcells.conall=numel(find(sumstat==v.amount))/size(spikes,2)*100; %cells active druing all behaviors
+%     statcells.single=numel(find(sumstat==1))/size(spikes,2)*100; %cells active for only one behavior
+%     statcells.con=numel(find(sumstat>=2 & sumstat<v.amount))/size(spikes,2)*100; %cells active for more than one behavior but not all behaviors
+%     statcells.null=numel(find(sumstat==0))/size(spikes,2)*100; %cells not active during any behavior
+%     singlecells=zeros(1,v.amount);
+%     %renaming of variable for cells active for only one behavior
+%     for n=1:v.amount
+%         statcells.(names{n,1})=(statcells.(names{n,1})-numel(find(sumstat==v.amount)))/size(spikes,2)*100;
+%         singlecells(1,n)=statcells.(names{n,1});
+%     end
+%     %plotting pie charts
+%     %overall spike distribution
+%     percentValues=[percent 100-sum(percent)];
+%     figure,h=pie(percentValues);
+%     title('Spikes detected within defined behaviors');
+%     hText = findobj(h,'Type','text'); % text object handles
+%     percentText = get(hText,'String'); % percent values
+%     txt=[texting;'No behavior '];
+%     %deleting text, which percentage is 0
+%     c=0;
+%     rtxt=[];
+%     for k=1:length(percentValues)
+%         if percentValues(1,k)>0
+%             c=c+1;
+%             rtxt{c,1}=txt{k,1};
+%         end
+%     end
+%     txt=rtxt;
+%     combinedtxt = strcat(txt,percentText); % strings and percent values
+%     for n=1:length(combinedtxt)
+%         hText(n).String = combinedtxt(n);
+%     end
+%     %cell distribution
+%     percentValues=[singlecells statcells.con statcells.conall statcells.null];
+%     logicalVal=percentValues; logicalVal(logicalVal>0)=1;
+%     figure,h=pie(percentValues);
+%     title('Percentage of cells within defined behaviors');
+%     hText = findobj(h,'Type','text'); % text object handles
+%     percentText = get(hText,'String'); % percent values
+%     txt=[texting;'conditional ';'all ';'none '];
+%     c=0;
+%     for l=1:length(txt)
+%         if logicalVal(l)==1
+%             c=c+1;
+%             txtfinal(c,1)=txt(l);
+%         end
+%     end
+%     combinedtxt = strcat(txtfinal,percentText); % strings and percent values
+%     for n=1:length(txtfinal)
+%         hText(n).String = combinedtxt(n);
+%     end
+% end
 
 %saving traces
 % Construct a questdlg with two options
@@ -1857,6 +1895,26 @@ switch choice
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
             
+            %saving raw ROI values over time
+            h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))*0.9]),colorbar;
+            title('Raw fluorescence traces');
+            xlabel('Time in seconds');
+            ylabel('Cell number');
+            xlim([0 round(size(d.imd,3))]);
+            ticlabel=get(gca,'XTickLabel');
+            for k=1:length(ticlabel)
+                ticlabel{k,1}=str2num(ticlabel{k,1});
+            end
+            ticlabel=cell2mat(ticlabel);
+            ticlabel=ticlabel./d.framerate;
+            set(gca,'XTickLabel',ticlabel);
+            set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+            name=('RawFluo');
+            path=[d.pn '/traces/',name,'.png'];
+            path=regexprep(path,'\','/');
+            print(h,'-dpng','-r200',path); %-depsc for vector graphic
+            close(h);
+
             %saving table
             filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
             ROInumber=cell(size(d.ROImeans,2),1);
@@ -1882,7 +1940,10 @@ switch choice
             filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
             save(filename, 'traces');
     
-            close(f);
+            try
+                close(f);
+            catch
+            end
             msgbox('Done!','Attention');
         else
             if v.behav==1
@@ -1901,22 +1962,58 @@ switch choice
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
-                %saving piecharts
-                name=('piechart_behav');
-                figurenum=sprintf('-f%d',hfnum+1);
+                %saving table
+                filename=[d.pn '\traces\freqbehav_' d.fn(1:end-4) '.xls'];
+                T=struct2table(spkfreq);
+                writetable(T,filename);
+%                 %saving piecharts
+%                 name=('piechart_behav');
+%                 figurenum=sprintf('-f%d',hfnum+1);
+%                 path=[d.pn '/traces/',name,'.png'];
+%                 path=regexprep(path,'\','/');
+%                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
+%                 name=('piechart_cells');
+%                 figurenum=sprintf('-f%d',hfnum+2);
+%                 path=[d.pn '/traces/',name,'.png'];
+%                 path=regexprep(path,'\','/');
+%                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
+
+                %saving mean values of ROIs over time with behavior
+                mVal=mean(d.ROImeans,2);
+                h=figure;
+                for l=1:v.amount
+                    for m=1:length(v.barstart.(char(v.name{1,l})))
+                    rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),round(min(mVal),1),v.barwidth.(char(v.name{1,l}))(m),abs(round(min(mVal),1))+round(max(mVal),1)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                    end
+                end
+                plot(1:length(mVal),mVal,'k');
+                title('Mean fluorescence trace with behavior');
+                xlabel('Time in seconds');
+                ylabel('Brightness in %');
+                xlim([0 round(size(d.imd,3))]);
+                ticlabel=get(gca,'XTickLabel');
+                for k=1:length(ticlabel)
+                    ticlabel{k,1}=str2num(ticlabel{k,1});
+                end
+                ticlabel=cell2mat(ticlabel);
+                ticlabel=ticlabel./d.framerate;
+                set(gca,'XTickLabel',ticlabel);
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                name=('meanFluobehav');
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
-                print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
-                name=('piechart_cells');
-                figurenum=sprintf('-f%d',hfnum+2);
-                path=[d.pn '/traces/',name,'.png'];
-                path=regexprep(path,'\','/');
-                print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
+                print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                close(h);
+                
                 %saving data
                 filename=[d.pn '\traces\spkbehavior_' ];
                 save(filename, 'spkbehav');
-                filename=[d.pn '\traces\cellstatistics_'];
-                save(filename, 'statcells');
+%                 filename=[d.pn '\traces\cellstatistics_'];
+%                 save(filename, 'statcells');
+                try
+                    close(f);
+                catch
+                end
                 msgbox('Done!','Attention');
             else
                 rmdir([d.pn '\traces'],'s');
@@ -1963,7 +2060,27 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(h,'-dpng',path); %-depsc for vector graphic
                 close(h);
-            
+                
+                %saving raw ROI values over time
+                h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))*0.9]),colorbar;
+                title('Raw fluorescence traces');
+                xlabel('Time in seconds');
+                ylabel('Cell number');
+                xlim([0 round(size(d.imd,3))]);
+                ticlabel=get(gca,'XTickLabel');
+                for k=1:length(ticlabel)
+                    ticlabel{k,1}=str2num(ticlabel{k,1});
+                end
+                ticlabel=cell2mat(ticlabel);
+                ticlabel=ticlabel./d.framerate;
+                set(gca,'XTickLabel',ticlabel);
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                name=('RawFluo');
+                path=[d.pn '/traces/',name,'.png'];
+                path=regexprep(path,'\','/');
+                print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                close(h);
+
                 %saving table
                 filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
                 ROInumber=cell(size(d.ROImeans,2),1);
@@ -1989,7 +2106,10 @@ switch choice
                 filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
                 save(filename, 'traces');
 
-                close(f);
+                try
+                    close(f);
+                catch
+                end
                 msgbox('Done!','Attention');
             end
         end
