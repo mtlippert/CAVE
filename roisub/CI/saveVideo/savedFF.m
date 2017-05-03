@@ -1,5 +1,15 @@
 function [] = savedFF(pn,fn,framerate,imd)
 
+%FUNCTION saves the delta F/F processed video as an AVI file.
+
+%INPUT      pn: pathname
+%           fn: filename
+%           framerate: framerate of the original calcium imaging video
+%           imd: delta F/F processed calcium imaging video with the
+%           dimensions pixel width, pixel height, number of frames.
+
+%no OUTPUT, since video is saved within this function.
+
 h=waitbar(0,'Saving calcium imaging video');
 filename=[pn '\' fn(1:end-4) 'dF'];
 vid = VideoWriter(filename,'Grayscale AVI');

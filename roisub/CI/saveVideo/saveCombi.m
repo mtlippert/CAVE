@@ -1,5 +1,21 @@
 function [] = saveCombi(handles,imd,mask,fn,pn,origCI,framerate)
 
+%FUNCTION saves the original video with your contrast settings and overlays
+%cell activity from your defined ROIs in red. The video is saved as AVI.
+
+%INPUT      handles: values of different sliders of the GUI
+%           imd: delta F/F processed calcium imaging video with the
+%           dimensions pixel width, pixel height, number of frames.
+%           mask: ROI mask containing which pixels belong to ROIs and which
+%           do not.
+%           pn: pathname
+%           fn: filename
+%           origCI: original calcium imaging video, unprocessed but with
+%           your contrast settings.
+%           framerate: framerate of the original calcium imaging video
+
+%no OUTPUT, since video is saved within this function.
+
 %converting original CI video to double precision and to values between 1 and 0
 h=waitbar(0,'Saving calcium imaging video');
 origCIscaled=double(origCI)./double(max(max(max(origCI))));
@@ -24,14 +40,14 @@ vid = VideoWriter(filename,'Uncompressed AVI');
 vid.FrameRate=framerate;
 open(vid);
 for k=1:nframes
-    singleFrame=imadjust(origCIscaled(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-    figure(100),imshow(singleFrame);
-    red = cat(3, ones(size(origCIscaled(:,:,1))), zeros(size(origCIscaled(:,:,1))), zeros(size(origCIscaled(:,:,1))));
+    singleFrame=imadjust(origCIscaled(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]); %frame of the original calcium imaging video, contrast adjusted
+    figure(100),imshow(singleFrame); %showing the frame always in the same figure, in this case figure number 100
+    red = cat(3, ones(size(origCIscaled(:,:,1))), zeros(size(origCIscaled(:,:,1))), zeros(size(origCIscaled(:,:,1)))); %red picture with same dimensions as calcium imaging video
     hold on 
     hh = imshow(red); 
     hold off
-    set(hh, 'AlphaData', imdscaled(:,:,k));
-    f=getframe(gcf);
+    set(hh, 'AlphaData', imdscaled(:,:,k)); %show only ROI areas in red
+    f=getframe(gcf); %whole frame of original video and overlay
     newframe=f.cdata;
     writeVideo(vid,newframe);
     waitbar(k/nframes,h);

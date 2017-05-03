@@ -1,5 +1,24 @@
 function [ROImeans] = ROIFvalues(a,b,imd,mask,ROIs)
 
+%FUNCTION for calculating fluorescence signal of the defined ROIs. The
+%fluorescence is calculated as the mean value of a ROI substracted by the
+%mean value of the background. The background consists of all pixels that
+%are not contained in the ROI mask. The result is then multiplicated by 100
+%to convert the values to percent. Finally, the result is filtered with a
+%high-band pass filter (butterworth).
+
+%INPUT      a: value for butterworth filtering
+%           b: value for butterworth filtering
+%           imd: clacium imaging video as 8bit/16-bit with dimensions pixel
+%           width, pixel height, number of frames.
+%           mask: ROI mask containing borders of all ROIs and defining
+%           which pixels are in the mask and which are not.
+%           ROIs: raw pixel values within the defined ROIs
+
+%OUTPUT     ROImeans: resulting values for ROIs after background
+%           substraction, conversion to percentage, and butterworth
+%           filtering, conveying real fluorescence signal
+
 %background
 bg=cell(size(imd,3),1);
 background=mask;

@@ -1,5 +1,20 @@
 function [imddFF] = deltaFF(imd,pn,fn,align)
 
+%FUNCTION for applying the delta F/F calculation. The change in fluorescence
+%over time is calculated by subtracting the mean frame of the whole video from
+%every single frame and dividing the result by the mean frame. Additionally
+%a gaussian blur is added for smoothing.
+
+%INPUT      imd: calcium imaging video as 8-bit/16-bit with the dimensions
+%           pixel widht, pixel height, number of frames
+%           pn: pathname
+%           fn: filename
+%           align: signals whether alignment was done (value = 1) or not
+%           (value = 0)
+
+%OUTPUT     imddFF: resulting video from delta F/F calculation showing the
+%           change in fluorescence over time.
+
 %deltaF/F
 h=msgbox('Calculating deltaF/F... please wait!');
 Fmean=mean(imd(:,:,1:100:end),3); %mean frame of whole video

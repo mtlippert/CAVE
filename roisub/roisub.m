@@ -310,6 +310,7 @@ Height=x(1).Height;
 try
    d.framerate=csvread([d.pn '\Framerate.txt']);
 catch ME
+   %if there is no framerate text file open dialog box to ask for framerate
    if (strcmp(ME.identifier,'MATLAB:csvread:FileNotFound'))
         prompt = {'Enter framerate:'};
         dlg_title = 'Framerate';
@@ -335,7 +336,7 @@ if sum(tf)>0 %if a file is found
         case 'YES'
             %function for loading last processed version
             loadlastCI;
-            if sum(sum(d.mask))~=0
+            if sum(sum(d.mask))~=0 %if a ROI mask was loaded, plot the ROIs
                 %plotting ROIs
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
@@ -343,7 +344,7 @@ if sum(tf)>0 %if a file is found
                 stat = regionprops(d.labeled,'Centroid'); %center of the ROIs
                 d.b=cell(length(B),1);
                 d.c=cell(length(B),1);
-                colors=repmat(d.colors,1,ceil(length(B)/8));
+                colors=repmat(d.colors,1,ceil(length(B)/8)); %repeat color scheme as many times as there are ROIs
                 for j = 1 : length(B)
                     d.b{j,1} = B{j};
                     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
@@ -372,7 +373,7 @@ if sum(tf)>0 %if a file is found
                             d.origCI=imd;
                         else
                             d.origCI=origCI;
-                            uiwait(msgbox('The file was too big to load the unprocessed clacium imaging video!'));
+                            uiwait(msgbox('The file was too big to load the unprocessed clacium imaging video! The file is now already downsampled!'));
                         end
                         d.pre=pre;
                     else
@@ -506,7 +507,12 @@ elseif length(Files)==1
     d.origCI=[]; %no original CI video
     
     %looking at first original picture
-    axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+    if size(d.imd,3)>=4500
+        singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+    end
     % Construct a questdlg with two options
     choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
         'Attention', ...
@@ -550,7 +556,7 @@ else
             d.help=0;
     end
 end
-p.pn=d.pn;
+p.pn=d.pn; %saving current file directory so it can be displayed next time you want to select a folder
 
 titleLabel = ['Calcium imaging video: ' d.fn]; %filename as title
 set(handles.text27, 'String', titleLabel);
@@ -908,7 +914,8 @@ if handles.radiobutton1.Value==1
 else
     %function for using LucasKanade algorithm
     imd=d.imd;
-    [imdC] = lucasKanade(ROI,imd);
+    [imdC,Bvector] = lucasKanade(ROI,imd);
+    d.Bvector=Bvector;
     d.imd=imdC;
     %showing resulting frame
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
@@ -931,7 +938,7 @@ if isempty(d.alignCI)==1
 end
 d.imd=d.alignCI;
 d.align=0; %signals that image alignment was reset
-d.dF=0;
+d.dF=0; %deltaF/F claculation is reset as well
 %showing resulting frame
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
@@ -953,6 +960,13 @@ end
 if d.dF==1
     msgbox('You already did delta F/F calculation!','ATTENTION');
     return;
+end
+
+%it is assumed that if you do delta F/F calculation you accepted the
+%alignment, if any was done, thus adjustment of the size of the original CI
+%video
+if d.align==1
+    d.origCI=d.origCI(round(abs(d.Bvector(1,1))):round(size(d.origCI,1)-abs(d.Bvector(1,1))),round(abs(d.Bvector(2,1))):round(size(d.origCI,2)-abs(d.Bvector(2,1))),:);  %cut middle of image
 end
 
 %function for calculating deltaF/F
@@ -1018,7 +1032,7 @@ d.ROIv=0; %resetting ROIvalues loaded, since you are changing the ROI mask now
 
 %display instructions only if the button was pressed for the first time or
 %a mistake was made and you want the help
-if d.bcount==0 || d.valid==1 || d.help==1
+if (d.bcount==0 || d.valid==1) && d.help==1
     d.valid=0;
     uiwait(msgbox('Please define the region of interest (ROI) by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
@@ -1160,13 +1174,14 @@ if d.load==1 %if a ROI mask was loaded
                 end
                 return;
             case 'NO'
+                %resetting ROI mask to the one before
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
+                d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1)); %substracting current ROI such that old ROI labels are the result
                 d.labeled(d.labeled<0)=0;
                 d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
                 stat = regionprops(d.labeled,'Centroid');
@@ -1174,10 +1189,10 @@ if d.load==1 %if a ROI mask was loaded
                     d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                end
+                end %drawing ROIs
                 hold off;
                 msgbox('Please do not superimpose ROIs!','ERROR');
-                d.mask = d.mask-ROI;
+                d.mask = d.mask-ROI; %substracting current ROI such that old ROI mask is the result
                 return;
         end
     else
@@ -1208,7 +1223,7 @@ if d.load==1 %if a ROI mask was loaded
             d.c{k,1} = stat(d.ROIorder(k)).Centroid;
             plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
             text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-        end
+        end %drwaing ROIs
         hold off;
         msgbox('Please do not let ROIs touch!','ERROR');
         return;
@@ -1222,7 +1237,7 @@ if d.load==1 %if a ROI mask was loaded
         d.c{j,1} = stat(d.ROIorder(j)).Centroid;
         plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
         text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end
+    end %drawing ROIs
     hold off;
     d.pushed=4; %signals that ROIs were selected
     d.roisdefined=1; %signals that ROIs were defined
@@ -1235,7 +1250,7 @@ if d.load==1 %if a ROI mask was loaded
     save(filename, 'ROImask','ROIorder','ROIlabels');
 else
     d.labeled = d.labeled+ROI*(max(max(d.labeled))+1); %labeling of ROIs
-    d.mask = d.mask+ROI;
+    d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
     if numel(find(d.mask>1))>0
         choice = questdlg('Would you like to remove this ROI?', ...
@@ -1244,8 +1259,8 @@ else
         % Handle response
         switch choice
             case 'YES'
-                d.mask=d.mask-(2*ROI);
-                d.mask(d.mask<0)=0;
+                d.mask=d.mask-(2*ROI);%removing 2*ROI since overlaps = 2
+                d.mask(d.mask<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
                 d.labeled=bwlabel(d.mask);
                 %plotting ROIs
                 singleFrame=d.mip;
@@ -1271,7 +1286,7 @@ else
                         d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                         plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
                         text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                    end
+                    end %drawing ROIs
                     hold off;
                     msgbox('Please do not let ROIs touch!','ERROR');
                     return;
@@ -1285,7 +1300,7 @@ else
                     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
                     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
                     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-                end
+                end %drawing ROIs
                 hold off;
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
@@ -1322,7 +1337,7 @@ else
                     d.c{k,1} = stat(d.ROIorder(k)).Centroid;
                     plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
                     text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                end
+                end %drawing ROIs
                 hold off;
                 msgbox('Please do not superimpose ROIs!','ERROR');
                 return;
@@ -1356,7 +1371,7 @@ else
             d.c{k,1} = stat(d.ROIorder(k)).Centroid;
             plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
             text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-        end
+        end %drawing ROIs
         hold off;
         msgbox('Please do not let ROIs touch!','ERROR');
         return;
@@ -1370,7 +1385,7 @@ else
         d.c{j,1} = stat(d.ROIorder(j)).Centroid;
         plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
         text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end
+    end %drawing ROIs
     hold off;
     d.pushed=4; %signals that ROIs were selected
     d.roisdefined=1; %signals that ROIs were defined
@@ -1403,6 +1418,7 @@ end
 %resets all varibles needed for selecting ROIs
 d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
+%re-initialization of variables for ROI calculations
 d.ROIs=[];
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.labeled = zeros(size(d.imd,1),size(d.imd,2));
@@ -1426,13 +1442,14 @@ msgbox('ROIs cleared!','Success');
 
 
 % --- Executes on button press in pushbutton27.          LOAD EXISTING ROIs
-function pushbutton27_Callback(hObject, eventdata, handles)
+function pushbutton27_Callback(~, eventdata, handles)
 % hObject    handle to pushbutton27 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 global d
 %resets all varibles needed for selecting ROIs
 d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
+%re-initialization of variables for ROI calculations
 d.ROIs=[];
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.labeled = zeros(size(d.imd,1),size(d.imd,2));
@@ -1453,9 +1470,10 @@ end
 
 uiwait(msgbox('Select a "filename"ROIs.mat file!'));
 
+%extracts filename
 filepath=[d.pn '\'];
 [fn,pn,~]=uigetfile([filepath '*.mat']);
-%extracts filename
+%load the saved ROI mask, and order of labels
 load([pn fn]);
 d.mask=ROImask;
 d.ROIorder=ROIorder;
@@ -1478,11 +1496,11 @@ for j = 1 : length(B)
     d.c{j,1} = stat(d.ROIorder(j)).Centroid;
     plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
     text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-end
+end %drawing ROIs
 hold off;
 d.pushed=4; %signals that ROIs were selected
 d.roisdefined=1; %signals that ROIs were defined
-d.load=1;
+d.load=1; %signals that ROIs were manually loaded
 msgbox('Loading complete!');
 
 
@@ -1536,7 +1554,141 @@ function pushbutton34_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton34 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+global d
 
+h=msgbox('Please wait...');
+%reshaping to two dimensional array: pixel x time
+F=d.imd;
+F1=reshape(F,size(F,1)*size(F,2),size(F,3));
+
+%PCA
+F2=pca(F1');
+%visualizing result from PCA
+F2r=reshape(F2,size(F,1),size(F,2),size(F,3)-1); %reshaping into pictures over time: width x heigth x time
+try
+    close(h);
+catch
+end
+
+%ICA
+%selecting only first 150 dimensions
+prompt = {'Enter approximate number of desired cells:'};
+dlg_title = 'Cell number';
+num_lines = 1;
+answer = inputdlg(prompt,dlg_title,num_lines);
+dim=str2num(cell2mat(answer));
+h=msgbox('Please wait...');
+F2s=F2(:,1:dim);
+[Zica, W, T, mu] = fastICA(F2s',dim); %alternative: [Zica, W, T, mu] = kICA(F2s,150);
+ICAmatrix=reshape(Zica',size(F,1),size(F,2),dim);
+try
+    close(h);
+catch
+end
+%extracting ROIs
+ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
+ROIsbw=zeros(size(F,1),size(F,2),dim);
+smallestAcceptableArea=30;
+
+singleFrame=d.mip;
+if d.dF==1 || d.pre==1
+    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+else
+    axes(handles.axes1); imshow(singleFrame); hold on;
+end
+
+for k=1:size(ICAmatrixfilt,3)
+    %converting to numbers between 0 and 1
+    ROIs=ICAmatrixfilt(:,:,k)+abs(min(min(ICAmatrixfilt(:,:,k))));
+    ROIs=ROIs./max(max(ROIs));
+    ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+    ROIsbw(:,:,k)=bwlabel(ROIsBW);
+    if sum(sum(ROIsBW))>1000
+        ROIs=imcomplement(ROIs);
+        ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+        ROIsbw(:,:,k)=bwlabel(ROIsBW);
+        B = bwboundaries(ROIsbw(:,:,k));
+        if sum(sum(ROIsBW))>1000 || length(B)>1
+            ROIsbw(:,:,k)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
+        end
+    end   
+end
+
+%deleting non-round objects
+for j=1:size(ROIsbw,3)
+    stats = regionprops(ROIsbw(:,:,j),'Area','Centroid');
+    B = bwboundaries(ROIsbw(:,:,j),'noholes');
+    threshold = 0.5;
+    if isempty(B)==0
+        % obtain (X,Y) boundary coordinates
+        boundary = B{1,1};
+        % compute a simple estimate of the object's perimeter
+        delta_sq = diff(boundary).^2;
+        perimeter = sum(sqrt(sum(delta_sq,2)));
+        % obtain the area calculation corresponding to label 'k'
+        area = stats(1).Area;
+        % compute the roundness metric
+        metric= 4*pi*area/perimeter^2;
+        if metric<threshold;
+            ROIsbw(:,:,j)=zeros(size(F,1),size(F,2),1);
+        end
+    end
+end
+
+%deleting the double assignments
+for m=1:size(ROIsbw,3)
+    sumM=sum(sum(ROIsbw(:,:,m)));
+    for n=1:size(ROIsbw,3)
+        if m~=n
+            sumN=sum(sum(ROIsbw(:,:,n)));
+            ROIboth=ROIsbw(:,:,m)+ROIsbw(:,:,n);
+            overlay=numel(find(ROIboth==2));
+            if overlay>0
+                percMover=overlay/sumM*100;
+                percNover=overlay/sumN*100;
+                if percMover>=70 || percNover>=70 %if overlap of ROIs is greater than 70% it is interpreted as one ROI
+                    ROIboth(ROIboth>1)=1;
+                    ROIsbw(:,:,m)=ROIboth;
+                    ROIsbw(:,:,n)=zeros(size(F,1),size(F,2),1);
+                end
+            end
+        end
+    end
+end
+
+%determining indices where there are ROIs
+c=0;
+for j=1:size(ROIsbw,3)
+    if sum(sum(ROIsbw(:,:,j)))>0
+        c=c+1;
+        ROIindices(c,1)=j;
+    end
+end
+ROIsbw=ROIsbw(:,:,ROIindices);
+
+%plotting ROIs
+d.B=[];
+for k=1:size(ROIsbw,3)
+    if sum(sum(ROIsbw(:,:,k)))>0
+        d.B(k,1)=bwboundaries(ROIsbw(:,:,k)); %boundaries of ROIs
+        stat = regionprops(ROIsbw(:,:,k),'Centroid');
+        d.centroid(k,:)=stat.Centroid;
+        colors=repmat(d.colors,1,ceil(dim/8));
+        %drawing ROIs
+        plot(d.B{k,1}(:,2),d.B{k,1}(:,1),'linewidth',2,'Color',colors{1,k});
+        text(d.centroid(k,1),d.centroid(k,2),num2str(k));
+    end
+end
+hold off;
+d.pushed=4; %signals that ROIs were selected
+d.roisdefined=1; %signals that ROIs were defined
+d.auto=1; %signlas that automated ROI detection was used
+% %saving ROI mask
+% filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+% ROImask=d.mask;
+% ROIorder=d.ROIorder;
+% ROIlabels=d.labeled;
+% save(filename, 'ROImask','ROIorder','ROIlabels');
 
 
 
@@ -1567,6 +1719,8 @@ if d.dF==0
     return;
 end
 
+%slightly different colors for behavior bars, such that calcium imaging
+%traces can still be seen
 colorsb={[0    0.4    0.7],...
     [0.8    0.3    0.09],...
     [0.9    0.6    0.1],...
@@ -1578,7 +1732,7 @@ colorsb={[0    0.4    0.7],...
 
 %checking whether ROI values had been saved before and no ROI was added
 if d.ROIv==0
-    %labeling ROIs
+    %labeling ROIs for every frame of the video
     n=size(d.imd,3);
     numROIs=max(d.ROIorder); %number of ROIs
     d.ROIs=cell(size(d.imd,3),numROIs);
@@ -1603,9 +1757,10 @@ if d.ROIv==0
     d.ROIv=1;
 end
 
+%filter for filtering traces
 [b,a]=butter(1,0.01*(d.framerate/2),'high');
 
-colors=repmat(d.colors,1,ceil(size(d.ROIs,2)/8));
+colors=repmat(d.colors,1,ceil(size(d.ROIs,2)/8)); %colors for traces
 
 %function for calculating ROI fluorescence values
 imd=d.imd;
@@ -1614,8 +1769,8 @@ ROIs=d.ROIs;
 [ROImeans] = ROIFvalues(a,b,imd,mask,ROIs);
 d.ROImeans=ROImeans;
 
-% plotting ROI values
-g=msgbox('Please wait...!');
+%plotting ROI values
+%variable initialization
 NoofSpikes=zeros(size(d.ROIs,2),1);
 spikes=cell(1,size(d.ROIs,2));
 ts=cell(1,size(d.ROIs,2));
@@ -1628,15 +1783,15 @@ check2=(8:8:200);
 
 figure('color','w');
 for j=1:size(d.ROIs,2)
-    if ismember(j,check)==1
+    if ismember(j,check)==1 %if ROI number is 9, 18, 27... new figure is initialized, this way there are only 8 ROIs per figure
         figure('color','w');
     end
-    subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1);
+    subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1); %using subaxis for tight layout of traces
     plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
     axlim=get(gca,'YLim');
-    ylim([min(d.ROImeans(:,j)) 2*round((axlim(2)+1)/2)]); %round to next even number
-    if v.behav==1
-        axlim=get(gca,'YLim');
+    ylim([min(d.ROImeans(:,j)) 2*round((axlim(2)+1)/2)]); %y-axis limits: from minimum value of the current ROI to round to next even number of current axis maximum value
+    if v.behav==1 %drawing bars signalling the various defined behaviors, if behaviors have been defined
+        axlim=get(gca,'YLim'); %limits of y-axis
         for l=1:v.amount
             for m=1:length(v.barstart.(char(v.name{1,l})))
             rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),axlim(1),v.barwidth.(char(v.name{1,l}))(m),axlim(2)*2],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
@@ -1646,8 +1801,9 @@ for j=1:size(d.ROIs,2)
     end
     strings=sprintf('ROI No.%d',j);
     %title('ROI values in percent');
-    if ismember(j,check2)==1 || j==size(d.ROIs,2)
+    if ismember(j,check2)==1 || j==size(d.ROIs,2) %writing x-axis label only for last plot in the figure
         xlabel('Time in seconds');
+        %changing tick labels from frames to seconds by dividing by framerate
         tlabel=get(gca,'XTickLabel');
         for k=1:length(tlabel)
             tlabel{k,1}=str2num(tlabel{k,1});
@@ -1662,16 +1818,16 @@ for j=1:size(d.ROIs,2)
     legend(strings,'Location','eastoutside');
     set(gca, 'box', 'off');
     hold on;
-    [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',4*median(abs(d.ROImeans(:,j))/0.6745)); %adapted quiroga spike detection formula
-    spikes{1,j}=x;
-    ts{1,j}=x/d.framerate;
-    amp{1,j}=y;
+    [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',4*median(abs(d.ROImeans(:,j))/0.6745)); %adapted quiroga spike detection formula to find maxima=spikes in traces
+    spikes{1,j}=x; %counting number of spikes per ROI
+    ts{1,j}=x/d.framerate; %timestamps of spikes
+    amp{1,j}=y; %amplitude of spike
     if isempty(x)==0
         plot(x,max(d.ROImeans(:,j))+0.5,'k.');
     else
         spikes{1,j}=1;
     end
-    %calculating number of spikes
+    %calculating total number of spikes per ROI
     NoofSpikes(j,1)=length(x);
 end
 hold off;
@@ -1680,12 +1836,11 @@ Frequency=round(NoofSpikes./(size(d.imd,3)/d.framerate),2);
 %calculating highest amplitude change
 Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
 
-
 %plotting raster plot
 b=zeros(size(d.ROImeans,1),1);
 fig=figure;
 subplot(2,1,1);
-if v.behav==1
+if v.behav==1 %drawing bars signalling the various defined behaviors, if behaviors have been defined
     for l=1:v.amount
         for m=1:length(v.barstart.(char(v.name{1,l})))
         rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),size(d.ROImeans,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
@@ -1702,6 +1857,7 @@ for j=1:size(d.ROImeans,2)
     xlim([0 round(size(d.imd,3))]);
     ylim([0 size(d.ROImeans,2)+1]);
 end
+%changing tick labels from frames to seconds by dividing by framerate
 tilabel=get(gca,'XTickLabel');
 for k=1:length(tilabel)
     tilabel{k,1}=str2num(tilabel{k,1});
@@ -1715,6 +1871,7 @@ plot(b);
 xlabel('Time in seconds');
 ylabel('Number of spikes');
 xlim([0 round(size(d.imd,3))]);
+%changing tick labels from frames to seconds by dividing by framerate
 ticlabel=get(gca,'XTickLabel');
 for k=1:length(ticlabel)
     ticlabel{k,1}=str2num(ticlabel{k,1});
@@ -1858,11 +2015,12 @@ switch choice
         for k=1:length(dir(d.pn))
             tf(k)=strcmp('traces',files(k).name);
         end
-        if sum(tf)==0
-            mkdir([d.pn '\traces']);
-            tnum=ceil(size(d.ROImeans,2)/8);
-            hfnum=get(fig,'Number');
-            numseries=(hfnum-tnum:1:hfnum-1);
+        if sum(tf)==0 %if folder does not exist
+            mkdir([d.pn '\traces']); %create folder
+            tnum=ceil(size(d.ROImeans,2)/8); %total number of figures with ROI traces
+            hfnum=get(fig,'Number'); %highest figure number
+            numseries=(hfnum-tnum:1:hfnum-1); %figure numbers with ROI values
+            %saving traces
             for j=1:tnum
                 figurenum=sprintf('-f%d',numseries(j));
                 name=sprintf('traces_%d',j);
@@ -1870,6 +2028,7 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             end
+            %saving rasterplot
             figurenum=sprintf('-f%d',hfnum);
             name=('rasterplot');
             path=[d.pn '/traces/',name,'.png'];
@@ -1945,11 +2104,12 @@ switch choice
             catch
             end
             msgbox('Done!','Attention');
-        else
-            if v.behav==1
-                tnum=ceil(size(d.ROImeans,2)/8);
-                hfnum=get(fig,'Number');
-                numseries=(hfnum-tnum:1:hfnum-1);
+        else  %if folder traces already exists
+            if v.behav==1 %if behaviors were defined
+                tnum=ceil(size(d.ROImeans,2)/8); %total number of figures with ROI traces
+                hfnum=get(fig,'Number'); %highest figure number
+                numseries=(hfnum-tnum:1:hfnum-1); %figure numbers with ROI values
+                %saving traces
                 for j=1:tnum
                     name=sprintf('traces_behav_%d',j);
                     figurenum=sprintf('-f%d',numseries(j));
@@ -1957,6 +2117,7 @@ switch choice
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
+                %saving rasterplot
                 name=('rasterplot_behav');
                 figurenum=sprintf('-f%d',hfnum);
                 path=[d.pn '/traces/',name,'.png'];
@@ -2015,12 +2176,13 @@ switch choice
                 catch
                 end
                 msgbox('Done!','Attention');
-            else
-                rmdir([d.pn '\traces'],'s');
-                mkdir([d.pn '\traces']);
-                tnum=ceil(size(d.ROImeans,2)/8);
-                hfnum=get(fig,'Number');
-                numseries=(hfnum-tnum:1:hfnum-1);
+            else %if behaviors were not defined
+                rmdir([d.pn '\traces'],'s'); %delete existing folder
+                mkdir([d.pn '\traces']); %create same folder new, so that results are overwritten
+                tnum=ceil(size(d.ROImeans,2)/8); %total number of figures with ROI traces
+                hfnum=get(fig,'Number'); %highest figure number
+                numseries=(hfnum-tnum:1:hfnum-1); %figure numbers with ROI values
+                %saving traces
                 for j=1:tnum
                     if v.behav==1
                         name=sprintf('traces_behav_%d',j);
@@ -2032,6 +2194,7 @@ switch choice
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
+                %saving rasterplot
                 if v.behav==1
                     name=('rasterplot_behav');
                 else
@@ -2154,7 +2317,6 @@ if d.dF==0 %saving video if it was not processed further
     end
     close(vid);
     close(h);
-%         close(gcf);
     msgbox('Saving video completed.');
 elseif isempty(d.origCI)==1&&d.pushed==4
     % Construct a questdlg with two options

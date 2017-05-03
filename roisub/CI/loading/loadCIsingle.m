@@ -1,5 +1,14 @@
 function [imd] = loadCIsingle(pn,fn,Files)
 
+%FUNCTION for loading multiple TIFF pictures as one video.
+
+%INPUT      pathname (pn), filename (fn), and list of all files in the
+%           directory (Files)
+
+%OUTPUT     imd: single pictures of calcium imaging video stored as 16-bit or
+%           8-bit depending on the original format. The dimensions are as
+%           follows: pixel width, pixel height, number of frames
+
 %defining dimensions of video
 frames=size(imfinfo([pn '\' fn]),1);
 x=imfinfo([pn '\' fn]);

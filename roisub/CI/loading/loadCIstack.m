@@ -1,5 +1,24 @@
 function [imd,origCI,pre] = loadCIstack(pn,fn)
 
+%FUNCTION for loading a single stack of TIFF files.
+
+%INPUT      pathname (pn) and filename (fn)
+
+%OUTPUT     imd: single pictures of calcium imaging video stored as 16-bit or
+%           8-bit depending on the original format. The dimensions are as
+%           follows: pixel width, pixel height, number of frames
+%
+%           origCI: contains original non processed but downsampled verison
+%           of the original calcium imaging video, ONLY if file is too big
+%           to load all at onces, meaning bigger than 4500 frames. The
+%           video will be in 8-bit or 16-bit format depending on the
+%           original format. The dimensions are as
+%           follows: pixel width, pixel height, number of frames
+%
+%           pre: signals that preporcessing was done (value 0 = not done,
+%           vlaue 1 = done). ONLY 1 if the file is too big to load all at
+%           once, meaning bigger than 4500 frames.
+
 %defining dimensions of video
 frames=size(imfinfo([pn '\' fn]),1);
 x=imfinfo([pn '\' fn]);
@@ -25,14 +44,14 @@ else
     if strcmpi(class(Image), 'uint8')
         % Flag for 256 gray levels.
         eightBit = true;
-        imdd=uint8(zeros(Width*0.4,Height*0.4,frames)); %video preallocation
+        imdd=uint8(zeros(Width*0.4,Height*0.4,frames)); %video preallocation as downsampled version
     else
         eightBit = false;
-        imdd=uint16(zeros(Width*0.4,Height*0.4,frames)); %video preallocation
+        imdd=uint16(zeros(Width*0.4,Height*0.4,frames)); %video preallocation as downsampled version
     end
 end
 
-if frames>4500
+if frames>4500 %if file is bigger than 4500 frames, the video will be already preprocessed to reduce size
     %putting each frame into variable 'Images'
     h=waitbar(0,'Loading');
     for k = 1:frames
@@ -81,6 +100,6 @@ else
         waitbar(k/frames,h);
     end
     close(h);
-    origCI=[];
-    pre=0;
+    origCI=[]; %no original calcium imaging video saved
+    pre=0; %not preprocessed
 end

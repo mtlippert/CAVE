@@ -1,10 +1,20 @@
 function [imd] = faultyFrames(imd)
 
+%FUNCTION for identifying skipped frames, black frames, or any abnormal
+%frame that shows a sudden and huge change in brightness.
+
+%INPUT      imd: calcium imaging video as 8-bit/16-bit with dimensions
+%           pixel width, pixel height, number of frames.
+
+%OUTPUT     imd: calcium imaging video corrected for faulty frames as
+%           8-bit/16-bit with dimensions pixel width, pixel height, number
+%           of frames.
+
 %variable initialization
 meanChange=diff(mean(mean(imd,1),2));
 
 nframes=size(meanChange,3);
-threshold=5*median(abs(meanChange)/0.6745);
+threshold=5*median(abs(meanChange)/0.6745); %threshold for detecting faulty frames, quiroga formula used
 h=waitbar(0,'Eliminating faulty frames');
 for k=1:nframes
     if meanChange(1,1,k) < -threshold || meanChange(1,1,k) > threshold %quiroga, if sudden change in brightness = faulty frame

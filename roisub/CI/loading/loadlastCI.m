@@ -1,4 +1,12 @@
 function [] = loadlastCI
+
+%FUNCTION for loading the last processed version of the calcium imaging
+%video. The first progress that is saved is the deltaF/F video, within that
+%the information whether alignment was performed. The next progress is
+%masked ROIs and the last progress saved includes also ROI values.
+
+%no INPUT or OUTPUT since everything is calculated with global variables
+
 global d
 
 %loading delta F/F video
@@ -24,10 +32,26 @@ if sum(tf)>0 %if a file is found
     d.mask=ROImask; %mask with all the ROIs
     d.ROIorder=ROIorder; %order of the ROIs
     d.labeled=ROIlabels; %mask with correctly ordered labels
+    %calculating background
+    d.bg=cell(size(d.imd,3),1);
+    background=d.mask;
+    background(background==1)=2;
+    background(background==0)=1;
+    background(background==2)=0;
+    background = cast(background, class(d.imd(:,:,1)));
+    h=waitbar(0,'Labeling background');
+    for k = 1:size(d.imd,3)
+        % You can only multiply integers if they are of the same type.
+        d.background{k,1} = background .* d.imd(:,:,k);
+        d.bg{k,1}=d.background{k,1}(background==1);
+        waitbar(k/size(d.imd,3),h);
+    end
+    close(h);
     d.pushed=4; %signals that ROIs were selected
     d.roisdefined=1; %signals that ROIs were defined
     d.load=1; %signals that a ROI mask was loaded
 else
+    %variable initialization for ROI calculations
     d.mask=zeros(size(d.imd,1),size(d.imd,2));
     d.labeled = zeros(size(d.imd,1),size(d.imd,2));
     d.ROIs=[];
@@ -43,4 +67,5 @@ if sum(tf)>0
     load([d.pn '\' d.fn(1:end-4) 'ROIvalues.mat']);
     d.ROIs=ROIvalues; %ROI values trhoughout the video
 end
+d.ROIv=1; %signals that ROI values have been loaded, so that you don't have to re-calculate them
 d.ROIv=1;
