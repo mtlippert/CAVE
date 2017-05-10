@@ -229,6 +229,7 @@ d.thresh=0; %no ROI threshold
 d.valid=0; %no ROI was selcted incorrectly
 d.dF=0; %no dF/F processing was done
 d.load=0; %no ROIs were loaded
+d.auto=0; %ROIs were not detected automatically
 d.align=0; %no alignment
 d.alignCI=[]; %alignment video is empty
 d.pre=0; %no preprocessing
@@ -340,16 +341,15 @@ if sum(tf)>0 %if a file is found
                 %plotting ROIs
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-                B=bwboundaries(d.mask); %boundaries of ROIs
-                stat = regionprops(d.labeled,'Centroid'); %center of the ROIs
-                d.b=cell(length(B),1);
-                d.c=cell(length(B),1);
-                colors=repmat(d.colors,1,ceil(length(B)/8)); %repeat color scheme as many times as there are ROIs
-                for j = 1 : length(B)
-                    d.b{j,1} = B{j};
-                    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %repeat color scheme as many times as there are ROIs
+                for j=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,j)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,j),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(j));
+                    end
                 end
                 hold off;
             else
@@ -432,8 +432,6 @@ if sum(tf)>0 %if a file is found
 
                 d.pushed=1; %signals that file was selected
                 d.roisdefined=0; %no rois defined
-                d.b=[]; %matrix for drawing boundaries of ROIs empty
-                d.c=[]; %matrix for drawing center of ROIs empty
                 d.dF=0; %no dF/F performed
                 d.load=0; %no ROIs loaded
                 d.align=0; %no alignment
@@ -462,8 +460,6 @@ if sum(tf)>0 %if a file is found
 
                 d.pushed=1; %signals that file was selected
                 d.roisdefined=0; %no rois defined
-                d.b=[]; %matrix for drawing boundaries of ROIs empty
-                d.c=[]; %matrix for drawing center of ROIs empty
                 d.dF=0; %no dF/F performed
                 d.load=0; %no ROIs loaded
                 d.align=0; %no alignment
@@ -498,8 +494,6 @@ elseif length(Files)==1
     
     d.pushed=1; %signals that file was selected
     d.roisdefined=0; %no rois defined
-    d.b=[]; %matrix for drawing boundaries of ROIs empty
-    d.c=[]; %matrix for drawing center of ROIs empty
     d.dF=0; %no dF/F performed
     d.load=0; %no ROIs loaded
     d.align=0; %no alignment
@@ -533,8 +527,6 @@ else
     
     d.pushed=1; %signals that file was selected
     d.roisdefined=0; %no rois defined
-    d.b=[]; %matrix for drawing boundaries of ROIs empty
-    d.c=[]; %matrix for drawing center of ROIs empty
     d.dF=0; %no dF/F performed
     d.load=0; %no ROIs loaded
     d.align=0; %no alignment
@@ -978,8 +970,8 @@ align=d.align;
 d.imd=imddFF;
 
 %variable initialization for ROI processing
+d.ROIsbw=zeros(size(d.imd,1),size(d.imd,2),1);
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
-d.labeled = zeros(size(d.imd,1),size(d.imd,2));
 d.ROIs=[];
 
 %showing resulting frame
@@ -1040,29 +1032,34 @@ end
 %displaying picture with previously marked ROIs
 axes(handles.axes1);
 if d.bcount>0
-    colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
-    d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
+    colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %selecting colors for ROIs
     singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
-    stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-    for k=1:size(d.b,1)
-        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-    end %drawing ROIs
+    for k=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,k)))>0
+            B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+            stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+            %drawing ROIs
+            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+            text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+        end
+    end
     hold off;
     f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
     singleFrame=f.cdata;
-elseif d.load==1
-    colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
+elseif d.load==1 || d.auto==1
+    colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %selecting colors for ROIs
     singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
     axes(handles.axes1); imshow(singleFrame);hold on;
-    stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-    for k=1:size(d.b,1)
-        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-    end %drawing ROIs
+    for k=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,k)))>0
+            B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+            stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+            %drawing ROIs
+            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+            text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+        end
+    end
     hold off;
     f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
     singleFrame=f.cdata;
@@ -1072,7 +1069,7 @@ end
 
 %manual ROI selection
 ROI = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
-if d.bcount>0 || d.load==1 %resizing ROI since the figure from getframe is not the same resolution
+if d.bcount>0 || d.load==1 || d.auto==1 %resizing ROI since the figure from getframe is not the same resolution
     B=imresize(ROI, [size(d.mip,1) size(d.mip,2)]);
     ROI=B;
 end
@@ -1084,11 +1081,15 @@ if numel(find(ROI))==0
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
-    stat = regionprops(d.labeled,'Centroid');
-    for k=1:size(d.b,1)
-        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
-        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+    colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %selecting colors for ROIs
+    for k=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,k)))>0
+            B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+            stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+            %drawing ROIs
+            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+            text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+        end
     end
     hold off;
     d.valid=1;
@@ -1098,8 +1099,8 @@ end
 %count times button is pressed
 d.bcount=d.bcount+1;
 
-if d.load==1 %if a ROI mask was loaded
-    d.labeled = d.labeled+(ROI*(max(max(d.labeled))+1)); %labeling of ROIs
+if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection was used
+    d.ROIsbw(:,:,size(d.ROIsbw,3)+1)=ROI;
     d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
     if numel(find(d.mask>1))>0
@@ -1109,9 +1110,29 @@ if d.load==1 %if a ROI mask was loaded
         % Handle response
         switch choice
             case 'YES'
-                d.mask=d.mask-(2*ROI); %removing 2*ROI since overlaps = 2
-                d.mask(d.mask<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
-                d.labeled=bwlabel(d.mask);
+                %deleting the double assignments
+                for m=1:size(d.ROIsbw,3)
+                    ROIboth=d.ROIsbw(:,:,m)+ROI;
+                    overlay=numel(find(ROIboth==2));
+                    if overlay>0
+                        ROIboth=ROIboth-(2*ROI);%removing 2*ROI since overlaps = 2
+                        ROIboth(ROIboth<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                        d.ROIsbw(:,:,m)=ROIboth;
+                    end
+                end
+                %determining indices where there are ROIs
+                c=0;
+                for j=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,j)))>0
+                        c=c+1;
+                        ROIindices(c,1)=j;
+                    end
+                end
+                d.ROIsbw=d.ROIsbw(:,:,ROIindices);
+                
+                mask=sum(d.ROIsbw,3);
+                mask(mask>1)=1;
+                d.mask=mask;
                 %plotting ROIs
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 if d.dF==1 || d.pre==1
@@ -1119,39 +1140,22 @@ if d.load==1 %if a ROI mask was loaded
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                B=bwboundaries(d.mask); %boundaries of ROIs
-                stat = regionprops(d.labeled,'Centroid');
-                %check whether ROIs are touching
-                if length(stat)>length(B)
-                    d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
-                    d.mask = d.mask-ROI;
-                    singleFrame=d.mip;
-                    if d.dF==1 || d.pre==1
-                        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-                    else
-                        axes(handles.axes1); imshow(singleFrame); hold on;
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
                     end
-                    stat = regionprops(d.labeled,'Centroid');
-                    for k=1:size(d.b,1)
-                        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-                        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
-                        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                    end
-                    hold off;
-                    msgbox('Please do not let ROIs touch!','ERROR');
-                    return;
-                end
-                d.b=cell(length(B),1);
-                d.c=cell(length(B),1);
-                d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8));
-                for j = 1 : max(d.ROIorder)
-                    d.b{j,1} = B{j};
-                    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
                 end
                 hold off;
+                if length(ROIindices)+2==d.bcount
+                    d.bcount=d.bcount-2;
+                else
+                    d.bcount=d.bcount-1;
+                end
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
 
@@ -1166,34 +1170,38 @@ if d.load==1 %if a ROI mask was loaded
                         %saving ROI mask
                         filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
                         ROImask=d.mask;
-                        ROIorder=d.ROIorder;
-                        ROIlabels=d.labeled;
-                        save(filename, 'ROImask','ROIorder','ROIlabels');
+                        ROIsingles=d.ROIsbw;
+                        save(filename, 'ROImask','ROIsingles');
                     case 'NO'
                         return;
                 end
-                return;
             case 'NO'
-                %resetting ROI mask to the one before
+                d.mask(d.mask>0)=1;
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1)); %substracting current ROI such that old ROI labels are the result
-                d.labeled(d.labeled<0)=0;
-                d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                stat = regionprops(d.labeled,'Centroid');
-                for k=1:size(d.b,1)
-                    d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-                    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
-                    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                end %drawing ROIs
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                    end
+                end
                 hold off;
-                msgbox('Please do not superimpose ROIs!','ERROR');
-                d.mask = d.mask-ROI; %substracting current ROI such that old ROI mask is the result
-                return;
+                d.pushed=4; %signals that ROIs were selected
+                d.roisdefined=1; %signals that ROIs were defined
+
+                %saving ROI mask
+                filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                ROImask=d.mask;
+                ROIsingles=d.ROIsbw;
+                save(filename, 'ROImask','ROIsingles');
         end
     else
         d.mask(d.mask>0)=1;
@@ -1206,38 +1214,16 @@ if d.load==1 %if a ROI mask was loaded
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
-    B=bwboundaries(d.mask); %boundaries of ROIs
-    stat = regionprops(d.labeled,'Centroid');
-    %check whether ROIs are touching
-    if length(stat)>length(B)
-        d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
-        d.mask = d.mask-ROI;
-        singleFrame=d.mip;
-        if d.dF==1 || d.pre==1
-            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-        else
-            axes(handles.axes1); imshow(singleFrame); hold on;
+    colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+    for k=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,k)))>0
+            B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+            stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+            %drawing ROIs
+            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+            text(stat.Centroid(1),stat.Centroid(2),num2str(k));
         end
-        stat = regionprops(d.labeled,'Centroid');
-        for k=1:size(d.b,1)
-            d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-            plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
-            text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-        end %drwaing ROIs
-        hold off;
-        msgbox('Please do not let ROIs touch!','ERROR');
-        return;
     end
-    d.b=cell(length(B),1);
-    d.c=cell(length(B),1);
-    d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    colors=repmat(d.colors,1,ceil((max(max(d.labeled))+1)/8));
-    for j = 1 : length(B)
-        d.b{j,1} = B{j};
-        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end %drawing ROIs
     hold off;
     d.pushed=4; %signals that ROIs were selected
     d.roisdefined=1; %signals that ROIs were defined
@@ -1245,11 +1231,10 @@ if d.load==1 %if a ROI mask was loaded
     %saving ROI mask
     filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
     ROImask=d.mask;
-    ROIorder=d.ROIorder;
-    ROIlabels=d.labeled;
-    save(filename, 'ROImask','ROIorder','ROIlabels');
+    ROIsingles=d.ROIsbw;
+    save(filename, 'ROImask','ROIsingles');
 else
-    d.labeled = d.labeled+ROI*(max(max(d.labeled))+1); %labeling of ROIs
+    d.ROIsbw(:,:,d.bcount)=ROI;
     d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
     if numel(find(d.mask>1))>0
@@ -1259,9 +1244,29 @@ else
         % Handle response
         switch choice
             case 'YES'
-                d.mask=d.mask-(2*ROI);%removing 2*ROI since overlaps = 2
-                d.mask(d.mask<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
-                d.labeled=bwlabel(d.mask);
+                %deleting the double assignments
+                for m=1:size(d.ROIsbw,3)
+                    ROIboth=d.ROIsbw(:,:,m)+ROI;
+                    overlay=numel(find(ROIboth==2));
+                    if overlay>0
+                        ROIboth=ROIboth-(2*ROI);%removing 2*ROI since overlaps = 2
+                        ROIboth(ROIboth<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                        d.ROIsbw(:,:,m)=ROIboth;
+                    end
+                end
+                %determining indices where there are ROIs
+                c=0;
+                for j=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,j)))>0
+                        c=c+1;
+                        ROIindices(c,1)=j;
+                    end
+                end
+                d.ROIsbw=d.ROIsbw(:,:,ROIindices);
+                
+                mask=sum(d.ROIsbw,3);
+                mask(mask>1)=1;
+                d.mask=mask;
                 %plotting ROIs
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
@@ -1269,39 +1274,22 @@ else
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                B=bwboundaries(d.mask); %boundaries of ROIs
-                stat = regionprops(d.labeled,'Centroid');
-                %check whether ROIs are touching
-                if length(stat)>length(B)
-                    d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
-                    d.mask = d.mask-ROI;
-                    singleFrame=d.mip;
-                    if d.dF==1 || d.pre==1
-                        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-                    else
-                        axes(handles.axes1); imshow(singleFrame); hold on;
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
                     end
-                    stat = regionprops(d.labeled,'Centroid');
-                    for k=1:size(d.b,1)
-                        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-                        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
-                        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                    end %drawing ROIs
-                    hold off;
-                    msgbox('Please do not let ROIs touch!','ERROR');
-                    return;
                 end
-                d.b=cell(length(B),1);
-                d.c=cell(length(B),1);
-                d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-                colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8));
-                for j = 1 : max(d.ROIorder)
-                    d.b{j,1} = B{j};
-                    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-                    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-                    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-                end %drawing ROIs
                 hold off;
+                if length(ROIindices)+2==d.bcount
+                    d.bcount=d.bcount-2;
+                else
+                    d.bcount=d.bcount-1;
+                end
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
 
@@ -1316,31 +1304,38 @@ else
                         %saving ROI mask
                         filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
                         ROImask=d.mask;
-                        ROIorder=d.ROIorder;
-                        ROIlabels=d.labeled;
-                        save(filename, 'ROImask','ROIorder','ROIlabels');
+                        ROIsingles=d.ROIsbw;
+                        save(filename, 'ROImask','ROIsingles');
                     case 'NO'
                         return;
                 end
-                return;
             case 'NO'
-                d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
-                d.mask = d.mask-ROI;
+                d.mask(d.mask>0)=1;
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
                     axes(handles.axes1); imshow(singleFrame); hold on;
                 end
-                stat = regionprops(d.labeled,'Centroid');
-                for k=1:size(d.b,1)
-                    d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-                    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
-                    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                end %drawing ROIs
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                    end
+                end
                 hold off;
-                msgbox('Please do not superimpose ROIs!','ERROR');
-                return;
+                d.pushed=4; %signals that ROIs were selected
+                d.roisdefined=1; %signals that ROIs were defined
+
+                %saving ROI mask
+                filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                ROImask=d.mask;
+                ROIsingles=d.ROIsbw;
+                save(filename, 'ROImask','ROIsingles');
         end
     else
         d.mask(d.mask>0)=1;
@@ -1354,38 +1349,16 @@ else
     else
         axes(handles.axes1); imshow(singleFrame); hold on;
     end
-    B=bwboundaries(d.mask); %boundaries of ROIs
-    stat = regionprops(d.labeled,'Centroid');
-    %check whether ROIs are touching
-    if length(stat)>length(B)
-        d.labeled = d.labeled-(ROI*(max(d.ROIorder)+1));
-        d.mask = d.mask-ROI;
-        singleFrame=d.mip;
-        if d.dF==1 || d.pre==1
-            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-        else
-            axes(handles.axes1); imshow(singleFrame); hold on;
+    colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+    for k=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,k)))>0
+            B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+            stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+            %drawing ROIs
+            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+            text(stat.Centroid(1),stat.Centroid(2),num2str(k));
         end
-        stat = regionprops(d.labeled,'Centroid');
-        for k=1:size(d.b,1)
-            d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-            plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',d.colors{1,d.ROIorder(k)});
-            text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-        end %drawing ROIs
-        hold off;
-        msgbox('Please do not let ROIs touch!','ERROR');
-        return;
     end
-    d.b=cell(length(B),1);
-    d.c=cell(length(B),1);
-    d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    colors=repmat(d.colors,1,ceil((max(max(d.labeled))+1)/8));
-    for j = 1 : length(B)
-        d.b{j,1} = B{j};
-        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-    end %drawing ROIs
     hold off;
     d.pushed=4; %signals that ROIs were selected
     d.roisdefined=1; %signals that ROIs were defined
@@ -1393,12 +1366,9 @@ else
     %saving ROI mask
     filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
     ROImask=d.mask;
-    ROIorder=d.ROIorder;
-    ROIlabels=d.labeled;
-    save(filename, 'ROImask','ROIorder','ROIlabels');
+    ROIsingles=d.ROIsbw;
+    save(filename, 'ROImask','ROIsingles');
 end
-
-
 
 
 % --- Executes on button press in pushbutton16.              CLEAR ALL ROIS
@@ -1420,13 +1390,11 @@ d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
 %re-initialization of variables for ROI calculations
 d.ROIs=[];
+d.ROIsbw=zeros(size(d.imd,1),size(d.imd,2),1);
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
-d.labeled = zeros(size(d.imd,1),size(d.imd,2));
-d.b=[];
-d.c=[];
-d.ROIorder=[];
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
+d.auto=0; %ROIs were not detected automatically
 
 singleFrame=d.mip;
 if d.dF==1
@@ -1436,8 +1404,6 @@ else
     axes(handles.axes1); imshow(singleFrame);
 end
 msgbox('ROIs cleared!','Success');
-
-
 
 
 
@@ -1452,10 +1418,7 @@ d.pushed=1; %signals video was loaded
 %re-initialization of variables for ROI calculations
 d.ROIs=[];
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
-d.labeled = zeros(size(d.imd,1),size(d.imd,2));
-d.b=[];
-d.c=[];
-d.ROIorder=[];
+d.ROIsbw=zeros(size(d.imd,1),size(d.imd,2));
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 d.ROIv=0; %no ROI values loaded
@@ -1476,8 +1439,7 @@ filepath=[d.pn '\'];
 %load the saved ROI mask, and order of labels
 load([pn fn]);
 d.mask=ROImask;
-d.ROIorder=ROIorder;
-d.labeled=ROIlabels;
+d.ROIsbw=ROIsingles;
 %plotting ROIs
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
 if d.dF==1 || d.pre==1
@@ -1486,17 +1448,16 @@ if d.dF==1 || d.pre==1
 else
     axes(handles.axes1); imshow(singleFrame); hold on;
 end
-B=bwboundaries(d.mask); %boundaries of ROIs
-stat = regionprops(d.labeled,'Centroid');
-d.b=cell(length(B),1);
-d.c=cell(length(B),1);
-colors=repmat(d.colors,1,ceil(length(B)/8));
-for j = 1 : length(B)
-    d.b{j,1} = B{j};
-    d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-    plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-    text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
-end %drawing ROIs
+colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+for k=1:size(d.ROIsbw,3)
+    if sum(sum(d.ROIsbw(:,:,k)))>0
+        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+        %drawing ROIs
+        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+    end
+end
 hold off;
 d.pushed=4; %signals that ROIs were selected
 d.roisdefined=1; %signals that ROIs were defined
@@ -1505,191 +1466,79 @@ msgbox('Loading complete!');
 
 
 
-
-
-% --- Executes on slider movement.                          THRESHOLD LEVEL
-function slider21_Callback(hObject, eventdata, handles)
-% hObject    handle to slider21 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-global d
-MIP=d.mip/max(max(d.mip));
-MIP(MIP<handles.slider21.Value)=0;
-figure(2),imshow(MIP);
-
-
-% th_MIP=im2bw(MIP, handles.slider21.Value);
-% smallestAcceptableArea = 25;
-% structuringElement = strel('disk', 2);
-% th_clean_MIP = imclose(bwareaopen(th_MIP,smallestAcceptableArea),structuringElement);
-% D = bwdist(~th_clean_MIP);
-% figure(2);
-% imshow(D,[],'InitialMagnification','fit');
-% title('Distance transform of ~bw');
-% D = -D;
-% D(~th_clean_MIP) = -Inf;
-% L = watershed(D);
-% rgb = label2rgb(L,'jet',[.5 .5 .5]);
-% figure(3);
-% imshow(rgb,'InitialMagnification','fit');
-% title('Watershed transform of D');
-
-% --- Executes during object creation, after setting all properties.
-function slider21_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to slider21 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
 % --- Executes on button press in pushbutton34.                   AUTO ROIs
 function pushbutton34_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton34 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
+global v
 
-h=msgbox('Please wait...');
-%reshaping to two dimensional array: pixel x time
+if d.pushed==0
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+elseif d.play==1 || v.play==1
+    msgbox('Please push stop button before proceeding!','ATTENTION');
+    return;
+elseif d.pre==0
+    msgbox('Please do preprocessing & Delta F/F calculation before proceeding!','ATTENTION');
+    return;
+elseif d.dF==0
+    msgbox('Please perform Delta F/F calculation before selection ROIs!','ATTENTION');
+    return;
+elseif d.pushed==4
+    choice = questdlg('Your current ROIs will be overwritten, is that okay?', ...
+        'Attention', ...
+        'YES','NO','YES');
+        % Handle response
+        switch choice
+            case 'YES'
+            case 'NO'
+                return;
+        end
+end
+
+d.bcount=0;
+
+%using function for calculating PCA & ICA
 F=d.imd;
-F1=reshape(F,size(F,1)*size(F,2),size(F,3));
-
-%PCA
-F2=pca(F1');
-%visualizing result from PCA
-F2r=reshape(F2,size(F,1),size(F,2),size(F,3)-1); %reshaping into pictures over time: width x heigth x time
-try
-    close(h);
-catch
-end
-
-%ICA
-%selecting only first 150 dimensions
-prompt = {'Enter approximate number of desired cells:'};
-dlg_title = 'Cell number';
-num_lines = 1;
-answer = inputdlg(prompt,dlg_title,num_lines);
-dim=str2num(cell2mat(answer));
-h=msgbox('Please wait...');
-F2s=F2(:,1:dim);
-[Zica, W, T, mu] = fastICA(F2s',dim); %alternative: [Zica, W, T, mu] = kICA(F2s,150);
-ICAmatrix=reshape(Zica',size(F,1),size(F,2),dim);
-try
-    close(h);
-catch
-end
-%extracting ROIs
-ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
-ROIsbw=zeros(size(F,1),size(F,2),dim);
-smallestAcceptableArea=30;
-
-singleFrame=d.mip;
-if d.dF==1 || d.pre==1
-    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-else
-    axes(handles.axes1); imshow(singleFrame); hold on;
-end
-
-for k=1:size(ICAmatrixfilt,3)
-    %converting to numbers between 0 and 1
-    ROIs=ICAmatrixfilt(:,:,k)+abs(min(min(ICAmatrixfilt(:,:,k))));
-    ROIs=ROIs./max(max(ROIs));
-    ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
-    ROIsbw(:,:,k)=bwlabel(ROIsBW);
-    if sum(sum(ROIsBW))>1000
-        ROIs=imcomplement(ROIs);
-        ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
-        ROIsbw(:,:,k)=bwlabel(ROIsBW);
-        B = bwboundaries(ROIsbw(:,:,k));
-        if sum(sum(ROIsBW))>1000 || length(B)>1
-            ROIsbw(:,:,k)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
-        end
-    end   
-end
-
-%deleting non-round objects
-for j=1:size(ROIsbw,3)
-    stats = regionprops(ROIsbw(:,:,j),'Area','Centroid');
-    B = bwboundaries(ROIsbw(:,:,j),'noholes');
-    threshold = 0.5;
-    if isempty(B)==0
-        % obtain (X,Y) boundary coordinates
-        boundary = B{1,1};
-        % compute a simple estimate of the object's perimeter
-        delta_sq = diff(boundary).^2;
-        perimeter = sum(sqrt(sum(delta_sq,2)));
-        % obtain the area calculation corresponding to label 'k'
-        area = stats(1).Area;
-        % compute the roundness metric
-        metric= 4*pi*area/perimeter^2;
-        if metric<threshold;
-            ROIsbw(:,:,j)=zeros(size(F,1),size(F,2),1);
-        end
-    end
-end
-
-%deleting the double assignments
-for m=1:size(ROIsbw,3)
-    sumM=sum(sum(ROIsbw(:,:,m)));
-    for n=1:size(ROIsbw,3)
-        if m~=n
-            sumN=sum(sum(ROIsbw(:,:,n)));
-            ROIboth=ROIsbw(:,:,m)+ROIsbw(:,:,n);
-            overlay=numel(find(ROIboth==2));
-            if overlay>0
-                percMover=overlay/sumM*100;
-                percNover=overlay/sumN*100;
-                if percMover>=70 || percNover>=70 %if overlap of ROIs is greater than 70% it is interpreted as one ROI
-                    ROIboth(ROIboth>1)=1;
-                    ROIsbw(:,:,m)=ROIboth;
-                    ROIsbw(:,:,n)=zeros(size(F,1),size(F,2),1);
-                end
-            end
-        end
-    end
-end
-
-%determining indices where there are ROIs
-c=0;
-for j=1:size(ROIsbw,3)
-    if sum(sum(ROIsbw(:,:,j)))>0
-        c=c+1;
-        ROIindices(c,1)=j;
-    end
-end
-ROIsbw=ROIsbw(:,:,ROIindices);
+[ROIsbw] = pcaica(F);
 
 %plotting ROIs
-d.B=[];
+colors=repmat(d.colors,1,ceil(dim/8));
 for k=1:size(ROIsbw,3)
-    if sum(sum(ROIsbw(:,:,k)))>0
-        d.B(k,1)=bwboundaries(ROIsbw(:,:,k)); %boundaries of ROIs
-        stat = regionprops(ROIsbw(:,:,k),'Centroid');
-        d.centroid(k,:)=stat.Centroid;
-        colors=repmat(d.colors,1,ceil(dim/8));
-        %drawing ROIs
-        plot(d.B{k,1}(:,2),d.B{k,1}(:,1),'linewidth',2,'Color',colors{1,k});
-        text(d.centroid(k,1),d.centroid(k,2),num2str(k));
-    end
+    B=bwboundaries(ROIsbw(:,:,k)); %boundaries of ROIs
+    stat = regionprops(ROIsbw(:,:,k),'Centroid');
+    %drawing ROIs
+    plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+    text(stat.Centroid(1),stat.Centroid(2),num2str(k));
 end
 hold off;
+
+d.ROIsbw=ROIsbw;
+mask=sum(ROIsbw,3);
+mask(mask>1)=1;
+d.mask=mask;
+
 d.pushed=4; %signals that ROIs were selected
 d.roisdefined=1; %signals that ROIs were defined
 d.auto=1; %signlas that automated ROI detection was used
-% %saving ROI mask
-% filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
-% ROImask=d.mask;
-% ROIorder=d.ROIorder;
-% ROIlabels=d.labeled;
-% save(filename, 'ROImask','ROIorder','ROIlabels');
 
+%saving ROI mask
+% Construct a questdlg with two options
+choice = questdlg('Would you like to save this ROI mask?', ...
+    'Attention', ...
+    'YES','NO','YES');
+% Handle response
+switch choice
+    case 'YES'
+        %saving ROI mask
+        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+        ROImask=d.mask;
+        ROIsingles=d.ROIsbw;
+        save(filename, 'ROImask','ROIsingles');
+    case 'NO'
+end
 
 
 
@@ -1734,18 +1583,15 @@ colorsb={[0    0.4    0.7],...
 if d.ROIv==0
     %labeling ROIs for every frame of the video
     n=size(d.imd,3);
-    numROIs=max(d.ROIorder); %number of ROIs
+    numROIs=size(d.ROIsbw,3); %number of ROIs
     d.ROIs=cell(size(d.imd,3),numROIs);
-    ROIs=zeros(size(d.imd,1),size(d.imd,2));
     h=waitbar(0,'Labeling ROIs');
     for j=1:n
         for i=1:numROIs
-            m = find(d.labeled==i);
-            ROIs(m)=1;
             % You can only multiply integers if they are of the same type.
-            ROIsc = cast(ROIs, class(d.imd(:,:,1)));
+            ROIsc = cast(d.ROIsbw(:,:,i), class(d.imd(:,:,1)));
             imdrem= ROIsc .* d.imd(:,:,j);
-            d.ROIs{j,i}=imdrem(m);
+            d.ROIs{j,i}=imdrem(imdrem~=0);
         end
         waitbar(j/n,h);
     end
@@ -1760,13 +1606,14 @@ end
 %filter for filtering traces
 [b,a]=butter(1,0.01*(d.framerate/2),'high');
 
-colors=repmat(d.colors,1,ceil(size(d.ROIs,2)/8)); %colors for traces
+colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %colors for traces
 
 %function for calculating ROI fluorescence values
 imd=d.imd;
 mask=d.mask;
 ROIs=d.ROIs;
-[ROImeans] = ROIFvalues(a,b,imd,mask,ROIs);
+framerate=d.framerate;
+[ROImeans] = ROIFvalues(a,b,imd,mask,ROIs,framerate);
 d.ROImeans=ROImeans;
 
 %plotting ROI values
@@ -1906,100 +1753,6 @@ if v.behav==1
     end
     spkfreq.nobehavior=sum(spkno)/(spkbehavno/d.framerate);
 end
-% if v.behav==1
-%     names=fieldnames(v.barstart); %names of defined behaviors
-%     for k=1:size(spikes,2),numspikes(1,k)=numel(spikes{1,k});end %total number of spikes per cell
-%     for j=1:v.amount
-%         %creating array with framenumbers where certain behavior was
-%         %detected
-%         behavior=[];
-%         for k=1:length(v.barstart.(names{j,1}))
-%             behavior=[behavior,v.barstart.(names{j,1})(k):v.barstart.(names{j,1})(k)+v.barwidth.(names{j,1})(k)];
-%         end
-%         behaviors.(names{j,1})=behavior';
-%         %determining whether a spike was detected during a defined behavior
-%         %in a logical manner
-%         spklogic=cell(1,size(spikes,2));
-%         for i=1:size(spikes,2)
-%             for h=1:length(spikes{1,i})
-%                 spklogic{1,i}(h,1)=ismember(spikes{1,i}(h),behaviors.(names{j,1}));
-%             end
-%             spksum(1,i)=sum(spklogic{1,i});
-%         end
-%         spkbehav.(names{j,1}).real=spksum; %actual number os spikes per cell
-%         spkbehav.(names{j,1}).total=sum(spkbehav.(names{j,1}).real); %total number of spikes for all cells
-%         total(j,1)=spkbehav.(names{j,1}).total; %variable for later easy addition
-%         texting{j,1}=[names{j,1},' ']; %variable for later easy addition
-%         spkbehav.(names{j,1}).percent=spkbehav.(names{j,1}).real./numspikes*100; %relative number of spikes in the behavior to outside
-%         spkbehav.(names{j,1}).totalpercent=sum(spkbehav.(names{j,1}).real)/sum(numspikes)*100; %relative total number of spikes for all cells
-%         percent(1,j)=spkbehav.(names{j,1}).totalpercent; %variable for later easy addition
-%     end
-%     spkbehav.total=sum(total); %total number of spikes within all behaviors
-%     spkbehav.totalpercent=spkbehav.total/sum(numspikes)*100; %relative total number of spikes within all behaviors
-%     %converting number of cells to logical array saying whether there was
-%     %spikes or not
-%     statlogic=zeros(1,size(spikes,2));
-%     statlogical=zeros(v.amount,size(spikes,2));
-%     for m=1:v.amount
-%         statlogic(1,:)=spkbehav.(names{m,1}).real;
-%         statlogic(statlogic>0)=1;
-%         statlogical(m,:)=statlogic;
-%         statcells.(names{m,1})=sum(statlogical(m,:));
-%     end
-%     sumstat=sum(statlogical,1); %all behaviors added up to determine whether some cells are not active during the defined behaviors,
-%     %some are only active for one bahvior, or for multiple or all behaviors
-%     statcells.conall=numel(find(sumstat==v.amount))/size(spikes,2)*100; %cells active druing all behaviors
-%     statcells.single=numel(find(sumstat==1))/size(spikes,2)*100; %cells active for only one behavior
-%     statcells.con=numel(find(sumstat>=2 & sumstat<v.amount))/size(spikes,2)*100; %cells active for more than one behavior but not all behaviors
-%     statcells.null=numel(find(sumstat==0))/size(spikes,2)*100; %cells not active during any behavior
-%     singlecells=zeros(1,v.amount);
-%     %renaming of variable for cells active for only one behavior
-%     for n=1:v.amount
-%         statcells.(names{n,1})=(statcells.(names{n,1})-numel(find(sumstat==v.amount)))/size(spikes,2)*100;
-%         singlecells(1,n)=statcells.(names{n,1});
-%     end
-%     %plotting pie charts
-%     %overall spike distribution
-%     percentValues=[percent 100-sum(percent)];
-%     figure,h=pie(percentValues);
-%     title('Spikes detected within defined behaviors');
-%     hText = findobj(h,'Type','text'); % text object handles
-%     percentText = get(hText,'String'); % percent values
-%     txt=[texting;'No behavior '];
-%     %deleting text, which percentage is 0
-%     c=0;
-%     rtxt=[];
-%     for k=1:length(percentValues)
-%         if percentValues(1,k)>0
-%             c=c+1;
-%             rtxt{c,1}=txt{k,1};
-%         end
-%     end
-%     txt=rtxt;
-%     combinedtxt = strcat(txt,percentText); % strings and percent values
-%     for n=1:length(combinedtxt)
-%         hText(n).String = combinedtxt(n);
-%     end
-%     %cell distribution
-%     percentValues=[singlecells statcells.con statcells.conall statcells.null];
-%     logicalVal=percentValues; logicalVal(logicalVal>0)=1;
-%     figure,h=pie(percentValues);
-%     title('Percentage of cells within defined behaviors');
-%     hText = findobj(h,'Type','text'); % text object handles
-%     percentText = get(hText,'String'); % percent values
-%     txt=[texting;'conditional ';'all ';'none '];
-%     c=0;
-%     for l=1:length(txt)
-%         if logicalVal(l)==1
-%             c=c+1;
-%             txtfinal(c,1)=txt(l);
-%         end
-%     end
-%     combinedtxt = strcat(txtfinal,percentText); % strings and percent values
-%     for n=1:length(txtfinal)
-%         hText(n).String = combinedtxt(n);
-%     end
-% end
 
 %saving traces
 % Construct a questdlg with two options
@@ -2036,16 +1789,18 @@ switch choice
             print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             
             %saving ROImask as figure
-            colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
-            d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
+            colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %selecting colors for ROIs
             singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
             h=figure; imshow(singleFrame);hold on;
-            stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-            for k=1:size(d.b,1)
-                d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-                plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-                text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-            end %drawing ROIs
+            for k=1:size(d.ROIsbw,3)
+                if sum(sum(d.ROIsbw(:,:,k)))>0
+                    B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                    stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                    %drawing ROIs
+                    plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                    text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                end
+            end
             hold off;
             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
             name=('ROImask');
@@ -2127,17 +1882,6 @@ switch choice
                 filename=[d.pn '\traces\freqbehav_' d.fn(1:end-4) '.xls'];
                 T=struct2table(spkfreq);
                 writetable(T,filename);
-%                 %saving piecharts
-%                 name=('piechart_behav');
-%                 figurenum=sprintf('-f%d',hfnum+1);
-%                 path=[d.pn '/traces/',name,'.png'];
-%                 path=regexprep(path,'\','/');
-%                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
-%                 name=('piechart_cells');
-%                 figurenum=sprintf('-f%d',hfnum+2);
-%                 path=[d.pn '/traces/',name,'.png'];
-%                 path=regexprep(path,'\','/');
-%                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
 
                 %saving mean values of ROIs over time with behavior
                 mVal=mean(d.ROImeans,2);
@@ -2169,8 +1913,6 @@ switch choice
                 %saving data
                 filename=[d.pn '\traces\spkbehavior_' ];
                 save(filename, 'spkbehav');
-%                 filename=[d.pn '\traces\cellstatistics_'];
-%                 save(filename, 'statcells');
                 try
                     close(f);
                 catch
@@ -2184,38 +1926,32 @@ switch choice
                 numseries=(hfnum-tnum:1:hfnum-1); %figure numbers with ROI values
                 %saving traces
                 for j=1:tnum
-                    if v.behav==1
-                        name=sprintf('traces_behav_%d',j);
-                    else
-                        name=sprintf('traces_%d',j);
-                    end
+                    name=sprintf('traces_%d',j);
                     figurenum=sprintf('-f%d',numseries(j));
                     path=[d.pn '/traces/',name,'.png'];
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
                 %saving rasterplot
-                if v.behav==1
-                    name=('rasterplot_behav');
-                else
-                    name=('rasterplot');
-                end
+                name=('rasterplot');
                 figurenum=sprintf('-f%d',hfnum);
                 path=[d.pn '/traces/',name,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
 
                 %saving ROImask as figure
-                colors=repmat(d.colors,1,ceil(max(d.ROIorder)/8)); %selecting colors for ROIs
-                d.ROIorder=unique(d.labeled(d.labeled>0),'stable'); %determining the order of the ROIs
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %selecting colors for ROIs
                 singleFrame=d.mip./max(max(d.mip)); %getting picture into the value range from 0 to 1 for roipoly
                 h=figure; imshow(singleFrame);hold on;
-                stat = regionprops(d.labeled,'Centroid'); %finding center of ROIs
-                for k=1:size(d.b,1)
-                    d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-                    plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-                    text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
-                end %drawing ROIs
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                    end
+                end
                 hold off;
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 name=('ROImask');
@@ -2279,6 +2015,7 @@ switch choice
     case 'NO'
         return;
 end
+
 
 
 
@@ -2448,8 +2185,7 @@ if v.pushed>1
 end
 
 if d.pushed==4
-    d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    colors=repmat(d.colors,1,(ceil(size(d.b,1)/8)));
+    colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
 end
 
 if d.pre==1 && d.pushed==1
@@ -2480,11 +2216,14 @@ elseif d.pushed==4
     else
         imshow(singleFrame);hold on;
     end
-    stat = regionprops(d.labeled,'Centroid');
-    for k=1:size(d.b,1)
-        d.c{k,1} = stat(d.ROIorder(k)).Centroid;
-        plot(d.b{k,1}(:,2),d.b{k,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(k)});
-        text(d.c{k,1}(1),d.c{k,1}(2),num2str(d.ROIorder(k)));
+    for k=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,k)))>0
+            B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+            stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+            %drawing ROIs
+            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+            text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+        end
     end
     hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
@@ -2609,8 +2348,7 @@ if v.pushed>1
 end
 
 if d.pushed==4
-    d.ROIorder=unique(d.labeled(d.labeled>0),'stable');
-    colors=repmat(d.colors,1,ceil(size(d.b,1)/8));
+    colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
 end
 
 %if both videos were loaded
@@ -2678,11 +2416,14 @@ elseif v.pushed==1 && d.pushed==4
         else
             imshow(singleFrame);hold on;
         end
-        stat = regionprops(d.labeled,'Centroid');
-        for j=1:size(d.b,1)
-            d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-            plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-            text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        for j=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,j)))>0
+                B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,j),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(j));
+            end
         end
         hold off;
         handles.slider7.Value=k;
@@ -2816,11 +2557,14 @@ elseif v.pushed==2 && d.pushed==4
         else
             imshow(singleFrame);hold on;
         end
-        stat = regionprops(d.labeled,'Centroid');
-        for j=1:size(d.b,1)
-            d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-            plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-            text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        for j=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,j)))>0
+                B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,j),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(j));
+            end
         end
         hold off;
         handles.slider7.Value=k;
@@ -2954,11 +2698,14 @@ elseif v.pushed==3 && d.pushed==4
         else
             imshow(singleFrame);hold on;
         end
-        stat = regionprops(d.labeled,'Centroid');
-        for j=1:size(d.b,1)
-            d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-            plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-            text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+        for j=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,j)))>0
+                B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,j),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(j));
+            end
         end
         hold off;
         handles.slider7.Value=k;
@@ -3032,24 +2779,27 @@ elseif d.pushed==4
     else
         imshow(singleFrame);hold on;
     end
-    stat = regionprops(d.labeled,'Centroid');
-    for j=1:size(d.b,1)
-        d.c{j,1} = stat(d.ROIorder(j)).Centroid;
-        plot(d.b{j,1}(:,2),d.b{j,1}(:,1),'linewidth',2,'Color',colors{1,d.ROIorder(j)});
-        text(d.c{j,1}(1),d.c{j,1}(2),num2str(d.ROIorder(j)));
+    for j=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,j)))>0
+            B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
+            stat = regionprops(d.ROIsbw(:,:,j),'Centroid');
+            %drawing ROIs
+            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
+            text(stat.Centroid(1),stat.Centroid(2),num2str(j));
+        end
     end
-        hold off;
-        handles.slider7.Value=k;
-        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-        set(handles.text36, 'String', textLabel);
-        pause(0.1);
-        if k==size(d.imd,3)
-            d.play=0;
-            d.stop=1;
-        end
-        if d.stop==1
-            return;
-        end
+    hold off;
+    handles.slider7.Value=k;
+    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+    set(handles.text36, 'String', textLabel);
+    pause(0.1);
+    if k==size(d.imd,3)
+        d.play=0;
+        d.stop=1;
+    end
+    if d.stop==1
+        return;
+    end
     end
 end
 
