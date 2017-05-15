@@ -1,4 +1,4 @@
-function [ROImeans,sp] = ROIFvalues(a,b,imd,mask,ROIs,framerate)
+function [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROIFvalues(a,b,imd,mask,ROIs,framerate)
 
 %FUNCTION for calculating fluorescence signal of the defined ROIs. The
 %fluorescence is calculated as the mean value of a ROI substracted by the
@@ -6,6 +6,8 @@ function [ROImeans,sp] = ROIFvalues(a,b,imd,mask,ROIs,framerate)
 %are not contained in the ROI mask. The result is then multiplicated by 100
 %to convert the values to percent. Finally, the result is filtered with a
 %high-band pass filter (butterworth).
+%The second part is the deconvolution of the signal. This part is adapted
+%from the ca extraction master suite from Pnevmatikakis.
 
 %INPUT      a: value for butterworth filtering
 %           b: value for butterworth filtering
@@ -18,6 +20,8 @@ function [ROImeans,sp] = ROIFvalues(a,b,imd,mask,ROIs,framerate)
 %OUTPUT     ROImeans: resulting values for ROIs after background
 %           substraction, conversion to percentage, and butterworth
 %           filtering, conveying real fluorescence signal
+%           cCaSignal: corrected calcium signal after deconvolution
+%           spikes: approximate true spikes deconvoulted from the data
 
 %background
 bg=cell(size(imd,3),1);
@@ -51,103 +55,33 @@ for k=1:numROIs
 end
 close(h);
 
-% %deconvolution of the calcium signal from suite2P Copyright (c) 2016 Marius
-% %Pachitariu
-% 
-% % takes as input the calcium and (optionally) neuropil traces,  
-% % both NT by NN (number of neurons).
-% % outputs a cell array dcell containing spike times (dcell.st) and amplitudes
-% % (dcell.c). dcell.B(3) is the neuropil contamination coefficient. 
-% % dcell.B(2) is an estimate of the baseline. 
-% 
-% % specify in ops the following options, or leave empty for defaults
-% %       fs = sampling rate
-% %       recomputeKernel = whether to estimate kernel from data
-% %       sensorTau  = timescale of sensor, if recomputeKernel = 0
-% % additional options can be specified (mostly for linking with Suite2p, see below).
-% 
-% % the kernel should depend on timescale of sensor and imaging rate
-% ops.fs = framerate;
-% ops.sensorTau = 6;
-% ops.recomputeKernel = 1;
-% mtau = ops.fs * ops.sensorTau; 
-% 
-% neu = zeros(size(ROImeans));
-% 
-% Params = [1 1 1 2e4]; %parameters of deconvolution
-% 
-% % f0 = (mtau/2); % resample the initialization of the kernel to the right number of samples
-% kernel = exp(-[1:ceil(5*mtau)]'/mtau);
-% %
-% npad        = 250;
-% [NT, NN]    = size(ROImeans);
-% coefNeu = .8 * ones(1,NN); % initialize neuropil subtraction coef with 0.8
-% 
-% caCorrected = ROImeans - bsxfun(@times, neu, coefNeu);
-% 
-% % if ops.recomputeKernel
-% %     tlag                     = 1;
-% %     [kernel, mtau]           = estimateKernel(ops, caCorrected, tlag);
-% %     
-% % %     [kernel, mtau, coefNeu]  = estimateKernel(ops, ca - coefNeu * neu, tlag);
-% %     
-% %     fprintf('Timescale determined is %4.4f samples \n', mtau);
-% % end
-% kernel = normc(kernel(:));
-% %%
-% kernelS     = repmat(kernel, 1, NN);
-% dcell       = cell(NN,1);
-% 
-% tic
-% Fsort       = my_conv2(caCorrected, ceil(ops.fs), 1);
-% Fsort       = sort(Fsort, 1, 'ascend');
-% baselines   = Fsort(ceil(NT/20), :);
-% 
-% % determine and subtract the neuropil
-% F1 = caCorrected - bsxfun(@times, ones(NT,1), baselines);
-% 
-% % normalize signal
-% sd   = 1/2 * std(F1 - my_conv2(F1, max(2, ops.fs/4), 1), [], 1);
-% F1   = bsxfun(@rdivide, F1 , 1e-12 + sd);
-% 
-% sp = zeros(size(F1));
-% 
-% % run the deconvolution to get fs etc\
-% parfor icell = 1:size(ROImeans,2)
-%     [sp(:,icell),dcell{icell}] = ...
-%         single_step_single_cell(F1(:,icell), Params, kernelS(:,icell), NT, npad,dcell{icell});
-% end
-% 
-% % rescale baseline contribution
-% for icell = 1:size(ROImeans,2)
-%     dcell{icell}.c                      = dcell{icell}.c * sd(icell);
-%     dcell{icell}.baseline               = baselines(icell);
-%     dcell{icell}.neuropil_coefficient   = coefNeu(icell);
-% end
+%deconvolution of the calcium signal adapted from ca extraction master GUI from 2015 Pnevmatikakis
+spikes=zeros(size(ROImeans));
+cCaSignal=zeros(size(ROImeans));
 
-%% alternative deconvolution of the calcium signal from ca extraction master 2015 Pnevmatikakis
-col = {[0 114 178],[0 158 115], [213 94 0],[230 159 0],...
-    [86 180 233], [204 121 167], [64 224 208], [240 228 66]}; % colors
+NoofSpikes=zeros(size(ROImeans,2),1);
+ts=cell(1,size(ROImeans,2));
+amp=cell(1,size(ROImeans,2));
 
-y=ROImeans(:,2);
+h=waitbar(0,'Deconvoluting...');
+for k=1:size(ROImeans,2)
+    y=ROImeans(:,k);
 
-[c_oasis, s_oasis] = deconvolveCa(y, 'ar2', 'constrained','optimize_b'); 
-s_oasis(s_oasis<1)=0;
-s_oasis=round(s_oasis);
-
-figure;
-subplot(2,1,1);
-plot(y, 'color', col{8}/255);hold on;
-alpha(.7);
-plot(c_oasis, '-.', 'color', col{5}/255);
-axis tight;
-legend('Data','OASIS');
-title('True calcium signal');
-ylabel('Fluor.');
-subplot(2,1,2);
-hold on;
-plot(s_oasis, 'color', col{3}/255);
-axis tight;
-xlabel('Time [s]');
-ylabel('Activity.');
-stop;
+    [c_oasis, s_oasis] = deconvolveCa(y, 'ar2', 'constrained','optimize_b'); 
+    s_oasis(s_oasis<1)=0;
+    spikes(:,k)=round(s_oasis);
+    cCaSignal(:,k)=c_oasis;
+    
+    %calcium signal statistics
+    ts{:,k}=find(spikes(:,k)); %timestamps of spikes
+    amp{:,k}=spikes(spikes(:,k)>0,k); %amplitude of spike
+    %calculating total number of spikes per ROI
+    NoofSpikes(k,1)=sum(spikes(:,k));
+    
+    waitbar(k/size(ROImeans,2),h);
+end
+%calculating firing frequency
+Frequency=round(NoofSpikes./(size(ROImeans,1)/framerate),3);
+%calculating highest amplitude change
+Amplitude=round(reshape(max(cCaSignal),size(cCaSignal,2),1),2);
+close(h);

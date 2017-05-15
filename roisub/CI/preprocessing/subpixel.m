@@ -10,7 +10,7 @@ h=waitbar(0,'Aligning images');
 for k=1:size(d.imd,3)-1
     imgB=ROI(:,:,k+1);
     imdB=d.imd(:,:,k+1);
-    [output] = dftregistration(fft2(imgA),fft2(imgB),100);
+    [output] = dftregistration(fft2(imgA),fft2(imgB));
     if isempty(output)==1
         imdC(:,:,k+1)=imdB;
     else

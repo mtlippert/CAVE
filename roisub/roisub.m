@@ -237,6 +237,7 @@ d.mip=0; %no maximum intensity projection
 d.pn=[]; %no CI video path
 d.ROIv=0; %no ROI values were loaded
 d.ROImeans=[]; %no ROI values have been calculated
+d.decon=0; %calcium signal was not deconvoluted
 %colors for ROIs
 d.colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -355,6 +356,88 @@ if sum(tf)>0 %if a file is found
             else
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
                 axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+            end
+            if d.decon==1
+                h=msgbox('Please wait while calcium signal is being plotted...');
+                %plotting ROI values
+                %initializing that only 8 subplots will be in one figure
+                onesub=(1:8);
+                anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
+                check=(9:8:200);
+                check2=(8:8:200);
+
+                figure('color','w');
+                for j=1:size(d.ROIs,2)
+                    if ismember(j,check)==1 %if ROI number is 9, 18, 27... new figure is initialized, this way there are only 8 ROIs per figure
+                        figure('color','w');
+                    end
+                    subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1); %using subaxis for tight layout of traces
+                    plot(d.cCaSignal(:,j),'Color',colors{1,j}),hold on;
+                    axlim=get(gca,'YLim');
+                    ylim([min(d.cCaSignal(:,j)) 2*round((axlim(2)+1)/2)]); %y-axis limits: from minimum value of the current ROI to round to next even number of current axis maximum value
+                    strings=sprintf('ROI No.%d',j);
+                    %title('ROI values in percent');
+                    if ismember(j,check2)==1 || j==size(d.ROIs,2) %writing x-axis label only for last plot in the figure
+                        xlabel('Time in seconds');
+                        %changing tick labels from frames to seconds by dividing by framerate
+                        tlabel=get(gca,'XTickLabel');
+                        for k=1:length(tlabel)
+                            tlabel{k,1}=str2num(tlabel{k,1});
+                        end
+                        tlabel=cell2mat(tlabel);
+                        tlabel=tlabel./d.framerate;
+                        set(gca,'XTickLabel',tlabel);
+                    else
+                        set(gca,'XTickLabel',[]);
+                    end
+                    ylabel('%');
+                    legend(strings,'Location','eastoutside');
+                    set(gca, 'box', 'off');
+                    hold on;
+                    plot(find(d.spikes(:,j)),max(d.cCaSignal(:,j))+0.5,'k.');
+                end
+                hold off;
+
+                %plotting raster plot
+                b=zeros(size(d.ROImeans,1),1);
+                figure;
+                subplot(2,1,1);
+                for j=1:size(d.ROImeans,2)
+                    plot(find(d.spikes(:,j)),j,'k.');
+                    hold on;
+                    b(d.spikes(:,j)>0)=b(d.spikes(:,j)>0)+1;
+                    title('Cell activity raster plot');
+                    xlabel('Time in seconds');
+                    ylabel('ROI number');
+                    xlim([0 round(size(d.imd,3))]);
+                    ylim([0 size(d.ROImeans,2)+1]);
+                end
+                %changing tick labels from frames to seconds by dividing by framerate
+                tilabel=get(gca,'XTickLabel');
+                for k=1:length(tilabel)
+                    tilabel{k,1}=str2num(tilabel{k,1});
+                end
+                tilabel=cell2mat(tilabel);
+                tilabel=tilabel./d.framerate;
+                set(gca,'XTickLabel',tilabel);
+                hold off;
+                subplot(2,1,2);
+                plot(b);
+                xlabel('Time in seconds');
+                ylabel('Number of spikes');
+                xlim([0 round(size(d.imd,3))]);
+                %changing tick labels from frames to seconds by dividing by framerate
+                ticlabel=get(gca,'XTickLabel');
+                for k=1:length(ticlabel)
+                    ticlabel{k,1}=str2num(ticlabel{k,1});
+                end
+                ticlabel=cell2mat(ticlabel);
+                ticlabel=ticlabel./d.framerate;
+                set(gca,'XTickLabel',ticlabel);
+                try
+                    close(h);
+                catch
+                end
             end
             %loading original calcium imaging video
             % Construct a questdlg with two options
@@ -1369,6 +1452,7 @@ else
     ROIsingles=d.ROIsbw;
     save(filename, 'ROImask','ROIsingles');
 end
+d.decon=0; %calcium signal was not deconvoluted
 
 
 % --- Executes on button press in pushbutton16.              CLEAR ALL ROIS
@@ -1395,6 +1479,7 @@ d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 d.auto=0; %ROIs were not detected automatically
+d.decon=0; %calcium signal was not deconvoluted
 
 singleFrame=d.mip;
 if d.dF==1
@@ -1493,6 +1578,8 @@ elseif d.pushed==4
         % Handle response
         switch choice
             case 'YES'
+                d.decon=0;
+                d.ROIv=0;
             case 'NO'
                 return;
         end
@@ -1502,10 +1589,11 @@ d.bcount=0;
 
 %using function for calculating PCA & ICA
 F=d.imd;
-[ROIsbw] = pcaica(F);
+mip=d.mip;
+[ROIsbw] = pcaica(F,mip,handles);
 
 %plotting ROIs
-colors=repmat(d.colors,1,ceil(dim/8));
+colors=repmat(d.colors,1,ceil(size(ROIsbw,3)/8));
 for k=1:size(ROIsbw,3)
     B=bwboundaries(ROIsbw(:,:,k)); %boundaries of ROIs
     stat = regionprops(ROIsbw(:,:,k),'Centroid');
@@ -1523,6 +1611,7 @@ d.mask=mask;
 d.pushed=4; %signals that ROIs were selected
 d.roisdefined=1; %signals that ROIs were defined
 d.auto=1; %signlas that automated ROI detection was used
+d.decon=0; %calcium signal was not deconvoluted
 
 %saving ROI mask
 % Construct a questdlg with two options
@@ -1537,6 +1626,7 @@ switch choice
         ROImask=d.mask;
         ROIsingles=d.ROIsbw;
         save(filename, 'ROImask','ROIsingles');
+        msgbox('Done!');
     case 'NO'
 end
 
@@ -1579,21 +1669,22 @@ colorsb={[0    0.4    0.7],...
     [0.6    0.07   0.1],...
     [0.6    0.9    1]};
 
-%checking whether ROI values had been saved before and no ROI was added
+%checking whether ROI values had been saved before and no ROI was added or
+%removed
 if d.ROIv==0
     %labeling ROIs for every frame of the video
     n=size(d.imd,3);
     numROIs=size(d.ROIsbw,3); %number of ROIs
     d.ROIs=cell(size(d.imd,3),numROIs);
     h=waitbar(0,'Labeling ROIs');
-    for j=1:n
-        for i=1:numROIs
-            % You can only multiply integers if they are of the same type.
-            ROIsc = cast(d.ROIsbw(:,:,i), class(d.imd(:,:,1)));
-            imdrem= ROIsc .* d.imd(:,:,j);
-            d.ROIs{j,i}=imdrem(imdrem~=0);
+    for j=1:numROIs
+        % You can only multiply integers if they are of the same type.
+        ROIsc = cast(d.ROIsbw(:,:,j), class(d.imd(:,:,1)));
+        for i=1:n
+            imdrem= ROIsc .* d.imd(:,:,i);
+            d.ROIs{i,j}=imdrem(imdrem~=0);
         end
-        waitbar(j/n,h);
+        waitbar(j/numROIs,h);
     end
     close(h);
     %saving ROI values
@@ -1601,6 +1692,7 @@ if d.ROIv==0
     ROIvalues=d.ROIs;
     save(filename, 'ROIvalues');
     d.ROIv=1;
+    d.decon=0;
 end
 
 %filter for filtering traces
@@ -1609,19 +1701,24 @@ end
 colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %colors for traces
 
 %function for calculating ROI fluorescence values
-imd=d.imd;
-mask=d.mask;
-ROIs=d.ROIs;
-framerate=d.framerate;
-[ROImeans] = ROIFvalues(a,b,imd,mask,ROIs,framerate);
-d.ROImeans=ROImeans;
+if d.decon==0;
+    imd=d.imd;
+    mask=d.mask;
+    ROIs=d.ROIs;
+    framerate=d.framerate;
+    [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROIFvalues(a,b,imd,mask,ROIs,framerate);
+    d.ROImeans=ROImeans;
+    d.cCaSignal=cCaSignal;
+    d.spikes=spikes;
+    %saving calcium signal
+    d.decon=1; %signal was deconvoluted;
+    decon=d.decon;
+    filename=[d.pn '\' d.fn(1:end-4) 'CaSignal'];
+    save(filename, 'ROImeans','cCaSignal','spikes','decon');
+end
+
 
 %plotting ROI values
-%variable initialization
-NoofSpikes=zeros(size(d.ROIs,2),1);
-spikes=cell(1,size(d.ROIs,2));
-ts=cell(1,size(d.ROIs,2));
-amp=cell(1,size(d.ROIs,2));
 %initializing that only 8 subplots will be in one figure
 onesub=(1:8);
 anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
@@ -1634,9 +1731,9 @@ for j=1:size(d.ROIs,2)
         figure('color','w');
     end
     subaxis(8,1,anysub(j),'SpacingVert',.01,'ML',.1,'MR',.1); %using subaxis for tight layout of traces
-    plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
+    plot(d.cCaSignal(:,j),'Color',colors{1,j}),hold on;
     axlim=get(gca,'YLim');
-    ylim([min(d.ROImeans(:,j)) 2*round((axlim(2)+1)/2)]); %y-axis limits: from minimum value of the current ROI to round to next even number of current axis maximum value
+    ylim([min(d.cCaSignal(:,j)) 2*round((axlim(2)+1)/2)]); %y-axis limits: from minimum value of the current ROI to round to next even number of current axis maximum value
     if v.behav==1 %drawing bars signalling the various defined behaviors, if behaviors have been defined
         axlim=get(gca,'YLim'); %limits of y-axis
         for l=1:v.amount
@@ -1644,7 +1741,7 @@ for j=1:size(d.ROIs,2)
             rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),axlim(1),v.barwidth.(char(v.name{1,l}))(m),axlim(2)*2],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
             end
         end
-        plot(d.ROImeans(:,j),'Color',colors{1,j}),hold on;
+        plot(d.cCaSignal(:,j),'Color',colors{1,j}),hold on;
     end
     strings=sprintf('ROI No.%d',j);
     %title('ROI values in percent');
@@ -1665,23 +1762,11 @@ for j=1:size(d.ROIs,2)
     legend(strings,'Location','eastoutside');
     set(gca, 'box', 'off');
     hold on;
-    [y,x]=findpeaks(d.ROImeans(:,j),'MinPeakHeight',4*median(abs(d.ROImeans(:,j))/0.6745)); %adapted quiroga spike detection formula to find maxima=spikes in traces
-    spikes{1,j}=x; %counting number of spikes per ROI
-    ts{1,j}=x/d.framerate; %timestamps of spikes
-    amp{1,j}=y; %amplitude of spike
-    if isempty(x)==0
-        plot(x,max(d.ROImeans(:,j))+0.5,'k.');
-    else
-        spikes{1,j}=1;
+    if sum(d.spikes(:,j))>0
+        plot(find(d.spikes(:,j)),max(d.cCaSignal(:,j))+0.5,'k.');
     end
-    %calculating total number of spikes per ROI
-    NoofSpikes(j,1)=length(x);
 end
 hold off;
-%calculating firing frequency
-Frequency=round(NoofSpikes./(size(d.imd,3)/d.framerate),2);
-%calculating highest amplitude change
-Amplitude=round(reshape(max(d.ROImeans),size(d.ROImeans,2),1),2);
 
 %plotting raster plot
 b=zeros(size(d.ROImeans,1),1);
@@ -1695,9 +1780,11 @@ if v.behav==1 %drawing bars signalling the various defined behaviors, if behavio
     end
 end
 for j=1:size(d.ROImeans,2)
-    plot(spikes{1,j},j,'k.');
+    if sum(d.spikes(:,j))>0
+        plot(find(d.spikes(:,j)),j,'k.');
+    end
     hold on;
-    b(spikes{1,j})=b(spikes{1,j})+1;
+    b(d.spikes(:,j)>0)=b(d.spikes(:,j)>0)+1;
     title('Cell activity raster plot');
     xlabel('Time in seconds');
     ylabel('ROI number');
@@ -1726,10 +1813,6 @@ end
 ticlabel=cell2mat(ticlabel);
 ticlabel=ticlabel./d.framerate;
 set(gca,'XTickLabel',ticlabel);
-try
-    close(g);
-catch
-end
 
 %calculating statistics if behavior is avaiable
 if v.behav==1
@@ -1810,7 +1893,7 @@ switch choice
             close(h);
             
             %saving raw ROI values over time
-            h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))*0.9]),colorbar;
+            h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.6]),colorbar;
             title('Raw fluorescence traces');
             xlabel('Time in seconds');
             ylabel('Cell number');
@@ -1831,8 +1914,8 @@ switch choice
 
             %saving table
             filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
-            ROInumber=cell(size(d.ROImeans,2),1);
-            for k=1:size(d.ROImeans,2)
+            ROInumber=cell(size(d.cCaSignal,2),1);
+            for k=1:size(d.cCaSignal,2)
                 ROInumber{k,1}=sprintf('ROI No.%d',k);
             end
             T=table(NoofSpikes,Frequency,Amplitude,...
@@ -1841,16 +1924,18 @@ switch choice
             
             %saving data
             field1='framerate';
-            field2='wave';
-            field3='spikes';
-            field4='amp';
-            field5='ts';
+            field2='rawwave';
+            field3='wave';
+            field4='spikes';
+            field5='amp';
+            field6='ts';
             value1=d.framerate;
             value2=d.ROImeans;
-            value4=amp;
-            value5=ts;
-            value3=struct(field4,value4,field5,value5);
-            traces=struct(field1,value1,field2,value2,field3,value3);
+            value3=d.cCaSignal;
+            value5=amp;
+            value6=ts;
+            value4=struct(field5,value5,field6,value6);
+            traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
             filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
             save(filename, 'traces');
     
@@ -1884,7 +1969,7 @@ switch choice
                 writetable(T,filename);
 
                 %saving mean values of ROIs over time with behavior
-                mVal=mean(d.ROImeans,2);
+                mVal=mean(d.cCaSignal,2);
                 h=figure;
                 for l=1:v.amount
                     for m=1:length(v.barstart.(char(v.name{1,l})))
@@ -1961,7 +2046,7 @@ switch choice
                 close(h);
                 
                 %saving raw ROI values over time
-                h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))*0.9]),colorbar;
+                h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.6]),colorbar;
                 title('Raw fluorescence traces');
                 xlabel('Time in seconds');
                 ylabel('Cell number');
@@ -1982,8 +2067,8 @@ switch choice
 
                 %saving table
                 filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
-                ROInumber=cell(size(d.ROImeans,2),1);
-                for k=1:size(d.ROImeans,2)
+                ROInumber=cell(size(d.cCaSignal,2),1);
+                for k=1:size(d.cCaSignal,2)
                     ROInumber{k,1}=sprintf('ROI No.%d',k);
                 end
                 T=table(NoofSpikes,Frequency,Amplitude,...
@@ -1992,16 +2077,18 @@ switch choice
 
                 %saving data
                 field1='framerate';
-                field2='wave';
-                field3='spikes';
-                field4='amp';
-                field5='ts';
+                field2='rawwave';
+                field3='wave';
+                field4='spikes';
+                field5='amp';
+                field6='ts';
                 value1=d.framerate;
                 value2=d.ROImeans;
-                value4=amp;
-                value5=ts;
-                value3=struct(field4,value4,field5,value5);
-                traces=struct(field1,value1,field2,value2,field3,value3);
+                value3=d.cCaSignal;
+                value5=amp;
+                value6=ts;
+                value4=struct(field5,value5,field6,value6);
+                traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
                 filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
                 save(filename, 'traces');
 

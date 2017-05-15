@@ -54,3 +54,19 @@ if sum(tf)>0
 else
     d.ROIv=0; %signals that ROI values have not been loaded
 end
+%loading calcium signal
+%check whether calcium signal had been saved before
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn))
+    tf(k)=strcmp([d.fn(1:end-4) 'CaSignal.mat'],files(k).name);
+end
+if sum(tf)>0
+    load([d.pn '\' d.fn(1:end-4) 'CaSignal.mat']);
+    d.ROImeans=ROImeans;
+    d.cCaSignal=cCaSignal;
+    d.spikes=spikes;
+    d.decon=decon;
+else
+    d.decon=0; %signal was not deconvoluted;
+end

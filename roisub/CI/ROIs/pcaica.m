@@ -1,4 +1,4 @@
-function [ROIsbw] = pcaica(F)
+function [ROIsbw] = pcaica(F,mip,handles)
 
 %FUNCTION for calculating PCA and ICA in order to automatically find ROIs
 %in the calcium imaging video. First the deimencions are reduced by PCA and
@@ -42,12 +42,8 @@ ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
 ROIsbw=zeros(size(F,1),size(F,2),dim);
 smallestAcceptableArea=30;
 
-singleFrame=d.mip;
-if d.dF==1 || d.pre==1
-    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
-else
-    axes(handles.axes1); imshow(singleFrame); hold on;
-end
+singleFrame=mip;
+axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
 
 for k=1:size(ICAmatrixfilt,3)
     %converting to numbers between 0 and 1
@@ -55,12 +51,12 @@ for k=1:size(ICAmatrixfilt,3)
     ROIs=ROIs./max(max(ROIs));
     ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
     ROIsbw(:,:,k)=bwlabel(ROIsBW);
-    if sum(sum(ROIsBW))>1000
+    if sum(sum(ROIsBW))>500
         ROIs=imcomplement(ROIs);
         ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
         ROIsbw(:,:,k)=bwlabel(ROIsBW);
         B = bwboundaries(ROIsbw(:,:,k));
-        if sum(sum(ROIsBW))>1000 || length(B)>1
+        if sum(sum(ROIsBW))>500 || length(B)>1
             ROIsbw(:,:,k)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
         end
     end   
@@ -70,7 +66,7 @@ end
 for j=1:size(ROIsbw,3)
     stats = regionprops(ROIsbw(:,:,j),'Area','Centroid');
     B = bwboundaries(ROIsbw(:,:,j),'noholes');
-    threshold = 0.5;
+    threshold = 0.6;
     if isempty(B)==0
         % obtain (X,Y) boundary coordinates
         boundary = B{1,1};
@@ -98,7 +94,7 @@ for m=1:size(ROIsbw,3)
             if overlay>0
                 percMover=overlay/sumM*100;
                 percNover=overlay/sumN*100;
-                if percMover>=70 || percNover>=70 %if overlap of ROIs is greater than 70% it is interpreted as one ROI
+                if percMover>=20 || percNover>=20 %if overlap of ROIs is greater than 50% it is interpreted as one ROI
                     ROIboth(ROIboth>1)=1;
                     ROIsbw(:,:,m)=ROIboth;
                     ROIsbw(:,:,n)=zeros(size(F,1),size(F,2),1);

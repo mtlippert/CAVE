@@ -25,13 +25,13 @@ hhh = fspecial('gaussian', 5, 5); %gaussian blur
 imddFF=imfilter(imddF,hhh); %filter taken from miniscope msRun ()
 close(h);
 
-%saving deltaF video
-h=msgbox('Saving progress... Program might seem unresponsive, please wait!');
-filename=[pn '\' fn(1:end-4) 'dFvid.mat'];
-deltaFimd=imddFF;
-save(filename, 'deltaFimd','-v7.3');
-%saving whether images were aligned
-filename=[pn '\' fn(1:end-4) 'vidalign'];
-vidalign=align;
-save(filename, 'vidalign');
-close(h);
+% %saving deltaF video
+% h=msgbox('Saving progress... Program might seem unresponsive, please wait!');
+% filename=[pn '\' fn(1:end-4) 'dFvid.mat'];
+% deltaFimd=imddFF;
+% save(filename, 'deltaFimd','-v7.3');
+% %saving whether images were aligned
+% filename=[pn '\' fn(1:end-4) 'vidalign'];
+% vidalign=align;
+% save(filename, 'vidalign');
+% close(h);
