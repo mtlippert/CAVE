@@ -1,4 +1,11 @@
-function [maskedRGBImage] = spotmask(nframes,maxframes,handles)
+function [maskedRGBImage] = spotmask(handles)
+
+% FUNCTION for applying color spot mask to the current frame.
+%
+% INPUT     handles: interactive elements of the GUI
+%
+% OUTPUT    maskedRGBImage: color spot mask showing only the defined color
+
 global v
 
 %slider values
@@ -10,7 +17,7 @@ v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
 
 % Convert RGB image to HSV
-hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);
+hsvImage= rgb2hsv(v.imd(round(round(handles.slider7.Value))).cdata);
 
 % Now apply each color band's particular thresholds to the color band
 hueMask = (hsvImage(:,:,1) >= v.hueThresholdLow) & (hsvImage(:,:,1) <= v.hueThresholdHigh);
@@ -35,11 +42,11 @@ coloredObjectsMask = imfill(logical(coloredObjectsMask), 'holes');
 % (coloredObjectsMask is a logical array.)
 % We need to convert the type of coloredObjectsMask to the same data type as hImage.
 % coloredObjectsMask = cast(coloredObjectsMask, 'like', v.imd(100)); 
-coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1))));
+coloredObjectsMask = squeeze(cast(coloredObjectsMask, class(v.imd(round(round(handles.slider7.Value))).cdata(:,:,1))));
 
 % Use the colored object mask to mask out the colored-only portions of the rgb image.
-maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,1);
-maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,2);
-maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata(:,:,3);
+maskedImageR = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value))).cdata(:,:,1);
+maskedImageG = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value))).cdata(:,:,2);
+maskedImageB = coloredObjectsMask .* v.imd(round(round(handles.slider7.Value))).cdata(:,:,3);
 % Concatenate the masked color bands to form the rgb image.
 maskedRGBImage = cat(3, maskedImageR, maskedImageG, maskedImageB);

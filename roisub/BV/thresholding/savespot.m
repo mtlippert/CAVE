@@ -1,5 +1,16 @@
 function [x,y] = savespot(x,y,k,thresh,imd)
 
+% FUNCTION for applying color mask to every frame of the behavioral video.
+%
+% INPUT     x: X-coordinates of the center of the color spot over time.
+%           y: Y-coordinates of the center of the color spot over time.
+%           k: current frame number
+%           thresh: threshold values of the color setting.
+%           imd: behavioral video
+% 
+% OUTPUT    x: X-coordinates of the center of the color spot over time.
+%           y: Y-coordinates of the center of the color spot over time.
+
 % Convert RGB image to HSV
 hsvImage= rgb2hsv(imd);
 

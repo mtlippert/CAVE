@@ -1,4 +1,11 @@
 function [skeys,tfb] = loadlastBV
+
+%FUNCTION for loading last processed version of behavioral video.
+
+%OUTPUT     skeys: shortkeys used for defining behaviors.
+%
+%           tfb: names of behaviors.
+
 global v
 global d
 
@@ -8,7 +15,7 @@ load([v.pn '\' v.fn{1}(1:end-4) '_converted']);
 v.imd=convVimd;
 v.pushed=1; %signals video is loaded
 v.crop=1; %signals that video was cropped
-%loading traces
+%loading traces of color spot/s if available
 files=dir(v.pn);
 tfA=zeros(1,length(dir(v.pn)));
 tfP=zeros(1,length(dir(v.pn)));
@@ -31,9 +38,13 @@ if sum(tfP)>0
     v.Pspot=1;
 end
 if sum(tfA)>0&&sum(tfP)>0
-    %plotting trace
+    %plotting traces
     figure, image(v.imd(1).cdata); hold on;
     plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
+    plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
+else
+    %plotting trace
+    figure, image(v.imd(1).cdata); hold on;
     plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA); hold off;
 end
 %loading behavior
@@ -63,6 +74,7 @@ if sum(tfb)>0
         str(end+1)={char(v.name{1,j})}; %#ok<*AGROW>
         skeys(end+1)={char(v.shortkey{1,j})};
     end
+    %relabeling X-ticks in time in seconds
     xlabel('Time in seconds');
     tlabel=get(gca,'XTickLabel');
     for k=1:length(tlabel)

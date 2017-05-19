@@ -1,4 +1,9 @@
 function [cood] = defineComp
+
+% FUNCTION for defining copmartments/ROIs in the testing arena.
+% 
+% OUTPUT    cood: coordinates of the ROIs
+
 global d
 global v
 global p
@@ -66,14 +71,12 @@ else
                 %calculating amount of time the mouse (the head) was in a compartment in percent
                 [y,x]=find(ROI>0);
                 cood=[x,y];
-                v.traceAround=round(v.traceAplot);
-                mhead=accumarray(v.traceAround,1);
-                Mhead=imresize(mhead, [size(ROI,1) size(ROI,2)]);
-                Mhead(Mhead<0.1)=0;
-                Mhead(Mhead>0.1)=1;
-                combi=ROI+Mhead;
+                traceAround=round(v.traceAplot); %coordinates of head of the mouse over time
+                mhead=accumarray(traceAround,1); %logical image where ones indicate the coordinates of the head of the mouse
+                Mhead=zeros(size(ROI));
+                Mhead(1:size(mhead,1),1:size(mhead,2))=mhead; %resized to the whole size of the frame
+                combi=ROI.*Mhead; %combination of ROI and head positions thus everything above 1 is the head within the ROI
                 numpixel=numel(find(combi>1));
-                numpixel=numpixel*((size(mhead,1)/size(ROI,1)+size(mhead,2)/size(ROI,2))/2);
                 perccomp(1,k)=round(numpixel/length(v.traceA)*100,2); %percent in regards to the whole time
                 Compartments.(char(name{1,k})) = perccomp(1,k);
             end

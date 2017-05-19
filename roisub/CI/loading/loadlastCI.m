@@ -15,6 +15,8 @@ load([d.pn '\' d.fn(1:end-4) 'dFvid']);
 d.imd=deltaFimd;
 close(h);
 d.pushed=1; %signals that CI video was loaded
+d.pre=1; %signals that the video was preprocessed
+d.dF=1; %signals that delta F/F calculation was performed
 %loading MIP
 MaxIntensProj = max(d.imd, [], 3);
 stdIm = std(d.imd,0,3);

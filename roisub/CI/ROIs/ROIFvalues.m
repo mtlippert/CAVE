@@ -68,7 +68,7 @@ for k=1:size(ROImeans,2)
     y=ROImeans(:,k);
 
     [c_oasis, s_oasis] = deconvolveCa(y, 'ar2', 'constrained','optimize_b'); 
-    s_oasis(s_oasis<1)=0;
+    s_oasis(s_oasis<0.6)=0; %spiking threshold at 0.6% value change
     spikes(:,k)=round(s_oasis);
     cCaSignal(:,k)=c_oasis;
     

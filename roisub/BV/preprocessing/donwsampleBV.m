@@ -1,12 +1,16 @@
-function [] = donwsampleBV
-global v
+function [imdd] = donwsampleBV(imd)
+
+% FUNCTION for cropping the behavioral video.
+%
+% INPUT     imd: cropped video
+%
+% OUTPUT    imd: downsampled & cropped video
 
 %downsampling
-imd = struct('cdata',zeros(size(v.imd(1),1),size(v.imd(1),2),3,'uint8'));
+imdd = struct('cdata',zeros(size(imd(1).cdata,1),size(imd(1).cdata,2),3,'uint8'));
 h=waitbar(0,'Downsampling');
-for k=1:size(v.imd,2)
-    imd(k).cdata=imresize(v.imd(k).cdata,0.6);
-    waitbar(k/size(v.imd,2),h);
+for k=1:size(imd,2)
+    imdd(k).cdata=imresize(imd(k).cdata,0.6);
+    waitbar(k/size(imd,2),h);
 end
-v.imd=imd;
 close(h);

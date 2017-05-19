@@ -127,7 +127,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 27-Feb-2017 13:57:13
+% Last Modified by GUIDE v2.5 17-May-2017 13:08:24
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -205,7 +205,9 @@ varargout{1} = handles.output;
 %% DORIC CAMERA CODE
 
 
-%%---------------------------Processing calcium imaging video
+
+
+%%---------------------------Loading calcium imaging video
 
 % --- Executes on button press in pushbutton5.                   LOAD DORIC
 function pushbutton5_Callback(hObject, eventdata, handles)
@@ -646,7 +648,7 @@ msgbox('Loading Completed.','Success');
 
 
 
-
+%%---------------------------Changing contrast of calcium imaging video
 
 % --- Executes on slider movement.                           CHANGES LOW IN
 function slider5_Callback(hObject, eventdata, handles)
@@ -851,7 +853,7 @@ axes(handles.axes1); imshow(singleFrame); %shows image in axes1
 
 
 
-
+%%---------------------------Processing calcium imaging video
 
 % --- Executes on button press in pushbutton38.                 REMOVE DUST
 function pushbutton38_Callback(hObject, eventdata, handles)
@@ -1040,9 +1042,6 @@ end
 %it is assumed that if you do delta F/F calculation you accepted the
 %alignment, if any was done, thus adjustment of the size of the original CI
 %video
-if d.align==1
-    d.origCI=d.origCI(round(abs(d.Bvector(1,1))):round(size(d.origCI,1)-abs(d.Bvector(1,1))),round(abs(d.Bvector(2,1))):round(size(d.origCI,2)-abs(d.Bvector(2,1))),:);  %cut middle of image
-end
 
 %function for calculating deltaF/F
 imd=d.imd;
@@ -1081,7 +1080,7 @@ msgbox('Calculation done!','Success');
 
 
 
-
+%%---------------------------Selecting and processing ROIs in calcium imaging video
 
 % --- Executes on button press in pushbutton3.                         ROIs
 function pushbutton3_Callback(hObject, eventdata, handles)
@@ -1710,6 +1709,11 @@ if d.decon==0;
     d.ROImeans=ROImeans;
     d.cCaSignal=cCaSignal;
     d.spikes=spikes;
+    d.ts=ts;
+    d.amp=amp;
+    d.NoofSpikes=NoofSpikes;
+    d.Frequency=Frequency;
+    d.Amplitude=Amplitude;
     %saving calcium signal
     d.decon=1; %signal was deconvoluted;
     decon=d.decon;
@@ -1893,7 +1897,7 @@ switch choice
             close(h);
             
             %saving raw ROI values over time
-            h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.6]),colorbar;
+            h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.8]),colorbar;
             title('Raw fluorescence traces');
             xlabel('Time in seconds');
             ylabel('Cell number');
@@ -1918,7 +1922,7 @@ switch choice
             for k=1:size(d.cCaSignal,2)
                 ROInumber{k,1}=sprintf('ROI No.%d',k);
             end
-            T=table(NoofSpikes,Frequency,Amplitude,...
+            T=table(d.NoofSpikes,d.Frequency,d.Amplitude,...
                 'RowNames',ROInumber);
             writetable(T,filename,'WriteRowNames',true);
             
@@ -1932,8 +1936,8 @@ switch choice
             value1=d.framerate;
             value2=d.ROImeans;
             value3=d.cCaSignal;
-            value5=amp;
-            value6=ts;
+            value5=d.amp;
+            value6=d.ts;
             value4=struct(field5,value5,field6,value6);
             traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
             filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
@@ -2046,7 +2050,7 @@ switch choice
                 close(h);
                 
                 %saving raw ROI values over time
-                h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.6]),colorbar;
+                h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.8]),colorbar;
                 title('Raw fluorescence traces');
                 xlabel('Time in seconds');
                 ylabel('Cell number');
@@ -2071,7 +2075,7 @@ switch choice
                 for k=1:size(d.cCaSignal,2)
                     ROInumber{k,1}=sprintf('ROI No.%d',k);
                 end
-                T=table(NoofSpikes,Frequency,Amplitude,...
+                T=table(d.NoofSpikes,d.Frequency,d.Amplitude,...
                     'RowNames',ROInumber);
                 writetable(T,filename,'WriteRowNames',true);
 
@@ -2085,8 +2089,8 @@ switch choice
                 value1=d.framerate;
                 value2=d.ROImeans;
                 value3=d.cCaSignal;
-                value5=amp;
-                value6=ts;
+                value5=d.amp;
+                value6=d.ts;
                 value4=struct(field5,value5,field6,value6);
                 traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
                 filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
@@ -2107,7 +2111,7 @@ end
 
 
 
-
+%%---------------------------Saving calcium imaging video
 
 % --- Executes on button press in pushbutton26.               SAVE CI VIDEO
 function pushbutton26_Callback(hObject, eventdata, handles)
@@ -2120,6 +2124,9 @@ if isempty(d.origCI)==1&&d.pushed==1
     d.origCI=d.imd;
 elseif isempty(d.origCI)==1&&d.pushed==4
     d.origCI=[];
+end
+if d.align==1
+    d.origCI=d.origCI(round(abs(d.Bvector(2,2))):round(size(d.origCI,1)-abs(d.Bvector(2,1))),round(abs(d.Bvector(1,2))):round(size(d.origCI,2)-abs(d.Bvector(1,1))),:);  %cut middle of image
 end
 
 
@@ -2217,7 +2224,7 @@ end
 
 
 
-%---------------------------Browsing through video/s
+%%---------------------------Browsing through calcium imaging video/s
 
 % --- Executes on slider movement.                            CHANGES FRAME
 function slider7_Callback(hObject, eventdata, handles)
@@ -2233,29 +2240,13 @@ if d.pushed==0 && v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if v.pushed==0
-    v.imd=[];
-    nframes=[];
-elseif v.pushed==1
-    v.hsvA=[];
-    v.hsvP=[];
-    nframes=size(v.imd,2);
-elseif v.pushed>=1
-    nframes=size(v.imd,2);
-end
-if d.pushed==0
-    d.imd=[];
-    maxframes=size(v.imd,2);
-    handles.slider7.Max=maxframes;
-else
-    maxframes=size(d.imd,3);
-    handles.slider7.Max=maxframes;
-end
+maxframes=size(d.imd,3);
+handles.slider7.Max=maxframes;
 
 cla(handles.axes1);
 cla(handles.axes2);
 
-if v.pushed>1
+if v.pushed>1 %if color spot mask was defined, select the corresponding color
     if v.preset==1
         % Green preset values
         color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -2271,11 +2262,11 @@ if v.pushed>1
     end
 end
 
-if d.pushed==4
+if d.pushed==4 %if ROIs were defined, load colors for ROI boundaries
     colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
 end
 
-if d.pre==1 && d.pushed==1
+if d.pre==1 && d.pushed==1 %if CI video was too big and is already preprocessed
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
     if d.dF==1 || d.pre==1
@@ -2285,7 +2276,7 @@ if d.pre==1 && d.pushed==1
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif d.pushed==1
+elseif d.pushed==1 %if CI video was loaded
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1);
     if d.dF==1 || d.pre==1
@@ -2295,7 +2286,7 @@ elseif d.pushed==1
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif d.pushed==4
+elseif d.pushed==4 %if ROIs were defined
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
     if d.dF==1 || d.pre==1
@@ -2311,26 +2302,26 @@ elseif d.pushed==4
             plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
             text(stat.Centroid(1),stat.Centroid(2),num2str(k));
         end
-    end
+    end %drawing ROIs
     hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
-if v.pushed==1 && d.pushed>=1
-    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %original video
+if v.pushed==1 && d.pushed>=1 %if both CI and BV video was loaded
+    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif v.pushed==1
-    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata); %original video
+elseif v.pushed==1 %if only BV video was loaded
+    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif v.pushed==2
+elseif v.pushed==2 %if one color spot was defined
     %function for masking the colored spot of the animal
-    [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+    [maskedRGBImage] = spotmask(handles);
     %showing masked image in GUI
     if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
         axes(handles.axes2); 
-        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);
         str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2338,7 +2329,7 @@ elseif v.pushed==2
         hold off;
     else
         axes(handles.axes2);
-        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);
         hh=imshow(color);
@@ -2347,13 +2338,13 @@ elseif v.pushed==2
     hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif v.pushed==3
+elseif v.pushed==3 %if second color spot was defined
     %function for masking the colored spot of the animal
-    [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+    [maskedRGBImage] = spotmask(handles);
     %showing masked image in GUI
     if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
         axes(handles.axes2); 
-        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);
         str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2361,7 +2352,7 @@ elseif v.pushed==3
         hold off;
     else
         axes(handles.axes2);
-        grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);
         hh=imshow(color);
@@ -2398,27 +2389,13 @@ d.stop=0;
 if v.pushed==0 && d.pushed==0
     msgbox('Please select folder first!','ERROR');
     return;
-elseif v.pushed==0
-    v.imd=[];
-    nframes=[];
-elseif v.pushed==1
-    v.hsvA=[];
-    v.hsvP=[];
-    nframes=size(v.imd,2);
-elseif v.pushed>=1
-    nframes=size(v.imd,2);
 end
-if d.pushed==0
-    d.imd=[];
-    maxframes=size(v.imd,2);
-else
-    maxframes=size(d.imd,3);
-end
+maxframes=size(d.imd,3);
 
 cla(handles.axes1);
 cla(handles.axes2);
 
-if v.pushed>1
+if v.pushed>1  %if color spot mask was defined, select the corresponding color
     if v.preset==1
         % Green preset values
         color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -2434,17 +2411,17 @@ if v.pushed>1
     end
 end
 
-if d.pushed==4
+if d.pushed==4 %if ROIs were defined, load colors for ROI boundaries
     colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
 end
 
 %if both videos were loaded
-if v.pushed==1 && d.pre==1 && d.pushed==1
+if v.pushed==1 && d.pre==1 && d.pushed==1 %if BV was loaded and CI video was too big
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         axes(handles.axes2);
-        image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+        image(v.imd(round(k)).cdata); %original video
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1
@@ -2464,12 +2441,12 @@ if v.pushed==1 && d.pre==1 && d.pushed==1
             return;
         end
     end
-elseif v.pushed==1 && d.pushed==1
+elseif v.pushed==1 && d.pushed==1 %if both videos were loaded
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         axes(handles.axes2); %#ok<*LAXES>
-        image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+        image(v.imd(round(k)).cdata); %original video
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         if d.dF==1 || d.pre==1
@@ -2490,12 +2467,12 @@ elseif v.pushed==1 && d.pushed==1
             return;
         end
     end
-elseif v.pushed==1 && d.pushed==4
+elseif v.pushed==1 && d.pushed==4 %if BV video was loaded and ROIs were defined in CI video
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         axes(handles.axes2);
-        image(v.imd(round(k*round((nframes/maxframes),2))).cdata); %original video
+        image(v.imd(round(k)).cdata); %original video
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1
@@ -2511,7 +2488,7 @@ elseif v.pushed==1 && d.pushed==4
                 plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
                 text(stat.Centroid(1),stat.Centroid(2),num2str(j));
             end
-        end
+        end %drawing ROIs
         hold off;
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
@@ -2526,16 +2503,16 @@ elseif v.pushed==1 && d.pushed==4
             return;
         end
     end
-elseif v.pushed==2 && d.pre==1 && d.pushed==1
+elseif v.pushed==2 && d.pre==1 && d.pushed==1 %if one color spot was defined and CI video was too big
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
-        [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+        [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
         if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2543,7 +2520,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1
             hold off;
         else
             axes(handles.axes2);
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             hh=imshow(color);
@@ -2569,16 +2546,16 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1
             return;
         end
     end
-elseif  v.pushed==2 && d.pushed==1
+elseif  v.pushed==2 && d.pushed==1 %if one color spot was defined and CI video was loaded
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
-        [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+        [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
         if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2586,7 +2563,7 @@ elseif  v.pushed==2 && d.pushed==1
             hold off;
         else
             axes(handles.axes2);
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             hh=imshow(color);
@@ -2613,16 +2590,16 @@ elseif  v.pushed==2 && d.pushed==1
             return;
         end
     end
-elseif v.pushed==2 && d.pushed==4
+elseif v.pushed==2 && d.pushed==4 %if one color spot was defined and ROIs were defined in CI video
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
-        [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+        [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
         if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2630,7 +2607,7 @@ elseif v.pushed==2 && d.pushed==4
             hold off;
         else
             axes(handles.axes2);
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             hh=imshow(color);
@@ -2652,7 +2629,7 @@ elseif v.pushed==2 && d.pushed==4
                 plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
                 text(stat.Centroid(1),stat.Centroid(2),num2str(j));
             end
-        end
+        end %drawing ROIs
         hold off;
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
@@ -2667,16 +2644,16 @@ elseif v.pushed==2 && d.pushed==4
             return;
         end
     end
-elseif v.pushed==3 && d.pre==1 && d.pushed==1
+elseif v.pushed==3 && d.pre==1 && d.pushed==1 %if other color spot was defined and CI video was too big
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
-        [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+        [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
         if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2684,7 +2661,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1
             hold off;
         else
             axes(handles.axes2);
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             hh=imshow(color);
@@ -2710,16 +2687,16 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1
             return;
         end
     end
-elseif v.pushed==3 && d.pushed==1
+elseif v.pushed==3 && d.pushed==1 %if other color spot was defined and CI video was loaded
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
-        [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+        [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
         if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2727,7 +2704,7 @@ elseif v.pushed==3 && d.pushed==1
             hold off;
         else
             axes(handles.axes2);
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             hh=imshow(color);
@@ -2754,16 +2731,16 @@ elseif v.pushed==3 && d.pushed==1
             return;
         end
     end
-elseif v.pushed==3 && d.pushed==4
+elseif v.pushed==3 && d.pushed==4 %if other color spot was defined and ROIs were defined in CI video
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         %function for masking the colored spot of the animal
-        [maskedRGBImage] = spotmask(nframes,maxframes,handles);
+        [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
         if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
             axes(handles.axes2); 
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             str=sprintf('animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -2771,7 +2748,7 @@ elseif v.pushed==3 && d.pushed==4
             hold off;
         else
             axes(handles.axes2);
-            grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+            grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
             set(gcf,'renderer','OpenGL');
             alpha(grid,0.1);
             hh=imshow(color);
@@ -2793,7 +2770,7 @@ elseif v.pushed==3 && d.pushed==4
                 plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
                 text(stat.Centroid(1),stat.Centroid(2),num2str(j));
             end
-        end
+        end %drawing ROIs
         hold off;
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
@@ -2914,6 +2891,7 @@ v.play=0;
 
 %% ---------------------------Processing behavioral video
 
+%%---------------------------Loading behavioral video
 
 % --- Executes on button press in pushbutton7.       LOADS BEHAVIORAL VIDEO
 function pushbutton7_Callback(hObject, eventdata, handles)
@@ -2928,23 +2906,25 @@ global p
 clear global v;
 %reinitializes global variables
 global v %#ok<*REDEF>
-v.pushed=0;
-v.play=0;
-v.pn=[];
-v.amount=[];
-v.shortkey=[];
-v.name=[];
-v.events=[];
-v.skdefined=0;
-v.behav=0;
-v.smallestArea=25;
-p.import=0;
+v.pushed=0; %video was not loaded yet
+v.play=0; %video is not being played
+v.pn=[]; %pathname is empty
+v.fn=[]; %filename is empty
+v.amount=[]; %amount of behaviors defined is 0
+v.shortkey=[]; %no shortkeys for behaviors defined
+v.name=[]; %no names for behaviors
+v.events=[]; %no behavior events
+v.skdefined=0; %behaviors were not specified yet
+v.behav=0; %behaviors are not defined
+v.smallestArea=25; %threshold for color spot mask to exclude small objects
+v.preset=0; %no color preset was selected
+p.import=0; %no ROIs were imported
 %clears axes
 cla(handles.axes2,'reset');
 %resets frame slider
 handles.slider7.Value=1;
 
-if d.play==1 || v.play==1
+if d.play==1
     msgbox('Please push stop button before proceeding!','ATTENTION');
     return;
 end
@@ -2955,19 +2935,17 @@ if d.pushed==0
     return;
 end        
 
-v.pn=[];
-v.fn=[];
+v.hsvA=[]; %anterior spot mask is empty
+v.hsvP=[]; %posterior spot mask is empty
 v.crop=0; %signals video is not cropped
 v.hsv=0; %signals video is not converted to hsv color space
 v.Pspot=0; %signals green spot is not saved
 v.Aspot=0; %signals pink spot is not saved
-if d.pushed>=1
-    [v.pn]=uigetdir(d.pn);
-else
-    [v.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
-end
 
-%check whether converted video had been saved before
+%open directory
+[v.pn]=uigetdir(d.pn);
+
+%check whether converted video has been saved before
 filePattern = fullfile(v.pn, '*.mp4');
 Files = dir(filePattern);
 for j=1:length(Files)
@@ -3001,11 +2979,13 @@ if sum(tf)>0
         case 'NO'
             %function for loading behavioral video
             dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
-            [sframe,imd,pushed,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+            [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
             d.imd=dimd;
-            d.ROIv=dROIv;
+            if isempty(dROIv)==0
+                d.ROIv=dROIv;
+            end
             v.imd=imd;
-            v.pushed=pushed;
+            v.pushed=1; %signals video is loaded
             %looking at first original picture
             axes(handles.axes2); image(v.imd(1).cdata);
             titleLabel = ['Behavioral video: ' v.fn];
@@ -3016,11 +2996,11 @@ if sum(tf)>0
 else
     %function for loading behavioral video
     dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
-    [sframe,imd,pushed,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+    [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
     d.imd=dimd;
     d.ROIv=dROIv;
     v.imd=imd;
-    v.pushed=pushed;
+    v.pushed=1; %signals video is loaded
     %looking at first original picture
     axes(handles.axes2); image(v.imd(1).cdata);
     titleLabel = ['Behavioral video: ' v.fn];
@@ -3031,7 +3011,7 @@ end
 
 
 
-
+%%---------------------------Processing of behavioral video
 
 % --- Executes on button press in pushbutton15. CROPPING & DOWNSAMPLING
 function pushbutton15_Callback(hObject, eventdata, handles)
@@ -3063,9 +3043,12 @@ if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4
 end
 cc=floor(cropCoordinates);
 %function for cropping video
-cropBV(cc);
+imd=v.imd;
+[imdc] = cropBV(imd,cc);
+v.crop=1; %signals that video was cropped
 %function for downsampling video
-donwsampleBV;
+[imdcd] = donwsampleBV(imdc);
+v.imd=imdcd;
 axes(handles.axes2); image(v.imd(1).cdata);
 
 %saving cropped video
@@ -3083,7 +3066,7 @@ end
 
 
 
-
+%%---------------------------Creating mask for color spots on mouse
 
 % --- Executes on slider movement.                                SPOT SIZE
 function slider22_Callback(hObject, eventdata, handles)
@@ -3096,25 +3079,19 @@ function slider22_Callback(hObject, eventdata, handles)
 global v
 global d
 
+%slider value for smallest acceptable area for spot size in the color mask
 v.smallestArea=round(handles.slider22.Value);
 
 if v.pushed==0
-    v.imd=[];
-    nframes=[];
-elseif v.pushed==1
-    v.hsvA=[];
-    v.hsvP=[];
-    nframes=size(v.imd,2);
-elseif v.pushed>=1
-    nframes=size(v.imd,2);
+    msgbox('Please select behavioral video first!','ATTENTION');
+    return;
 end
-if d.pushed==0
-    d.imd=[];
-    maxframes=size(v.imd,2);
-    handles.slider7.Max=maxframes;
-else
-    maxframes=size(d.imd,3);
-    handles.slider7.Max=maxframes;
+maxframes=size(d.imd,3);
+handles.slider7.Max=maxframes;
+
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
 end
 
 if v.preset==1
@@ -3132,12 +3109,12 @@ elseif v.preset==4
 end
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
     axes(handles.axes2); 
-    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
     alpha(grid,0.1);
     str=sprintf('animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
@@ -3145,7 +3122,7 @@ if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not anima
     hold off;
 else
     axes(handles.axes2);
-    grid=imshow(v.imd(round(round(handles.slider7.Value)*round((nframes/maxframes),2))).cdata);hold on;
+    grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
     set(gcf,'renderer','OpenGL');
     alpha(grid,0.1);
     hh=imshow(color);
@@ -3192,6 +3169,11 @@ elseif d.pushed==0
     return;
 end
 
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+
 if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -3210,7 +3192,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3267,6 +3249,11 @@ elseif d.pushed==0
     return;
 end
 
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+
 if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -3285,7 +3272,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3342,6 +3329,11 @@ elseif d.pushed==0
     return;
 end
 
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+
 if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -3360,7 +3352,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3417,6 +3409,11 @@ elseif d.pushed==0
     return;
 end
 
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+
 if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -3435,7 +3432,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3492,6 +3489,11 @@ elseif d.pushed==0
     return;
 end
 
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+
 if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -3510,7 +3512,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3567,6 +3569,11 @@ elseif d.pushed==0
     return;
 end
 
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+
 if v.preset==1
     % Green preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
@@ -3585,7 +3592,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3640,9 +3647,6 @@ end
 if v.crop==0
     msgbox('Please crop & convert video first!','ERROR');
     return;
-elseif d.pushed==0
-    msgbox('Please load calcium imaging video first!','ERROR');
-    return;
 end
 
 %determining popup choice
@@ -3684,7 +3688,7 @@ elseif v.preset==4
     valueThresholdHigh = 1;
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
-
+%setting sliders according to preset
 handles.slider14.Value = hueThresholdHigh;
 handles.slider13.Value = hueThresholdLow;
 handles.slider12.Value = saturationThresholdLow;
@@ -3696,7 +3700,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3789,7 +3793,7 @@ elseif v.preset==4
     % Blue preset values
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
-
+%setting sliders according to preset
 handles.slider14.Value = v.hueThresholdHigh;
 handles.slider13.Value = v.hueThresholdLow;
 handles.slider12.Value = v.saturationThresholdLow;
@@ -3801,7 +3805,7 @@ maxframes=size(d.imd,3);
 nframes=size(v.imd,2);
 
 %function for spot mask
-[maskedRGBImage] = spotmask(nframes,maxframes,handles);
+[maskedRGBImage] = spotmask(handles);
 
 %showing thresholded image in GUI
 if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
@@ -3850,13 +3854,18 @@ elseif d.pushed==0
     return;
 end
 
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+%reading settings from sliders
 v.hueThresholdHigh = handles.slider14.Value;
 v.hueThresholdLow = handles.slider13.Value;
 v.saturationThresholdLow = handles.slider12.Value;
 v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
-
+%saving settings into variable for easier acces of function savespot
 thresh.hueThresholdHigh=v.hueThresholdHigh;
 thresh.hueThresholdLow=v.hueThresholdLow;
 thresh.saturationThresholdLow=v.saturationThresholdLow;
@@ -3948,14 +3957,19 @@ elseif d.pushed==0
     msgbox('Please load calcium imaging video first!','ERROR');
     return;
 end
-            
+
+if v.preset==0
+    msgbox('Please select color preset first!','ATTENTION');
+    return;
+end
+%reading settings from sliders         
 v.hueThresholdHigh = handles.slider14.Value;
 v.hueThresholdLow = handles.slider13.Value;
 v.saturationThresholdLow = handles.slider12.Value;
 v.saturationThresholdHigh = handles.slider11.Value;
 v.valueThresholdLow=handles.slider9.Value;
 v.valueThresholdHigh = handles.slider10.Value;
-
+%saving settings into variable for easier acces of function savespot
 thresh.hueThresholdHigh=v.hueThresholdHigh;
 thresh.hueThresholdLow=v.hueThresholdLow;
 thresh.saturationThresholdLow=v.saturationThresholdLow;
@@ -4024,7 +4038,7 @@ msgbox('Saving Completed. If both spots are saved, please proceed by tracing the
 
 
 
-
+%%---------------------------Tracing color spots on mouse
 
 % --- Executes on button press in pushbutton12.                TRACE ANIMAL
 function pushbutton12_Callback(hObject, eventdata, handles)
@@ -4133,13 +4147,13 @@ a=imline;
 uiwait(h);
 cropped=clipboard('pastespecial');
 testsizepixel=round(str2num(cell2mat(cropped.A_pastespecial)));
-testsizepixel=round(sqrt((abs(testsizepixel(2,1)-testsizepixel(1,1)))^2+(abs(testsizepixel(2,2)-testsizepixel(1,2)))^2));
+testsizepixel=round(sqrt((abs(testsizepixel(2,1)-testsizepixel(1,1)))^2+(abs(testsizepixel(2,2)-testsizepixel(1,2)))^2)); %length of defined line in pixel
 prompt = {'Enter real length in cm:'};
 dlg_title = 'Input';
 num_lines = 1;
 answer = inputdlg(prompt,dlg_title,num_lines);
-testsizecm=str2num(cell2mat(answer));
-factor=testsizecm/testsizepixel;
+testsizecm=str2num(cell2mat(answer)); %real size in cm
+factor=testsizecm/testsizepixel; %multiplication factor for converting pixel to cm
 totalDistIncm=round(totalDistInPx*factor,1);
 
 %calculating percent pause
@@ -4164,7 +4178,7 @@ if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.trac
     switch choice
         case 'Yes'
             mleft=0;
-        case 'No'
+        case 'No' %if the animal did not leave the testing area, then every postiion that equals zero will be replaced by the last detectable position of the animal to have a continuous trace of the animal throughout the video
             if v.Pspot==1
                 cood=find(v.traceP==0);
                 for k=1:length(cood)
@@ -4212,10 +4226,10 @@ else
 end
 %loading preset
 load([p.pnpreset '\tracingROIs']);
-p.amount=amount;
-p.name=name;
-p.ROImask=ROImask;
-p.import=1;
+p.amount=amount; %amount of defined ROIs
+p.name=name; %names of ROIs
+p.ROImask=ROImask; %ROI mask containing the compartments vs background
+p.import=1; %ROIs were imported
 msgbox('Loading Complete.','Success');
 
 
@@ -4239,17 +4253,10 @@ if v.pushed==0 && d.pushed==0
     msgbox('Please select folder first!','ERROR');
     return;
 elseif v.pushed==0
-    v.imd=[];
-elseif v.pushed==1
-    v.hsvA=[];
-    v.hsvP=[];
+    msgbox('Please select behavioral video first!','ERROR');
+    return;
 end
-if d.pushed==0
-    d.imd=[];
-    maxframes=size(v.imd,2);
-else
-    maxframes=size(d.imd,3);
-end
+maxframes=size(d.imd,3);
 
 if v.skdefined==0
     if d.help==1
@@ -4277,7 +4284,7 @@ if v.skdefined==0
         answer = inputdlg(prompt,dlg_title,num_lines);
         v.shortkey{1,k}=answer;
         %name of ROI
-        prompt = {'What do you want to call it?'};
+        prompt = {'What do you want to call it? (No spaces)'};
         dlg_title = 'Name';
         num_lines = 1;
         answer = inputdlg(prompt,dlg_title,num_lines);
@@ -4381,12 +4388,12 @@ function pushbutton35_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global v
-v.amount=[];
-v.shortkey=[];
-v.name=[];
-v.events=[];
-v.skdefined=0;
-v.behav=0;
+v.amount=[]; %amount of behaviors is zero
+v.shortkey=[]; %no shortkeys defined
+v.name=[]; %no names defined
+v.events=[]; %no events 
+v.skdefined=0; %signals that not shortkeys were defined
+v.behav=0; %signals that behavior was not tracked
 msgbox('Behavioral detection was reset!');
 
 
@@ -4394,7 +4401,10 @@ msgbox('Behavioral detection was reset!');
 
 
 
-% --------------------------------------------------------------------
+%% MISC
+
+%%---------------------------Help & Documentation
+
 function Help_Callback(hObject, eventdata, handles)
 % hObject    handle to Help (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -4416,3 +4426,24 @@ if isempty(Files)==1
 end
 fn = Files(1).name;
 winopen(fn);
+
+
+
+%%---------------------------Radio buttons
+
+% --- Executes on button press in radiobutton2.
+function radiobutton2_Callback(hObject, eventdata, handles)
+% hObject    handle to radiobutton2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of radiobutton2
+
+
+% --- Executes on button press in radiobutton1.
+function radiobutton1_Callback(hObject, eventdata, handles)
+% hObject    handle to radiobutton1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of radiobutton1

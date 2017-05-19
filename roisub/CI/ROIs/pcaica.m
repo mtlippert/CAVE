@@ -4,7 +4,7 @@ function [ROIsbw] = pcaica(F,mip,handles)
 %in the calcium imaging video. First the deimencions are reduced by PCA and
 %then independent components are identified by ICA. Finally those
 %components are thresholded and processed to only include round objects and
-%objects smaller than 1000 pixels. The resulting spatial filters are the ROIs. 
+%objects smaller than 500 pixels. The resulting spatial filters are the ROIs. 
 
 %INPUT      F: delta F/F filtered calcium imaging video.
 
@@ -94,7 +94,7 @@ for m=1:size(ROIsbw,3)
             if overlay>0
                 percMover=overlay/sumM*100;
                 percNover=overlay/sumN*100;
-                if percMover>=20 || percNover>=20 %if overlap of ROIs is greater than 50% it is interpreted as one ROI
+                if percMover>=30 || percNover>=30 %if overlap of ROIs is greater than 50% it is interpreted as one ROI
                     ROIboth(ROIboth>1)=1;
                     ROIsbw(:,:,m)=ROIboth;
                     ROIsbw(:,:,n)=zeros(size(F,1),size(F,2),1);
