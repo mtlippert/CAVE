@@ -877,7 +877,7 @@ end
 
 %display instructions only if the button was pressed for the first time or
 %a mistake was made and you want the help
-if d.bcountd==0 || d.help==1
+if d.bcountd==0 && d.help==1
     uiwait(msgbox('Please define the region of dust by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
 
@@ -983,7 +983,8 @@ imd=d.imd;
 
 if handles.radiobutton1.Value==1
     %function for using subpixel registration algorithm
-    [imdC] = subpixel(ROI);
+    imgA = ROI(:,:,round(handles.slider7.Value));
+    [imdC] = subpixel(ROI,imgA);
     d.imd=imdC;
     %showing resulting frame
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
@@ -991,7 +992,8 @@ if handles.radiobutton1.Value==1
 else
     %function for using LucasKanade algorithm
     imd=d.imd;
-    [imdC,Bvector] = lucasKanade(ROI,imd);
+    tmp= ROI(:,:,round(handles.slider7.Value));
+    [imdC,Bvector] = lucasKanade(ROI,imd,tmp);
     d.Bvector=Bvector;
     d.imd=imdC;
     %showing resulting frame
@@ -1590,6 +1592,9 @@ d.bcount=0;
 F=d.imd;
 mip=d.mip;
 [ROIsbw] = pcaica(F,mip,handles);
+if sum(sum(sum(ROIsbw)))==0
+    return;
+end
 
 %plotting ROIs
 colors=repmat(d.colors,1,ceil(size(ROIsbw,3)/8));

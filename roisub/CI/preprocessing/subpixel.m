@@ -1,8 +1,7 @@
-function [imdC] = subpixel(ROI)
+function [imdC] = subpixel(ROI,imgA)
 global d
 
 %subpixel registration to align images
-imgA = ROI(:,:,1);
 imdC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
 imdC(:,:,1) = d.imd(:,:,1);
 Bvector=zeros(2,2);

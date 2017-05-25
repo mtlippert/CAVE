@@ -1,4 +1,4 @@
-function [imdC,Bvector] = lucasKanade(ROI,imd)
+function [imdC,Bvector] = lucasKanade(ROI,imd,tmp)
 
 %Lucas Kanade algorithm to align images
 transform = 'translation';
@@ -7,7 +7,6 @@ par = [];
 par.levels =    2;
 par.iterations = 5;
 par.transform = transform;
-tmp= ROI(:,:,1);
 imdC = cast(zeros(size(imd,1),size(imd,2),size(imd,3)),class(imd));
 imdC(:,:,1) =  imd(:,:,1);
 nframes=size(imd,3);

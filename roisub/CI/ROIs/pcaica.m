@@ -77,7 +77,7 @@ for j=1:size(ROIsbw,3)
         area = stats(1).Area;
         % compute the roundness metric
         metric= 4*pi*area/perimeter^2;
-        if metric<threshold;
+        if metric<threshold
             ROIsbw(:,:,j)=zeros(size(F,1),size(F,2),1);
         end
     end
@@ -106,12 +106,17 @@ end
 
 %determining indices where there are ROIs
 c=0;
-for j=1:size(ROIsbw,3)
-    if sum(sum(ROIsbw(:,:,j)))>0
-        c=c+1;
-        ROIindices(c,1)=j;
+if sum(sum(sum(ROIsbw)))==0
+    msgbox('No cells found!','Attention')
+    return;
+else
+    for j=1:size(ROIsbw,3)
+        if sum(sum(ROIsbw(:,:,j)))>0
+            c=c+1;
+            ROIindices(c,1)=j;
+        end
     end
+    ROIsbw=ROIsbw(:,:,ROIindices);
 end
-ROIsbw=ROIsbw(:,:,ROIindices);
 
 end
