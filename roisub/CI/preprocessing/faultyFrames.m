@@ -24,6 +24,11 @@ for k=1:nframes
             imd(:,:,k+1)=imd(:,:,k-1);
         end
     end
-    waitbar(k/nframes,h);
+    try
+        waitbar(k/nframes,h);
+    catch
+        imd=[];
+        return;
+    end
 end
 close(h);

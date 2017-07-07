@@ -30,10 +30,10 @@ if p.import==1
         end
         %saving table
         T=struct2table(Compartments);
-        filename=[d.pn '\location\' d.fn(1:end-4) 'compartments.xls'];
+        filename=[d.pn '\location\' d.name '_compartments.xls'];
         writetable(T,filename);
         %saving tracing ROIs
-        filename=[d.pn '\tracingROIs'];
+        filename=[d.pn '\tracingROIs_' d.name];
         save(filename, 'amount','name','ROImask');
 else
     %question if
@@ -42,6 +42,10 @@ else
         'Attention', ...
         'Yes','No','No');
     % Handle response
+    if isempty(choice)==1
+        cood=[];
+        return;
+    end
     switch choice
         case 'Yes'
             %question how many
@@ -49,6 +53,10 @@ else
             dlg_title = 'Amount';
             num_lines = 1;
             answer = inputdlg(prompt,dlg_title,num_lines);
+            if isempty(answer)==1
+                cood=[];
+                return;
+            end
             amount=str2num(cell2mat(answer));
             %loop of selecting compartments, giving names and calculations
             perccomp=zeros(1,amount);
@@ -66,6 +74,10 @@ else
                 dlg_title = 'Names';
                 num_lines = 1;
                 answer = inputdlg(prompt,dlg_title,num_lines);
+                if isempty(answer)==1
+                    cood=[];
+                    return;
+                end
                 name{1,k}=answer;
                 close(gcf);
                 %calculating amount of time the mouse (the head) was in a compartment in percent
@@ -82,10 +94,10 @@ else
             end
             %saving table
             T=struct2table(Compartments);
-            filename=[d.pn '\location\' d.fn(1:end-4) 'compartments.xls'];
+            filename=[d.pn '\location\' d.name '_compartments.xls'];
             writetable(T,filename);
             %saving tracing ROIs
-            filename=[d.pn '\tracingROIs'];
+            filename=[d.pn '\tracingROIs_' d.name];
             save(filename, 'amount','name','ROImask');
         case 'No'
             cood=[];

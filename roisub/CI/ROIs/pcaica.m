@@ -28,6 +28,12 @@ prompt = {'Enter approximate number of desired cells:'};
 dlg_title = 'Cell number';
 num_lines = 1;
 answer = inputdlg(prompt,dlg_title,num_lines);
+%if cancel was pressed
+if isempty(answer)==1
+    ROIsbw=[];
+    return;
+end
+
 dim=str2num(cell2mat(answer));
 h=msgbox('Please wait...');
 F2s=F2(:,1:dim);

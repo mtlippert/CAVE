@@ -11,6 +11,8 @@ global d
 
 %loading delta F/F video
 h=msgbox('Loading... please wait!');
+load([d.pn '\name']); %load name
+d.name=name;
 load([d.pn '\' d.fn(1:end-4) 'dFvid']);
 d.imd=deltaFimd;
 close(h);

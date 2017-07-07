@@ -37,7 +37,19 @@ for k = 1:nframes
     % You can only multiply integers if they are of the same type.
     bgmask = backgroundc .* imd(:,:,k);
     bg{k,1}=bgmask(backgroundc==1);
-    waitbar(k/nframes,h);
+    try
+        waitbar(k/nframes,h);
+    catch
+        ROImeans=[];
+        cCaSignal=[];
+        spikes=[];
+        ts=[];
+        amp=[];
+        NoofSpikes=[];
+        Frequency=[];
+        Amplitude=[];
+        return;
+    end
 end
 close(h);
 % calculate mean grey value of ROIs in percent
@@ -51,7 +63,19 @@ for k=1:numROIs
         ROImeans(i,k)=(ROIm-bgmean)*100;
     end
     ROImeans(:,k)=filtfilt(b,a,ROImeans(:,k)); %high band pass filter
-    waitbar(k/numROIs,h);
+    try
+        waitbar(k/numROIs,h);
+    catch
+        ROImeans=[];
+        cCaSignal=[];
+        spikes=[];
+        ts=[];
+        amp=[];
+        NoofSpikes=[];
+        Frequency=[];
+        Amplitude=[];
+        return;
+    end
 end
 close(h);
 
@@ -77,8 +101,19 @@ for k=1:size(ROImeans,2)
     amp{:,k}=spikes(spikes(:,k)>0,k); %amplitude of spike
     %calculating total number of spikes per ROI
     NoofSpikes(k,1)=sum(spikes(:,k));
-    
-    waitbar(k/size(ROImeans,2),h);
+    try
+        waitbar(k/size(ROImeans,2),h);
+    catch
+        ROImeans=[];
+        cCaSignal=[];
+        spikes=[];
+        ts=[];
+        amp=[];
+        NoofSpikes=[];
+        Frequency=[];
+        Amplitude=[];
+        return;
+    end
 end
 %calculating firing frequency
 Frequency=round(NoofSpikes./(size(ROImeans,1)/framerate),3);

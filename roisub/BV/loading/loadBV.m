@@ -37,13 +37,29 @@ for j=1:length(fn) %loading behavioral video parts
         for k=1:rate:nframes
             imd(c).cdata = read(vidObj,k); %#ok<*VIDREAD>
             c=c+1;
-            waitbar(k/nframes,h);
+            try
+                waitbar(k/nframes,h);
+            catch
+                sframe=[];
+                imd=[];
+                dimd=[];
+                dROIv=[];
+                return;
+            end
         end
     else %or taking all availbale frames if CI video has higher framerate
         for k=1:nframes
             imd(c).cdata = read(vidObj,k);
             c=c+1;
-            waitbar(k/nframes,h);
+            try
+                waitbar(k/nframes,h);
+            catch
+                sframe=[];
+                imd=[];
+                dimd=[];
+                dROIv=[];
+                return;
+            end
         end
     end
     final{j,:}=imd; %putting each part of the video into a cell

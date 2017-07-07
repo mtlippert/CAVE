@@ -35,7 +35,13 @@ for k=1:nframes-1
     [wimageLK] = iat_inverse_warping(imdd, LKWarp, par.transform, 1:height,1:width);
     wimageLK(wimageLK<1)=mean(mean(imdd));
     imdC(:,:,k+1)=wimageLK;
-    waitbar(k/(nframes-1),h);
+    try
+        waitbar(k/(nframes-1),h);
+    catch
+        imdC=[];
+        Bvector=[];
+        return;
+    end
 end
 imdC=imdC(ceil(abs(Bvector(2,2))):round(size(wimageLK,1)-floor(abs(Bvector(2,1)))),ceil(abs(Bvector(1,2))):round(size(wimageLK,2)-floor(abs(Bvector(1,1)))),:);  %cut middle of image
 close(h);

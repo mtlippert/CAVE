@@ -39,6 +39,11 @@ for k = 1:length(Files)
     else
         imd(:,:,k)=imdd;
     end
-    waitbar(k/length(Files),h);
+    try
+        waitbar(k/length(Files),h);
+    catch
+        imd=[];
+        return;
+    end
 end
 close(h);

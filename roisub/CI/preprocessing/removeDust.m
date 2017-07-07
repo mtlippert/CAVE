@@ -44,6 +44,12 @@ for k=1:nframes
     meanApprox=meanApprox(meanApprox>0);
     singleframe(singleframe<1)=round(mean(meanApprox)); %setting all values of ROI to the mean value of the border
     imd(:,:,k)=singleframe;
-    waitbar(k/nframes,h);
+    try
+        waitbar(k/nframes,h);
+    catch
+        imd=[];
+        bcountd=[];
+        return;
+    end
 end
 close(h);

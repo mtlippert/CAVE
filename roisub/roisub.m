@@ -172,7 +172,6 @@ d.thresh=0; %no ROI threshold
 d.valid=0; %no ROI was selcted incorrectly
 d.align=0; %signals whether images were aligned
 p.pnpreset=[]; %no color preset imported
-d.help=1; %help should be displayed
 d.alignCI=[]; %alignment video is empty
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
@@ -183,8 +182,29 @@ d.alignCI=[]; %alignment video is empty
 % Choose default command line output for roisub
 handles.output = hObject;
 
+% create the listener for the frame slider
+handles.sliderListener = addlistener(handles.slider7,'ContinuousValueChange', ...
+                                      @(hObject,eventdata) slider7_Callback(...
+                                        handles.axes1,eventdata));
+
 % Update handles structure
 guidata(hObject, handles);
+
+% Construct a questdlg with two options
+choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
+    'Attention', ...
+    'YES','NO','YES');
+% Handle response
+if isempty(choice)==1
+    exit;
+end
+switch choice
+    case 'YES'
+        p.help=1;
+    case 'NO'
+        p.help=0;
+end
+
 
 % UIWAIT makes roisub wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
@@ -270,8 +290,14 @@ end
 %defining initial folder displayed in dialog window
 if isempty(p.pn)==1
     [d.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
+elseif  d.pn==0
+    [d.pn]=uigetdir('F:\jenni\Documents\PhD PROJECT\Calcium Imaging\doric camera\');
 else
     [d.pn]=uigetdir(p.pn);
+end
+%if cancel was pressed
+if d.pn==0
+    return;
 end
 
 %clears old behavioral video if new calcium imaging video is loaded
@@ -320,6 +346,9 @@ catch ME
         dlg_title = 'Framerate';
         num_lines = 1;
         answer = inputdlg(prompt,dlg_title,num_lines);
+        if isempty(answer)==1
+            return;
+        end
         d.framerate=str2num(cell2mat(answer));
    end
 end 
@@ -336,6 +365,9 @@ if sum(tf)>0 %if a file is found
         'Attention', ...
         'YES','NO','YES');
     % Handle response
+    if isempty(choice)==1 %window was closed
+        return;
+    end
     switch choice
         case 'YES'
             %function for loading last processed version
@@ -447,6 +479,9 @@ if sum(tf)>0 %if a file is found
                 'Attention', ...
                 'YES','NO','YES');
             % Handle response
+            if isempty(choice)==1 %window was closed
+                return;
+            end
             switch choice
                 case 'YES'
                     if length(Files)==1
@@ -454,6 +489,9 @@ if sum(tf)>0 %if a file is found
                         pn=d.pn;
                         fn=d.fn;
                         [imd,origCI,pre] = loadCIstack(pn,fn);
+                        if isempty(imd)==1
+                            return;
+                        end
                         if pre==0
                             d.origCI=imd;
                         else
@@ -466,6 +504,9 @@ if sum(tf)>0 %if a file is found
                         pn=d.pn;
                         fn=d.fn;
                         [imd] = loadCIsingle(pn,fn,Files);
+                        if isempty(imd)==1
+                            return;
+                        end
                         d.origCI=imd;
                     end
                     d.dF=1; %signals that dF/F was performed
@@ -474,43 +515,36 @@ if sum(tf)>0 %if a file is found
                     d.pre=1; %presprocessing was performed
 
                     msgbox('Loading complete!');
-                    
-                    % Construct a questdlg with two options
-                    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
-                        'Attention', ...
-                        'YES','NO','YES');
-                    % Handle response
-                    switch choice
-                        case 'YES'
-                            d.help=1;
-                        case 'NO'
-                            d.help=0;
-                    end
                 case 'NO'
                     d.dF=1; %signals that dF/F was performed
                     load([d.pn '\' d.fn(1:end-4) 'vidalign']);
                     d.align=vidalign; %whether alignment was applied
                     d.pre=1; %presprocessing was performed
                     d.origCI=[];
-                    
-                    % Construct a questdlg with two options
-                    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
-                        'Attention', ...
-                        'YES','NO','YES');
-                    % Handle response
-                    switch choice
-                        case 'YES'
-                            d.help=1; %help dialogues
-                        case 'NO'
-                            d.help=0; %no help dialogues
-                    end
             end
         case 'NO'
+            %asking for animal name/session/date
+            prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
+            dlg_title = 'Name';
+            num_lines = 1;
+            answer = inputdlg(prompt,dlg_title,num_lines);
+            %if cancel was pressed
+            if isempty(answer)==1
+                return;
+            end
+            d.name=cell2mat(answer);
+            filename=[d.pn '\name'];
+            name=d.name;
+            save(filename, 'name');
+            
             if length(Files)==1
                 %function for loading TIFF stack
                 pn=d.pn;
                 fn=d.fn;
                 [imd,origCI,pre] = loadCIstack(pn,fn);
+                if isempty(imd)==1
+                    return;
+                end
                 d.origCI=origCI;
                 d.pre=pre;
                 d.imd=imd;
@@ -521,26 +555,18 @@ if sum(tf)>0 %if a file is found
                 d.load=0; %no ROIs loaded
                 d.align=0; %no alignment
                 d.mip=0; %no maximum intensity projection
-                d.origCI=[]; %no original CI video
+                d.origCI=d.imd; %saving original CI video seperately
 
                 %looking at first original picture
                 axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
-                % Construct a questdlg with two options
-                choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                switch choice
-                    case 'YES'
-                        d.help=1;
-                    case 'NO'
-                        d.help=0;
-                end
             else
                 %function for loading single TIFFs together
                 pn=d.pn;
                 fn=d.fn;
                 [imd] = loadCIsingle(pn,fn,Files);
+                if isempty(imd)==1
+                    return;
+                end
                 d.imd=imd;
 
                 d.pushed=1; %signals that file was selected
@@ -550,29 +576,35 @@ if sum(tf)>0 %if a file is found
                 d.align=0; %no alignment
                 d.pre=0; %no preprocessing
                 d.mip=0; %no maximum intensity projection
-                d.origCI=[]; %no original CI video
+                d.origCI=d.imd; %saving original CI video seperately
 
                 %looking at first original picture
                 axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
-                % Construct a questdlg with two options
-                choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                switch choice
-                    case 'YES'
-                        d.help=1;
-                    case 'NO'
-                        d.help=0;
-                end
             end
     end
 
 elseif length(Files)==1
+    %asking for animal name/session/date
+    prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
+    dlg_title = 'Name';
+    num_lines = 1;
+    answer = inputdlg(prompt,dlg_title,num_lines);
+    %if cancel was pressed
+    if isempty(answer)==1
+        return;
+    end
+    d.name=str2num(cell2mat(answer));
+    filename=[pn '\name'];
+    name=d.name;
+    save(filename, 'name');
+            
     %function for loading TIFF stack
     pn=d.pn;
     fn=d.fn;
     [imd,origCI,pre] = loadCIstack(pn,fn);
+    if isempty(imd)==1
+        return;
+    end
     d.origCI=origCI;
     d.pre=pre;
     d.imd=imd;
@@ -583,7 +615,7 @@ elseif length(Files)==1
     d.load=0; %no ROIs loaded
     d.align=0; %no alignment
     d.mip=0; %no maximum intensity projection
-    d.origCI=[]; %no original CI video
+    d.origCI=d.imd; %saving original CI video seperately
     
     %looking at first original picture
     if size(d.imd,3)>=4500
@@ -592,22 +624,28 @@ elseif length(Files)==1
     else
         axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
     end
-    % Construct a questdlg with two options
-    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
-        'Attention', ...
-        'YES','NO','YES');
-    % Handle response
-    switch choice
-        case 'YES'
-            d.help=1;
-        case 'NO'
-            d.help=0;
-    end
 else
+    %asking for animal name/session/date
+    prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
+    dlg_title = 'Name';
+    num_lines = 1;
+    answer = inputdlg(prompt,dlg_title,num_lines);
+    %if cancel was pressed
+    if isempty(answer)==1
+        return;
+    end
+    d.name=str2num(cell2mat(answer));
+    filename=[pn '\name'];
+    name=d.name;
+    save(filename, 'name');
+         
     %function for loading single TIFFs together
     pn=d.pn;
     fn=d.fn;
     [imd] = loadCIsingle(pn,fn,Files);
+    if isempty(imd)==1
+        return;
+    end
     d.imd=imd;
     
     d.pushed=1; %signals that file was selected
@@ -617,21 +655,10 @@ else
     d.align=0; %no alignment
     d.pre=0; %no preprocessing
     d.mip=0; %no maximum intensity projection
-    d.origCI=[]; %no original CI video
+    d.origCI=d.imd; %saving original CI video seperately
     
     %looking at first original picture
     axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
-    % Construct a questdlg with two options
-    choice = questdlg('Is this your first time working with this software? Do you need the help messages?', ...
-        'Attention', ...
-        'YES','NO','YES');
-    % Handle response
-    switch choice
-        case 'YES'
-            d.help=1;
-        case 'NO'
-            d.help=0;
-    end
 end
 p.pn=d.pn; %saving current file directory so it can be displayed next time you want to select a folder
 
@@ -842,6 +869,8 @@ if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
+
+if d.pushed<4
 %resets values of low in/out, high in/out to start values
 handles.slider5.Value=0;
 handles.slider15.Value=1;
@@ -849,6 +878,7 @@ handles.slider6.Value=0;
 handles.slider16.Value=1;
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 axes(handles.axes1); imshow(singleFrame); %shows image in axes1
+end
 
 
 
@@ -862,6 +892,7 @@ function pushbutton38_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -877,7 +908,7 @@ end
 
 %display instructions only if the button was pressed for the first time or
 %a mistake was made and you want the help
-if d.bcountd==0 && d.help==1
+if d.bcountd==0 && p.help==1
     uiwait(msgbox('Please define the region of dust by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
 
@@ -889,6 +920,9 @@ axes(handles.axes1);
 bcountd=d.bcountd;
 imd=d.imd;
 [imd,bcountd] = removeDust(singleFrame,bcountd,imd);
+if isempty(imd)==1
+    return;
+end
 d.bcountd=bcountd;
 d.imd=imd;
 
@@ -896,6 +930,35 @@ d.imd=imd;
 singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
 axes(handles.axes1);imshow(singleFrame);
 msgbox('Removal complete!','Success');
+
+
+
+% --- Executes on button press in pushbutton41.          RESET DUST REMOVAL
+function pushbutton41_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton41 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+global v
+if d.pushed==0
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+end
+if d.play==1 || v.play==1
+    msgbox('Please push stop button before proceeding!','ATTENTION');
+    return;
+end
+if d.pre==1
+    msgbox('You already did preprocessing!','ATTENTION');
+    return;
+end
+
+d.imd=d.origCI;
+d.bcountd=0;
+%showing resulting frame
+singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+axes(handles.axes1);imshow(singleFrame);
+msgbox('Dust removal reset!');
 
 
 % --- Executes on button press in pushbutton23.               PREPROCESSING
@@ -916,6 +979,9 @@ close(h);
 
 %function for eliminating faulty frames
 [imd] = faultyFrames(imd);
+if isempty(imd)==1
+    return;
+end
 
 d.origCI=imresize(imd,0.805); %keeping this file stored as original video but resized since original video is bigger than the downsampled video
 
@@ -931,8 +997,8 @@ d.pre=1; %preprocessing was done
 %plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
 h=figure;plot(squeeze(meanChange));title('Mean brightness over frames');xlabel('Number of frames');ylabel('Brightness in uint16');
-name=('Mean Change');
-path=[d.pn '/',name,'.png'];
+fname=[d.name '_MeanChange'];
+path=[d.pn '/',fname,'.png'];
 path=regexprep(path,'\','/');
 print(h,'-dpng','-r100',path); %-depsc for vector graphic
 msgbox('Preprocessing done!','Success');
@@ -970,6 +1036,11 @@ d.alignCI=d.imd;
 axes(handles.axes1);
 a=imcrop;
 cropped=clipboard('pastespecial');
+%if cancel was pressed
+if isempty(cropped)==1
+    return;
+end
+
 cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
 %checks if cropping coordinates are valid
 if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0
@@ -980,11 +1051,17 @@ cc=floor(cropCoordinates);
 %function for extracting and enhancing alignment ROI
 imd=d.imd;
 [ROI] = alignmentROI(cc,imd);
+if isempty(ROI)==1
+    return;
+end
 
 if handles.radiobutton1.Value==1
     %function for using subpixel registration algorithm
     imgA = ROI(:,:,round(handles.slider7.Value));
     [imdC] = subpixel(ROI,imgA);
+    if isempty(imdC)==1
+        return;
+    end
     d.imd=imdC;
     %showing resulting frame
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
@@ -994,6 +1071,9 @@ else
     imd=d.imd;
     tmp= ROI(:,:,round(handles.slider7.Value));
     [imdC,Bvector] = lucasKanade(ROI,imd,tmp);
+    if isempty(imdC)==1
+        return;
+    end
     d.Bvector=Bvector;
     d.imd=imdC;
     %showing resulting frame
@@ -1072,8 +1152,8 @@ if handles.radiobutton2.Value==1
 else
     h=figure;imagesc(d.mip);title('Maximum Intensity Projection');
 end
-name=('MIP');
-path=[d.pn '/',name,'.png'];
+fname=[d.name '_MIP'];
+path=[d.pn '/',fname,'.png'];
 path=regexprep(path,'\','/');
 print(h,'-dpng','-r100',path); %-depsc for vector graphic
 msgbox('Calculation done!','Success');
@@ -1091,6 +1171,7 @@ function pushbutton3_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -1108,7 +1189,7 @@ d.ROIv=0; %resetting ROIvalues loaded, since you are changing the ROI mask now
 
 %display instructions only if the button was pressed for the first time or
 %a mistake was made and you want the help
-if (d.bcount==0 || d.valid==1) && d.help==1
+if (d.bcount==0 || d.valid==1) && p.help==1
     d.valid=0;
     uiwait(msgbox('Please define the region of interest (ROI) by clicking around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please double-click!','Attention','modal'));
 end
@@ -1192,6 +1273,12 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
         'Attention', ...
         'YES','NO','YES');
         % Handle response
+        if isempty(choice)==1
+            d.bcount=d.bcount-1;
+            d.ROIsbw=d.ROIsbw(:,:,1:size(d.ROIsbw,3)-1);
+            d.mask = d.mask-ROI;
+            return;
+        end
         switch choice
             case 'YES'
                 %deleting the double assignments
@@ -1249,6 +1336,9 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                     'Attention', ...
                     'YES','NO','YES');
                 % Handle response
+                if isempty(choice)==1
+                    return;
+                end
                 switch choice
                     case 'YES'
                         %saving ROI mask
@@ -1326,6 +1416,12 @@ else
         'Attention', ...
         'YES','NO','YES');
         % Handle response
+        if isempty(choice)==1
+            d.bcount=d.bcount-1;
+            d.ROIsbw=d.ROIsbw(:,:,1:size(d.ROIsbw,3)-1);
+            d.mask = d.mask-ROI;
+            return;
+        end
         switch choice
             case 'YES'
                 %deleting the double assignments
@@ -1383,6 +1479,9 @@ else
                     'Attention', ...
                     'YES','NO','YES');
                 % Handle response
+                if isempty(choice)==1
+                    return;
+                end
                 switch choice
                     case 'YES'
                         %saving ROI mask
@@ -1522,6 +1621,11 @@ uiwait(msgbox('Select a "filename"ROIs.mat file!'));
 %extracts filename
 filepath=[d.pn '\'];
 [fn,pn,~]=uigetfile([filepath '*.mat']);
+%if cancel was pressed
+if fn==0
+    return;
+end
+
 %load the saved ROI mask, and order of labels
 load([pn fn]);
 d.mask=ROImask;
@@ -1577,6 +1681,9 @@ elseif d.pushed==4
         'Attention', ...
         'YES','NO','YES');
         % Handle response
+        if isempty(choice)==1
+            return;
+        end
         switch choice
             case 'YES'
                 d.decon=0;
@@ -1592,7 +1699,8 @@ d.bcount=0;
 F=d.imd;
 mip=d.mip;
 [ROIsbw] = pcaica(F,mip,handles);
-if sum(sum(sum(ROIsbw)))==0
+%if cancel was pressed
+if isempty(ROIsbw)==1 || sum(sum(sum(ROIsbw)))==0
     return;
 end
 
@@ -1623,6 +1731,9 @@ choice = questdlg('Would you like to save this ROI mask?', ...
     'Attention', ...
     'YES','NO','YES');
 % Handle response
+if isempty(choice)==1
+    return;
+end
 switch choice
     case 'YES'
         %saving ROI mask
@@ -1688,11 +1799,15 @@ if d.ROIv==0
             imdrem= ROIsc .* d.imd(:,:,i);
             d.ROIs{i,j}=imdrem(imdrem~=0);
         end
-        waitbar(j/numROIs,h);
+        try
+            waitbar(j/numROIs,h);
+        catch
+            return;
+        end
     end
     close(h);
     %saving ROI values
-    filename=[d.pn '\' d.fn(1:end-4) 'ROIvalues'];
+    filename=[d.pn '\' d.name '_ROIvalues'];
     ROIvalues=d.ROIs;
     save(filename, 'ROIvalues');
     d.ROIv=1;
@@ -1711,6 +1826,9 @@ if d.decon==0;
     ROIs=d.ROIs;
     framerate=d.framerate;
     [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROIFvalues(a,b,imd,mask,ROIs,framerate);
+    if isempty(ROImeans)==1
+        return;
+    end
     d.ROImeans=ROImeans;
     d.cCaSignal=cCaSignal;
     d.spikes=spikes;
@@ -1722,7 +1840,7 @@ if d.decon==0;
     %saving calcium signal
     d.decon=1; %signal was deconvoluted;
     decon=d.decon;
-    filename=[d.pn '\' d.fn(1:end-4) 'CaSignal'];
+    filename=[d.pn '\' d.name 'CaSignal'];
     save(filename, 'ROImeans','cCaSignal','spikes','decon');
 end
 
@@ -1852,6 +1970,9 @@ choice = questdlg('Would you like to save these traces?', ...
     'Attention', ...
     'YES','NO','YES');
 % Handle response
+if isempty(choice)==1
+    return;
+end
 switch choice
     case 'YES'
         f=msgbox('Please wait...');
@@ -1868,15 +1989,16 @@ switch choice
             %saving traces
             for j=1:tnum
                 figurenum=sprintf('-f%d',numseries(j));
-                name=sprintf('traces_%d',j);
-                path=[d.pn '/traces/',name,'.png'];
+                fname=sprintf('traces_%d',j);
+                ffname=[d.name '_' fname];
+                path=[d.pn '/traces/',ffname,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             end
             %saving rasterplot
             figurenum=sprintf('-f%d',hfnum);
-            name=('rasterplot');
-            path=[d.pn '/traces/',name,'.png'];
+            fname=[d.name '_rasterplot'];
+            path=[d.pn '/traces/',fname,'.png'];
             path=regexprep(path,'\','/');
             print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             
@@ -1895,14 +2017,15 @@ switch choice
             end
             hold off;
             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-            name=('ROImask');
-            path=[d.pn '/traces/',name,'.png'];
+            fname=[d.name '_ROImask'];
+            path=[d.pn '/traces/',fname,'.png'];
             path=regexprep(path,'\','/');
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
             
             %saving raw ROI values over time
             h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.8]),colorbar;
+            set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
             title('Raw fluorescence traces');
             xlabel('Time in seconds');
             ylabel('Cell number');
@@ -1915,14 +2038,14 @@ switch choice
             ticlabel=ticlabel./d.framerate;
             set(gca,'XTickLabel',ticlabel);
             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-            name=('RawFluo');
-            path=[d.pn '/traces/',name,'.png'];
+            fname=[d.name '_RawFluo'];
+            path=[d.pn '/traces/',fname,'.png'];
             path=regexprep(path,'\','/');
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
 
             %saving table
-            filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
+            filename=[d.pn '\traces\ROIs_' d.name '.xls'];
             ROInumber=cell(size(d.cCaSignal,2),1);
             for k=1:size(d.cCaSignal,2)
                 ROInumber{k,1}=sprintf('ROI No.%d',k);
@@ -1945,7 +2068,7 @@ switch choice
             value6=d.ts;
             value4=struct(field5,value5,field6,value6);
             traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
-            filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
+            filename=[d.pn '\traces\traces_' d.name];
             save(filename, 'traces');
     
             try
@@ -1960,16 +2083,17 @@ switch choice
                 numseries=(hfnum-tnum:1:hfnum-1); %figure numbers with ROI values
                 %saving traces
                 for j=1:tnum
-                    name=sprintf('traces_behav_%d',j);
+                    fname=sprintf('traces_behav_%d',j);
+                    ffname=[d.name '_' fname];
                     figurenum=sprintf('-f%d',numseries(j));
-                    path=[d.pn '/traces/',name,'.png'];
+                    path=[d.pn '/traces/',ffname,'.png'];
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
                 %saving rasterplot
-                name=('rasterplot_behav');
+                fname=[d.name '_rasterplot_behav'];
                 figurenum=sprintf('-f%d',hfnum);
-                path=[d.pn '/traces/',name,'.png'];
+                path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 %saving table
@@ -1980,6 +2104,7 @@ switch choice
                 %saving mean values of ROIs over time with behavior
                 mVal=mean(d.cCaSignal,2);
                 h=figure;
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 for l=1:v.amount
                     for m=1:length(v.barstart.(char(v.name{1,l})))
                     rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),round(min(mVal),1),v.barwidth.(char(v.name{1,l}))(m),abs(round(min(mVal),1))+round(max(mVal),1)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
@@ -1998,14 +2123,14 @@ switch choice
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                name=('meanFluobehav');
-                path=[d.pn '/traces/',name,'.png'];
+                fname=[d.name '_meanFluobehav'];
+                path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
                 
                 %saving data
-                filename=[d.pn '\traces\spkbehavior_' ];
+                filename=[d.pn '\traces\spkbehavior_' d.name];
                 save(filename, 'spkbehav');
                 try
                     close(f);
@@ -2020,16 +2145,17 @@ switch choice
                 numseries=(hfnum-tnum:1:hfnum-1); %figure numbers with ROI values
                 %saving traces
                 for j=1:tnum
-                    name=sprintf('traces_%d',j);
+                    fname=sprintf('traces_%d',j);
+                    ffname=[d.name '_' fname];
                     figurenum=sprintf('-f%d',numseries(j));
-                    path=[d.pn '/traces/',name,'.png'];
+                    path=[d.pn '/traces/',ffname,'.png'];
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
                 %saving rasterplot
-                name=('rasterplot');
+                fname=[d.name '_rasterplot'];
                 figurenum=sprintf('-f%d',hfnum);
-                path=[d.pn '/traces/',name,'.png'];
+                path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
 
@@ -2048,14 +2174,15 @@ switch choice
                 end
                 hold off;
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                name=('ROImask');
-                path=[d.pn '/traces/',name,'.png'];
+                fname=[d.name '_ROImask'];
+                path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(h,'-dpng',path); %-depsc for vector graphic
                 close(h);
                 
                 %saving raw ROI values over time
                 h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.8]),colorbar;
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 title('Raw fluorescence traces');
                 xlabel('Time in seconds');
                 ylabel('Cell number');
@@ -2068,14 +2195,14 @@ switch choice
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                name=('RawFluo');
-                path=[d.pn '/traces/',name,'.png'];
+                fname=[d.name '_RawFluo'];
+                path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
 
                 %saving table
-                filename=[d.pn '\traces\ROIs_' d.fn(1:end-4) '.xls'];
+                filename=[d.pn '\traces\ROIs_' d.name '.xls'];
                 ROInumber=cell(size(d.cCaSignal,2),1);
                 for k=1:size(d.cCaSignal,2)
                     ROInumber{k,1}=sprintf('ROI No.%d',k);
@@ -2098,7 +2225,7 @@ switch choice
                 value6=d.ts;
                 value4=struct(field5,value5,field6,value6);
                 traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
-                filename=[d.pn '\traces\traces_' d.fn(1:end-4)];
+                filename=[d.pn '\traces\traces_' d.name];
                 save(filename, 'traces');
 
                 try
@@ -2141,7 +2268,7 @@ if d.dF==0 %saving video if it was not processed further
     origCIdou=double(d.origCI);
     origCIconv=origCIdou./max(max(max(origCIdou)));
 
-    filename=[d.pn '\' d.fn(1:end-4)];
+    filename=[d.pn '\' d.name];
     vid = VideoWriter(filename,'Grayscale AVI');
     vid.FrameRate=d.framerate;
     nframes=size(d.imd,3);
@@ -2149,7 +2276,11 @@ if d.dF==0 %saving video if it was not processed further
     for k=1:nframes
         singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         writeVideo(vid,singleFrame);
-        waitbar(k/nframes,h);
+        try
+            waitbar(k/nframes,h);
+        catch
+            return;
+        end
     end
     close(vid);
     close(h);
@@ -2160,6 +2291,9 @@ elseif isempty(d.origCI)==1&&d.pushed==4
         'Attention', ...
         'YES','NO','YES');
     % Handle response
+    if isempty(choice)==1
+        return;
+    end
     switch choice
         case 'YES'
             %extracts filename
@@ -2188,41 +2322,85 @@ elseif isempty(d.origCI)==1&&d.pushed==4
             msgbox('Loading complete!');
             
             % Construct a questdlg with two options
-            choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
+            choice = questdlg('Would you like to save the dF/F video or the original one?', ...
                 'Attention', ...
-                'dF/F','Combined');
+                'dF/F','Original');
             % Handle response
+            if isempty(choice)==1
+                return;
+            end
             switch choice
                 case 'dF/F'
                     %function for saving dF/F video
-                    pn=d.pn; fn=d.fn; framerate=d.framerate; imd=d.imd;
-                    savedFF(pn,fn,framerate,imd);
-                case 'Combined'
-                    %function for saving combined video
-                    imd=d.imd; mask=d.mask; pn=d.pn; fn=d.fn; origCI=d.origCI; framerate=d.framerate;
-                    saveCombi(handles,imd,mask,fn,pn,origCI,framerate);
+                    pn=d.pn; name=d.name; framerate=d.framerate; imd=d.imd;
+                    savedFF(pn,name,framerate,imd);
+                case 'Original'
+                    %converting original CI video to double precision and to values between 1 and 0
+                    h=waitbar(0,'Saving calcium imaging video');
+                    origCIdou=double(d.origCI);
+                    origCIconv=origCIdou./max(max(max(origCIdou)));
+
+                    filename=[d.pn '\' d.name];
+                    vid = VideoWriter(filename,'Grayscale AVI');
+                    vid.FrameRate=d.framerate;
+                    nframes=size(d.imd,3);
+                    open(vid);
+                    for k=1:nframes
+                        singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+                        writeVideo(vid,singleFrame);
+                        try
+                            waitbar(k/nframes,h);
+                        catch
+                            return;
+                        end
+                    end
+                    close(vid);
+                    close(h);
+                    msgbox('Saving video completed.');
             end
             
         case 'NO'
             %function for saving dF/F video
-            pn=d.pn; fn=d.fn; framerate=d.framerate; imd=d.imd;
-            savedFF(pn,fn,framerate,imd);
+            pn=d.pn; name=d.name; framerate=d.framerate; imd=d.imd;
+            savedFF(pn,name,framerate,imd);
     end
 else
     % Construct a questdlg with two options
-    choice = questdlg('Would you like to save only the dF/F video or the combined one?', ...
+    choice = questdlg('Would you like to save only the dF/F video or the original one?', ...
         'Attention', ...
-        'dF/F','Combined','dF/F');
+        'dF/F','Original','dF/F');
     % Handle response
+    if isempty(choice)==1
+        return;
+    end
     switch choice
         case 'dF/F'
             %function for saving dF/F video
-            pn=d.pn; fn=d.fn; framerate=d.framerate; imd=d.imd;
-            savedFF(pn,fn,framerate,imd);
-        case 'Combined'
-            %function for saving combined video
-            imd=d.imd; mask=d.mask; pn=d.pn; fn=d.fn; origCI=d.origCI; framerate=d.framerate;
-            saveCombi(handles,imd,mask,fn,pn,origCI,framerate);
+            pn=d.pn; name=d.name; framerate=d.framerate; imd=d.imd;
+            savedFF(pn,name,framerate,imd);
+        case 'Original'
+            %converting original CI video to double precision and to values between 1 and 0
+            h=waitbar(0,'Saving calcium imaging video');
+            origCIdou=double(d.origCI);
+            origCIconv=origCIdou./max(max(max(origCIdou)));
+
+            filename=[d.pn '\' d.name];
+            vid = VideoWriter(filename,'Grayscale AVI');
+            vid.FrameRate=d.framerate;
+            nframes=size(d.imd,3);
+            open(vid);
+            for k=1:nframes
+                singleFrame=imadjust(origCIconv(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+                writeVideo(vid,singleFrame);
+                try
+                    waitbar(k/nframes,h);
+                catch
+                    return;
+                end
+            end
+            close(vid);
+            close(h);
+            msgbox('Saving video completed.');
     end
 end
 
@@ -2239,6 +2417,7 @@ function slider7_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
 global d
 global v
 if d.pushed==0 && v.pushed==0
@@ -2248,8 +2427,10 @@ end
 maxframes=size(d.imd,3);
 handles.slider7.Max=maxframes;
 
-cla(handles.axes1);
-cla(handles.axes2);
+handles = guidata(hObject);
+
+% cla(handles.axes1);
+% cla(handles.axes2);
 
 if v.pushed>1 %if color spot mask was defined, select the corresponding color
     if v.preset==1
@@ -2275,9 +2456,9 @@ if d.pre==1 && d.pushed==1 %if CI video was too big and is already preprocessed
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
     if d.dF==1 || d.pre==1
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        imagesc(singleFrame, 'Parent',handles.axes1,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
-        imshow(singleFrame);
+        imshow(singleFrame, 'Parent',handles.axes1);
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
@@ -2285,9 +2466,9 @@ elseif d.pushed==1 %if CI video was loaded
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1);
     if d.dF==1 || d.pre==1
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        imagesc(singleFrame, 'Parent',handles.axes1,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
-        imshow(singleFrame);
+        imshow(singleFrame, 'Parent',handles.axes1);
     end
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
@@ -2295,9 +2476,9 @@ elseif d.pushed==4 %if ROIs were defined
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
     if d.dF==1 || d.pre==1
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
+        imagesc(singleFrame,'Parent',handles.axes1,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
-        imshow(singleFrame);hold on;
+        imshow(singleFrame,'Parent',handles.axes1);hold on;
     end
     for k=1:size(d.ROIsbw,3)
         if sum(sum(d.ROIsbw(:,:,k)))>0
@@ -2305,63 +2486,50 @@ elseif d.pushed==4 %if ROIs were defined
             stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
             %drawing ROIs
             plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
-            text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            text(stat.Centroid(1),stat.Centroid(2),num2str(k),'Parent',handles.axes1);
         end
     end %drawing ROIs
     hold off;
+    f=getframe(handles.axes1); %getting the MIP with ROI mask as one picture
+    singleFramef=f.cdata;
+    imshow(singleFramef,'Parent',handles.axes1);
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 end
 if v.pushed==1 && d.pushed>=1 %if both CI and BV video was loaded
-    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata); %original video
+    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata, 'Parent',handles.axes2); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==1 %if only BV video was loaded
-    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata); %original video
+    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata, 'Parent',handles.axes2); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-elseif v.pushed==2 %if one color spot was defined
+elseif v.pushed>1 %if color spot is being defined
     %function for masking the colored spot of the animal
     [maskedRGBImage] = spotmask(handles);
     %showing masked image in GUI
     if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
         axes(handles.axes2); 
-        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
+        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata,'Parent',handles.axes2);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);
         str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
-        text(20,20,str,'Color','r');
+        text(20,20,str,'Color','r','Parent',handles.axes2);
         hold off;
+        f=getframe(handles.axes2);
+        singleFramef=f.cdata;
+        imshow(singleFramef,'Parent',handles.axes2);
     else
         axes(handles.axes2);
-        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
+        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata,'Parent',handles.axes2);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);
         hh=imshow(color);
-        set(hh, 'AlphaData', maskedRGBImage(:,:,1));
-    end
-    hold off;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-elseif v.pushed==3 %if second color spot was defined
-    %function for masking the colored spot of the animal
-    [maskedRGBImage] = spotmask(handles);
-    %showing masked image in GUI
-    if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
-        axes(handles.axes2); 
-        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
-        set(gcf,'renderer','OpenGL');
-        alpha(grid,0.1);
-        str=sprintf('Animal out of bounds, please select a frame where the animal is visible! Otherwise lower saturation threshold manually!');
-        text(20,20,str,'Color','r');
+        set(hh, 'AlphaData', maskedRGBImage(:,:,1),'Parent',handles.axes2);
         hold off;
-    else
-        axes(handles.axes2);
-        grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata);hold on;
-        set(gcf,'renderer','OpenGL');
-        alpha(grid,0.1);
-        hh=imshow(color);
-        set(hh, 'AlphaData', maskedRGBImage(:,:,1));
+        f=getframe(handles.axes2);
+        singleFramef=f.cdata;
+        imshow(singleFramef,'Parent',handles.axes2);
     end
     hold off;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
@@ -2436,7 +2604,7 @@ if v.pushed==1 && d.pre==1 && d.pushed==1 %if BV was loaded and CI video was too
         end
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2462,7 +2630,7 @@ elseif v.pushed==1 && d.pushed==1 %if both videos were loaded
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2498,7 +2666,7 @@ elseif v.pushed==1 && d.pushed==4 %if BV video was loaded and ROIs were defined 
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2541,7 +2709,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1 %if one color spot was defined and
         end
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2585,7 +2753,7 @@ elseif  v.pushed==2 && d.pushed==1 %if one color spot was defined and CI video w
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2639,7 +2807,7 @@ elseif v.pushed==2 && d.pushed==4 %if one color spot was defined and ROIs were d
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2682,7 +2850,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1 %if other color spot was defined a
         end
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2726,7 +2894,7 @@ elseif v.pushed==3 && d.pushed==1 %if other color spot was defined and CI video 
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2780,7 +2948,7 @@ elseif v.pushed==3 && d.pushed==4 %if other color spot was defined and ROIs were
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             v.play=0;
@@ -2807,7 +2975,7 @@ if d.pre==1 && d.pushed<4
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             d.stop=1;
@@ -2829,7 +2997,7 @@ elseif d.pushed==1
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
-        pause(0.1);
+        pause(1/d.framerate);
         if k==size(d.imd,3)
             d.play=0;
             d.stop=1;
@@ -2861,7 +3029,7 @@ elseif d.pushed==4
     handles.slider7.Value=k;
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
-    pause(0.1);
+    pause(1/d.framerate);
     if k==size(d.imd,3)
         d.play=0;
         d.stop=1;
@@ -2949,6 +3117,9 @@ v.Aspot=0; %signals pink spot is not saved
 
 %open directory
 [v.pn]=uigetdir(d.pn);
+if v.pn==0
+    return;
+end
 
 %check whether converted video has been saved before
 filePattern = fullfile(v.pn, '*.mp4');
@@ -2967,6 +3138,9 @@ if sum(tf)>0
         'Attention', ...
         'YES','NO','YES');
     % Handle response
+    if isempty(choice)==1
+        return;
+    end
     switch choice
         case 'YES'
             %function for loading last processed version
@@ -2985,6 +3159,9 @@ if sum(tf)>0
             %function for loading behavioral video
             dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
             [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+            if isempty(imd)==1
+                return;
+            end
             d.imd=dimd;
             if isempty(dROIv)==0
                 d.ROIv=dROIv;
@@ -3002,6 +3179,9 @@ else
     %function for loading behavioral video
     dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
     [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+    if isempty(imd)==1
+        return;
+    end
     d.imd=dimd;
     d.ROIv=dROIv;
     v.imd=imd;
@@ -3025,6 +3205,7 @@ function pushbutton15_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
+global p
 if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -3034,12 +3215,17 @@ if d.play==1 || v.play==1
     return;
 end
 axes(handles.axes2); image(v.imd(1).cdata); %displays first image
-if d.help==1
+if p.help==1
     uiwait(msgbox('Please define the area where the animal is running by left-click and dragging the cursor over the area! Then right click and select Copy Position, finish by double-clicking!','Attention','modal'));
 end
 %initializes interactive cropping
 h=imcrop;
 cropped=clipboard('pastespecial');
+%if cancel was pressed
+if isempty(cropped)==1
+    return;
+end
+
 cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
 %checks if cropping coordinates are valid
 if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0
@@ -3050,9 +3236,15 @@ cc=floor(cropCoordinates);
 %function for cropping video
 imd=v.imd;
 [imdc] = cropBV(imd,cc);
+if isempty(imd)==1
+    return;
+end
 v.crop=1; %signals that video was cropped
 %function for downsampling video
 [imdcd] = donwsampleBV(imdc);
+if isempty(imdcd)==1
+    return;
+end
 v.imd=imdcd;
 axes(handles.axes2); image(v.imd(1).cdata);
 
@@ -3063,7 +3255,7 @@ convVimd=v.imd;
 save(filename, 'convVimd','-v7.3');
 close(h);
 
-if d.help==1
+if p.help==1
     msgbox('Cropping and downsampling completed. Please select a color preset to view only the colored spot. If needed adjust thresholds manually! If satisfied save the two colored spots by clicking PREVIEW ANTERIOR SPOT and PREVIEW POSTERIOR SPOT. If you have only one spot select only ANTERIOR SPOT','Success');
 else
     msgbox('Cropping and downsampling completed.','Success');
@@ -3217,6 +3409,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
 function slider9_CreateFcn(hObject, eventdata, handles)
@@ -3297,6 +3490,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
 function slider10_CreateFcn(hObject, eventdata, handles)
@@ -3377,6 +3571,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
 function slider11_CreateFcn(hObject, eventdata, handles)
@@ -3457,6 +3652,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
 function slider12_CreateFcn(hObject, eventdata, handles)
@@ -3537,6 +3733,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
 function slider13_CreateFcn(hObject, eventdata, handles)
@@ -3617,6 +3814,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
 function slider14_CreateFcn(hObject, eventdata, handles)
@@ -3725,6 +3923,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 
 % --- Executes during object creation, after setting all properties.
@@ -3752,16 +3951,25 @@ global p
 %defining folder
 %defining initial folder displayed in dialog window
 if isempty(p.pnpreset)==1
+elseif p.pnpreset==0
     [p.pnpreset]=uigetdir(v.pn);
 else
     [p.pnpreset]=uigetdir(p.pnpreset);
 end
+%if cancel was pressed
+if p.pnpreset==0
+    return;
+end
+
 %loading preset
 % Construct a questdlg with two options
 choice = questdlg('Which preset would you like to import?', ...
     'Attention', ...
     'anterior','posterior','anterior');
 % Handle response
+if isempty(choice)==1
+    return;
+end
 switch choice
     case 'anterior'
         load([p.pnpreset '\presetA']);
@@ -3830,6 +4038,7 @@ else
     set(hh, 'AlphaData', maskedRGBImage(:,:,1));
 end
 hold off;
+v.pushed=4;
 
 
 
@@ -3889,7 +4098,11 @@ for k=1:nframes
     %function for spot mask and center coordinates extraction
     imd=v.imd(k).cdata;
     [x,y] = savespot(x,y,k,thresh,imd);
-    waitbar(k/nframes,h);
+    try
+        waitbar(k/nframes,h);
+    catch
+        return;
+    end
 end
 v.traceP(:,1)=x; %coordinates of the animal center
 v.traceP(:,2)=y;
@@ -3993,7 +4206,11 @@ for k=1:nframes
     %function for spot mask and center coordinates extraction
     imd=v.imd(k).cdata;
     [x,y] = savespot(x,y,k,thresh,imd);
-    waitbar(k/nframes,h);
+    try
+        waitbar(k/nframes,h);
+    catch
+        return;
+    end
 end
 v.traceA(:,1)=x; %coordinates of the animal center
 v.traceA(:,2)=y;
@@ -4082,6 +4299,9 @@ elseif v.Pspot==0
         'Attention', ...
         'Yes','No','Yes');
     % Handle response
+    if isempty(choice)==1
+        return;
+    end
     switch choice
         case 'Yes'
             v.tracePplot=[];
@@ -4129,8 +4349,9 @@ else
     rmdir([d.pn '\location'],'s');
     mkdir([d.pn '\location']);
 end
-name=sprintf('mouse_trace');
-path=[d.pn '/location/',name,'.png'];
+fname=sprintf('mouse_trace');
+ffname=[d.name '_' fname];
+path=[d.pn '/location/',ffname,'.png'];
 path=regexprep(path,'\','/');
 print(a,'-dpng','-r100',path); %-depsc for vector graphic
 
@@ -4151,12 +4372,18 @@ uiwait(msgbox('Please define the length of one side of the testing area by dragg
 a=imline;
 uiwait(h);
 cropped=clipboard('pastespecial');
+if isempty(cropped)==1
+    return;
+end
 testsizepixel=round(str2num(cell2mat(cropped.A_pastespecial)));
 testsizepixel=round(sqrt((abs(testsizepixel(2,1)-testsizepixel(1,1)))^2+(abs(testsizepixel(2,2)-testsizepixel(1,2)))^2)); %length of defined line in pixel
 prompt = {'Enter real length in cm:'};
 dlg_title = 'Input';
 num_lines = 1;
 answer = inputdlg(prompt,dlg_title,num_lines);
+if isempty(answer)==1
+    return;
+end
 testsizecm=str2num(cell2mat(answer)); %real size in cm
 factor=testsizecm/testsizepixel; %multiplication factor for converting pixel to cm
 totalDistIncm=round(totalDistInPx*factor,1);
@@ -4180,6 +4407,9 @@ if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.trac
         'Attention', ...
         'Yes','No','No');
     % Handle response
+    if isempty(choice)==1
+        return;
+    end
     switch choice
         case 'Yes'
             mleft=0;
@@ -4224,10 +4454,13 @@ global v
 global p
 %defining folder
 %defining initial folder displayed in dialog window
-if isempty(p.pnpreset)==1
+if isempty(p.pnpreset)==1 || p.pnpreset==0
     [p.pnpreset]=uigetdir(v.pn);
 else
     [p.pnpreset]=uigetdir(p.pnpreset);
+end
+if p.pnpreset==0
+    return;
 end
 %loading preset
 load([p.pnpreset '\tracingROIs']);
@@ -4264,7 +4497,7 @@ end
 maxframes=size(d.imd,3);
 
 if v.skdefined==0
-    if d.help==1
+    if p.help==1
         uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
     end
     %Question how many
@@ -4272,6 +4505,9 @@ if v.skdefined==0
     dlg_title = 'Amount';
     num_lines = 1;
     answer = inputdlg(prompt,dlg_title,num_lines);
+    if isempty(answer)==1
+        return;
+    end
     if str2num(cell2mat(answer))>8
         uiwait(msgbox('Please define only up to 8 behaviors!'));
         return
@@ -4287,12 +4523,18 @@ if v.skdefined==0
         dlg_title = 'Shortkey';
         num_lines = 1;
         answer = inputdlg(prompt,dlg_title,num_lines);
+        if isempty(answer)==1
+            return;
+        end
         v.shortkey{1,k}=answer;
         %name of ROI
         prompt = {'What do you want to call it? (No spaces)'};
         dlg_title = 'Name';
         num_lines = 1;
         answer = inputdlg(prompt,dlg_title,num_lines);
+        if isempty(answer)==1
+            return;
+        end
         v.name{1,k}=answer;
         %initializing event counter
         v.events.(char(v.name{1,k})) = zeros(size(v.imd,2),1);
@@ -4345,12 +4587,13 @@ if  v.pushed>=1
                 legend(str);
                 hold off;
                 %saving plot
-                name=sprintf('mouse_behavior');
-                path=[d.pn '/',name,'.png'];
+                fname=sprintf('mouse_behavior');
+                ffname=[d.name '_' fname];
+                path=[d.pn '/',ffname,'.png'];
                 path=regexprep(path,'\','/');
                 print(a,'-dpng','-r100',path); %-depsc for vector graphic
                 %saving positions at ROIs
-                filename=[d.pn '\Behavior'];
+                filename=[d.pn '\Behavior_' d.name];
                 Amount=v.amount;
                 Events=v.events;
                 Shortkeys=v.shortkey;

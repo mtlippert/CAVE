@@ -18,6 +18,11 @@ nframes=size(imd,3);
 h=waitbar(0,'Extracting ROI');
 for k=1:nframes
     ROI(:,:,k)=wiener2(imgaussfilt(imadjust(imsharpen(imadjust(im(:,:,k)./max(max(im(:,:,k))))))),[6 6]); %enhancing contrast of ROI and removing noise
-    waitbar(k/nframes,h);
+    try
+        waitbar(k/nframes,h);
+    catch
+        ROI=[];
+        return;
+    end
 end
 close(h);

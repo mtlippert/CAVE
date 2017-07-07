@@ -81,18 +81,19 @@ for j=1:size(d.ROImeans,2)
     end
     %saving plots
     if printyn==1
-        name=sprintf('ROI%d_trace',j);
-        path=[d.pn '/location/',name,'.png'];
+        fname=sprintf('ROI%d_trace',j);
+        ffname=[d.name '_' fname];
+        path=[d.pn '/location/',ffname,'.png'];
         path=regexprep(path,'\','/');
         print(h,'-dpng','-r100',path); %-depsc for vector graphic
 
         %saving table
         T=table(totalDistIncm,VelocityIncms,percPause,percOutside);
-        filename=[d.pn '\location\' d.fn(1:end-4) 'behavior.xls'];
+        filename=[d.pn '\location\' d.name '_behavior.xls'];
         writetable(T,filename);
 
         %saving positions at ROIs
-        filename=[d.pn '\location\ROIposition'];
+        filename=[d.pn '\location\ROIposition_' d.name];
         field1='ROIposition';
         field2='ts';
         value1{j,1}=x;

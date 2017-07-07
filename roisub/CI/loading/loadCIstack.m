@@ -65,7 +65,14 @@ if frames>4500 %if file is bigger than 4500 frames, the video will be already pr
             %Downsampling
             imdd(:,:,k)=imresize(imd,0.4);
         end
-        waitbar(k/frames,h);
+        try
+            waitbar(k/frames,h);
+        catch
+            imd=[];
+            origCI=[];
+            pre=[];
+            return;
+        end
     end
     close(h);
     %function for eliminating faulty frames
@@ -97,7 +104,14 @@ else
             %Downsampling
             imd=imresize(imd,0.4);
         end
-        waitbar(k/frames,h);
+        try
+            waitbar(k/frames,h);
+        catch
+            imd=[];
+            origCI=[];
+            pre=[];
+            return;
+        end
     end
     close(h);
     origCI=[]; %no original calcium imaging video saved

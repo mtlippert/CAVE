@@ -1,4 +1,4 @@
-function [] = savedFF(pn,fn,framerate,imd)
+function [] = savedFF(pn,name,framerate,imd)
 
 %FUNCTION saves the delta F/F processed video as an AVI file.
 
@@ -11,7 +11,7 @@ function [] = savedFF(pn,fn,framerate,imd)
 %no OUTPUT, since video is saved within this function.
 
 h=waitbar(0,'Saving calcium imaging video');
-filename=[pn '\' fn(1:end-4) 'dF'];
+filename=[pn '\' name '_dF'];
 vid = VideoWriter(filename,'Grayscale AVI');
 vid.FrameRate=framerate;
 
@@ -22,7 +22,11 @@ for k = 1:size(imd,3)
     imdscale=imdpos./max(max(imdpos));
     imdscale(imdscale<0)=0;
     writeVideo(vid,imdscale);
-    waitbar(k/size(imd,3),h);
+    try
+        waitbar(k/size(imd,3),h);
+    catch
+        return;
+    end
 end
 close(vid);
 close(h);
