@@ -19,11 +19,11 @@ function varargout = roisub(varargin)
 %      instance to run (singleton)".
 %       
 % 
-%       HOW TO USE THIS GUI FOR CALCIUM IMAGING DATA WITH DORIC
-%       ENDOMICROSCOPE:
+%       QUICK GUIDE ON HOW TO USE THIS GUI FOR CALCIUM IMAGING DATA OF THE 
+%       DORIC ENDOMICROSCOPE:
 % 
 %       -PREPARATIONS to work with this program: one TIFF stack/data set
-%       per folder; optional: text file named 'Framrate' containing only a 
+%       per folder; optional: text file named 'Framerate' containing only a 
 %       number describing the framerate of the calcium imaging video (TIFF 
 %       file)
 % 
@@ -41,11 +41,16 @@ function varargout = roisub(varargin)
 %       -PLAY button to play the video from current frame in FRAME SLIDER,
 %       STOP for stopping the video immediately
 % 
+%       -REMOVE DUST to remove any stationary distubrances wihtin the movie
+%       by selecting a ROI and filling the ROI with the mean value of the
+%       surroundings (RESET resets to original video)
+% 
 %       -PREPROCESSING downsamples the file to 40 percent, kicks out faulty
 %       frames and does flat field correction; additionally gives you a 
 %       graph of 'mean change over time'
-%       -if needed, ALIGN IMAGES allows to align the images to the first
-%       frame (RESET if you want to reset the alignment)
+%       -if needed, ALIGN IMAGES allows to align the images with two 
+%       different algorithms (Lucas Kanade or subpixel registration) to the
+%       currently displayed frame (RESET if you want to reset the alignment)
 %
 %       -DELTA F/F calculates the change over time of the video by
 %       substracting a mean frame from each frame and dividng by the mean
@@ -61,51 +66,56 @@ function varargout = roisub(varargin)
 %       as you want. In case you want to clear all ROIs and start over,
 %       please use the CLEAR ALL ROIS button
 %       -to remove a ROI or parts of it simply overlap with a new MANUAL ROI
-%       -to define a lot of ROIs use the THRESHOLD slider to define a
-%       threshold and then click AUTO ROIS to apply the threshold
+%       -to define a lot of ROIs use the AUTO ROIs to automatically detect
+%       cells by using principal and independent component analysis
 %       -if you already defined ROIs or you want to use a ROI mask from
-%       a previous data set press LOAD ROIS
-%       -to show changes in brightness over time for your defined ROIs
-%       use PLOT ROIS
+%       a previous data set press IMPORT ROIs
+%       -to show the calcium traces over time for your defined ROIs
+%       use PLOT ROIs, this first deconvolutes the signal and then plots it
 % 
 %       -SAVE VIDEO allows you to save the calcium imaging video as AVI
-%       file in three different ways: Original, meaning you save the
+%       file in two different ways: Original, meaning you save the
 %       original video with contrast settings, preprocessed and aligned (if
-%       you did those changes), dF/F, saves the delta F/F video, and
-%       Combined saves the preprocessed (and aligned) video overlayed with
-%       the CI signal in red
+%       you did those changes), or dF/F, which saves the delta F/F video
 %
 % 
 %       HOW TO ANALYZE THE BEHAVIORAL VIDEO:
 %       -load video by pushing SELECT FOLDER button
 %       IF you worked with the data before, you will be asked if you want
 %       to load the last version
+% 
 %       -crop the video to the area in which the animal is moving by pushing
-%       the CROP & CONVERT TO HSV button by simply clicking and dragging the cursor
-%       over the desired area. You can adjust the are by hovering over the
-%       edges and then click and dragging it. If you are satisfied with the
-%       defined area, right-click, press Copy Position, and double-click
-%       onto the screen. In the dialog window simply press NEXT and FINISH.
-%       The CROP VIDEO also automatically downsample and convert the 
-%       cropped video to HSV color space
+%       the CROPPING & DOWNSAMPLING button and by simply clicking and d
+%       ragging the cursor over the desired area. You can adjust the are by 
+%       hovering over the edges and then click and dragging it. If you are 
+%       satisfied with the defined area, right-click, press Copy Position, 
+%       and double-click onto the screen. In the dialog window simply press 
+%       NEXT and FINISH. The function also automatically downsamples the 
+%       cropped video
+% 
 %       -select a color preset from the drop-down window (GREEN, PINK, 
-%       YELLOW, BLUE) to use the defined threshold presets for the 
-%       respective spot. Adjust the thresholds if needed to extract only 
-%       the desired colored spot from the back of the animal by using the 
-%       HUE, SATURATION, and VALUE THRESHOLD, each LOW or HIGH
-%       -apply the color to all frames by pushing either SAVE AS ANTERIOR
-%       or POSTERIOR SPOT
-%       -scroll through all frames to check if spot is detected in all/most
-%       of the frames; if not, set threshold again and then push the same
-%       button again
-%       -to show the movement of the animal push TRACE ANIMAL, it will
-%       display movement of the anterior spot in the specified color and 
-%       the movement of the posterior spot in the specified color. 
+%       YELLOW, BLUE) or use IMPORT PRESET to use defined threshold presets 
+%       for the respective spot. Adjust the thresholds if needed to extract  
+%       only the desired colored spot from the back of the animal by using  
+%       the HUE, SATURATION, and VALUE THRESHOLD, each LOW or HIGH, or use
+%       SPOT SIZE to adjust the threshold for removing small objects
+% 
+%       -apply the color threshold to all frames by pushing either PREVIEW
+%       ANTERIOR or POSTERIOR SPOT
+% 
+%       -to track the position of the animal push TRACE ANIMAL and it will
+%       track the anterior spot in the specified color and the movement of
+%       the posterior spot in the specified color. 
 %       Additionally it will plot a figure for each ROI you defined, which 
-%       shows a heat map corresponding to the activity during that frame
+%       shows a heat map corresponding to the clacium activity during that
+%       frame
+%       -you can also define ROIs and let the program calculate the
+%       percentage of time the animal remained in that ROI, IMPORT ROIs
+%       lets you import previous defined ROIs from the same or other batches
+% 
 %       -BEHAVIORAL DETECTION allows you to define 8 different behaviors,
 %       define shortkeys and give them names. Then it will play the video
-%       from the specified frame from the frame slider and you will be able
+%       from the specified frame of the frame slider and you will be able
 %       to use your shortkeys to indicate your defined behavior of the
 %       animal during that frame. After you push STOP or the video ends, you
 %       will get a plot showing you the different behaviors over time. It
@@ -120,7 +130,7 @@ function varargout = roisub(varargin)
 %       SOURCES USED: threshold.m; SimpleColorDetectionByHue; Mohammed Ali
 %       2016 Paper 'An integrative approach for analyzing hundreds of
 %       neurons in task performing mice using wide-field calcium imaging.',
-%       Image Alignment Toolbox (IAT).
+%       Image Alignment Toolbox (IAT)...
 %       
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
