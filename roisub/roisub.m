@@ -603,8 +603,8 @@ elseif length(Files)==1
     if isempty(answer)==1
         return;
     end
-    d.name=str2num(cell2mat(answer));
-    filename=[pn '\name'];
+    d.name=cell2mat(answer);
+    filename=[d.pn '\name'];
     name=d.name;
     save(filename, 'name');
             
@@ -644,8 +644,8 @@ else
     if isempty(answer)==1
         return;
     end
-    d.name=str2num(cell2mat(answer));
-    filename=[pn '\name'];
+    d.name=cell2mat(answer);
+    filename=[d.pn '\name'];
     name=d.name;
     save(filename, 'name');
          
@@ -2439,9 +2439,6 @@ handles.slider7.Max=maxframes;
 
 handles = guidata(hObject);
 
-% cla(handles.axes1);
-% cla(handles.axes2);
-
 if v.pushed>1 %if color spot mask was defined, select the corresponding color
     if v.preset==1
         % Green preset values
@@ -2465,6 +2462,7 @@ end
 if d.pre==1 && d.pushed==1 %if CI video was too big and is already preprocessed
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
+    cla(handles.axes1);
     if d.dF==1 || d.pre==1
         imagesc(singleFrame, 'Parent',handles.axes1,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
@@ -2475,6 +2473,7 @@ if d.pre==1 && d.pushed==1 %if CI video was too big and is already preprocessed
 elseif d.pushed==1 %if CI video was loaded
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
     axes(handles.axes1);
+    cla(handles.axes1);
     if d.dF==1 || d.pre==1
         imagesc(singleFrame, 'Parent',handles.axes1,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
@@ -2485,6 +2484,7 @@ elseif d.pushed==1 %if CI video was loaded
 elseif d.pushed==4 %if ROIs were defined
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     axes(handles.axes1);
+    cla(handles.axes1);
     if d.dF==1 || d.pre==1
         imagesc(singleFrame,'Parent',handles.axes1,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
@@ -2507,11 +2507,11 @@ elseif d.pushed==4 %if ROIs were defined
     set(handles.text36, 'String', textLabel);
 end
 if v.pushed==1 && d.pushed>=1 %if both CI and BV video was loaded
-    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata, 'Parent',handles.axes2); %original video
+    axes(handles.axes2);cla(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata, 'Parent',handles.axes2); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed==1 %if only BV video was loaded
-    axes(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata, 'Parent',handles.axes2); %original video
+    axes(handles.axes2);cla(handles.axes2); image(v.imd(round(round(handles.slider7.Value))).cdata, 'Parent',handles.axes2); %original video
     textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
     set(handles.text36, 'String', textLabel);
 elseif v.pushed>1 %if color spot is being defined
@@ -2520,6 +2520,7 @@ elseif v.pushed>1 %if color spot is being defined
     %showing masked image in GUI
     if numel(find(maskedRGBImage))==0 %check if color spot is in image, if not animal out of bounds or spot not detected!
         axes(handles.axes2); 
+        cla(handles.axes2);
         grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata,'Parent',handles.axes2);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);
@@ -2531,6 +2532,7 @@ elseif v.pushed>1 %if color spot is being defined
         imshow(singleFramef,'Parent',handles.axes2);
     else
         axes(handles.axes2);
+        cla(handles.axes2);
         grid=imshow(v.imd(round(round(handles.slider7.Value))).cdata,'Parent',handles.axes2);hold on;
         set(gcf,'renderer','OpenGL');
         alpha(grid,0.1);

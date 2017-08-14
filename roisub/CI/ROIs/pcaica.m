@@ -57,12 +57,12 @@ for k=1:size(ICAmatrixfilt,3)
     ROIs=ROIs./max(max(ROIs));
     ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
     ROIsbw(:,:,k)=bwlabel(ROIsBW);
-    if sum(sum(ROIsBW))>500
+    if sum(sum(ROIsBW))>300
         ROIs=imcomplement(ROIs);
         ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
         ROIsbw(:,:,k)=bwlabel(ROIsBW);
         B = bwboundaries(ROIsbw(:,:,k));
-        if sum(sum(ROIsBW))>500 || length(B)>1
+        if sum(sum(ROIsBW))>300 || length(B)>1
             ROIsbw(:,:,k)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
         end
     end   
