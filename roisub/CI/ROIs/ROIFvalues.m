@@ -92,8 +92,8 @@ for k=1:size(ROImeans,2)
     y=ROImeans(:,k);
 
     [c_oasis, s_oasis] = deconvolveCa(y, 'ar2', 'constrained','optimize_b'); 
-    s_oasis(s_oasis<0.6)=0; %spiking threshold at 0.6% value change
-    spikes(:,k)=round(s_oasis);
+    s_oasis(s_oasis<6*std(s_oasis))=0; %spiking threshold at 6*std, adapted from Quiroga
+    spikes(:,k)=ceil(s_oasis);
     cCaSignal(:,k)=c_oasis;
     
     %calcium signal statistics

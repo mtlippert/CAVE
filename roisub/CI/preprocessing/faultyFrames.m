@@ -15,6 +15,7 @@ meanChange=diff(mean(mean(imd,1),2));
 
 nframes=size(meanChange,3);
 threshold=5*median(abs(meanChange)/0.6745); %threshold for detecting faulty frames, quiroga formula used
+
 h=waitbar(0,'Eliminating faulty frames');
 for k=1:nframes
     if meanChange(1,1,k) < -threshold || meanChange(1,1,k) > threshold %quiroga, if sudden change in brightness = faulty frame
