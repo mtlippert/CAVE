@@ -20,10 +20,15 @@ function [imd,origCI,pre] = loadCIstack(pn,fn)
 %           once, meaning bigger than 4500 frames.
 
 %defining dimensions of video
+h=msgbox('Please wait...');
 frames=size(imfinfo([pn '\' fn]),1);
 x=imfinfo([pn '\' fn]);
 Width=x(1).Width;
 Height=x(1).Height;
+try
+    close(h);
+catch
+end
 
 if frames<=4500
     % Check to see if it's an 8-bit image needed later for scaling).
@@ -75,13 +80,57 @@ if frames>4500 %if file is bigger than 4500 frames, the video will be already pr
         end
     end
     close(h);
+    
+    %ask if dust needs to be removed
+    %display current image to select ROI
+    singleFrame=imresize(double(imread(fullFileName,1)),0.4);
+    singleFrame=singleFrame./max(max(singleFrame));
+    figure,imagesc(singleFrame),colormap(grey);
+
+    %function for removing dust
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to remove dust?', ...
+        'Attention', ...
+        'Yes','No','No');
+    % Handle response
+    if isempty(choice)==1
+        return;
+    end
+    switch choice
+        case 'Yes'
+            close(gcf);
+            %question how many
+            prompt = {'How many?'};
+            dlg_title = 'Amount';
+            num_lines = 1;
+            answer = inputdlg(prompt,dlg_title,num_lines);
+            if isempty(answer)==1
+                return;
+            end
+            amount=str2num(cell2mat(answer));
+            %loop of selecting compartments, giving names and calculations
+            for k=1:amount
+                figure;
+                %removing dust
+                [imdd,~] = removeDust(singleFrame,k,imdd);
+                if isempty(imdd)==1
+                    return;
+                end
+                close(gcf);
+            end
+        case 'No'
+            close(gcf);
+    end
+
     %function for eliminating faulty frames
     [imd] = faultyFrames(imdd);
     origCI=imresize(imd,0.805); %keeping this file stored as original video but resized since original video is bigger than the downsampled video
+    
     %function for flatfield correction
     [imdd] = flatFieldCorrection(imd);
     imd=imdd;
     pre=1; %preprocessing was done
+    
     %plotting mean change along the video
     meanChange=diff(mean(mean(imd,1),2));
     a=figure;plot(squeeze(meanChange));title('Mean brightness over frames');xlabel('Number of frames');ylabel('Brightness in uint16');
@@ -99,10 +148,6 @@ else
         if eightBit==false
             imddou=double(imdd);
             imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*65535);
-        end
-        if frames>4500
-            %Downsampling
-            imd=imresize(imd,0.4);
         end
         try
             waitbar(k/frames,h);

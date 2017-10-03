@@ -1,4 +1,4 @@
-function [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROIFvalues(a,b,imd,mask,ROIs,framerate)
+function [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROIFvalues(ROImeans,framerate)
 
 %FUNCTION for calculating fluorescence signal of the defined ROIs. The
 %fluorescence is calculated as the mean value of a ROI substracted by the
@@ -22,62 +22,6 @@ function [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROI
 %           filtering, conveying real fluorescence signal
 %           cCaSignal: corrected calcium signal after deconvolution
 %           spikes: approximate true spikes deconvoulted from the data
-
-%background
-bg=cell(size(imd,3),1);
-background=mask;
-background(background==1)=2;
-background(background==0)=1;
-background(background==2)=0;
-backgroundc = cast(background, class(imd(:,:,1)));
-
-nframes=size(imd,3);
-h=waitbar(0,'Labeling background');
-for k = 1:nframes
-    % You can only multiply integers if they are of the same type.
-    bgmask = backgroundc .* imd(:,:,k);
-    bg{k,1}=bgmask(backgroundc==1);
-    try
-        waitbar(k/nframes,h);
-    catch
-        ROImeans=[];
-        cCaSignal=[];
-        spikes=[];
-        ts=[];
-        amp=[];
-        NoofSpikes=[];
-        Frequency=[];
-        Amplitude=[];
-        return;
-    end
-end
-close(h);
-% calculate mean grey value of ROIs in percent
-ROImeans=zeros(size(ROIs,1),size(ROIs,2));
-numROIs=size(ROIs,2);
-h=waitbar(0,'Calculating ROI values');
-for k=1:numROIs
-    for i=1:nframes
-        ROIm=mean(ROIs{i,k});
-        bgmean=mean(bg{i,1});
-        ROImeans(i,k)=(ROIm-bgmean)*100;
-    end
-    ROImeans(:,k)=filtfilt(b,a,ROImeans(:,k)); %high band pass filter
-    try
-        waitbar(k/numROIs,h);
-    catch
-        ROImeans=[];
-        cCaSignal=[];
-        spikes=[];
-        ts=[];
-        amp=[];
-        NoofSpikes=[];
-        Frequency=[];
-        Amplitude=[];
-        return;
-    end
-end
-close(h);
 
 %deconvolution of the calcium signal adapted from ca extraction master GUI from 2015 Pnevmatikakis
 spikes=zeros(size(ROImeans));

@@ -11,7 +11,7 @@ function [ROIsbw] = pcaica(F,mip,handles)
 %OUTPUT     ROIsbw: resulting spatial filters each representing an
 %           individual ROI.
 
-h=msgbox('Please wait...');
+h=msgbox('Please wait...');  
 %reshaping to two dimensional array: pixel x time
 F1=reshape(F,size(F,1)*size(F,2),size(F,3));
 
@@ -23,7 +23,7 @@ catch
 end
 
 %ICA
-%selecting only first 150 dimensions
+%selecting only first *defined* dimensions
 prompt = {'Enter approximate number of desired cells:'};
 dlg_title = 'Cell number';
 num_lines = 1;
@@ -36,36 +36,88 @@ end
 
 dim=str2num(cell2mat(answer));
 h=msgbox('Please wait...');
-F2s=F2(:,1:dim);
-[Zica] = fastICA(F2s',dim);
-ICAmatrix=reshape(Zica',size(F,1),size(F,2),dim);
-try
-    close(h);
-catch
-end
-%extracting ROIs
-ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
-ROIsbw=zeros(size(F,1),size(F,2),dim);
-smallestAcceptableArea=30;
+%checking for enough memory
+%segmenting array
+mem=memory; %how much memory available
+memval=struct2cell(mem); %converting to cell array to get values
+memval=memval{1};
+currentSize=dim*dim*size(F2,1)*8; %current needed memory, array size * 8 because it is class double that has 8 bits per element
+if currentSize>memval
+    segments=ceil(currentSize/memval);
+    start=1;
+    finish=round(dim/segments);
+    increment=round(dim/segments);
+    adding=0;
+    for k=1:segments
+        F2s=F2(:,start:finish);
+        [Zica] = fastICA(F2s',increment);
+        ICAmatrix=reshape(Zica',size(F,1),size(F,2),increment);
+        try
+            close(h);
+        catch
+        end
 
-singleFrame=mip;
-axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        %extracting ROIs
+        ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
+        ROIsbw=zeros(size(F,1),size(F,2),dim);
+        smallestAcceptableArea=30;
 
-for k=1:size(ICAmatrixfilt,3)
-    %converting to numbers between 0 and 1
-    ROIs=ICAmatrixfilt(:,:,k)+abs(min(min(ICAmatrixfilt(:,:,k))));
-    ROIs=ROIs./max(max(ROIs));
-    ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
-    ROIsbw(:,:,k)=bwlabel(ROIsBW);
-    if sum(sum(ROIsBW))>300
-        ROIs=imcomplement(ROIs);
+        singleFrame=mip;
+        axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        
+        for l=1:size(ICAmatrixfilt,3)
+            %converting to numbers between 0 and 1
+            ROIs=ICAmatrixfilt(:,:,l)+abs(min(min(ICAmatrixfilt(:,:,l))));
+            ROIs=ROIs./max(max(ROIs));
+            ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+            ROIsbw(:,:,l+adding)=bwlabel(ROIsBW);
+            if sum(sum(ROIsBW))>300
+                ROIs=imcomplement(ROIs);
+                ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+                ROIsbw(:,:,l+adding)=bwlabel(ROIsBW);
+                B = bwboundaries(ROIsbw(:,:,l+adding));
+                if sum(sum(ROIsBW))>300 || length(B)>1
+                    ROIsbw(:,:,l+adding)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
+                end
+            end   
+        end
+        adding=adding+increment;
+        start=finish+1;
+        finish=finish+increment;
+    end
+else  
+    F2s=F2(:,1:dim);
+    [Zica] = fastICA(F2s',dim);
+    ICAmatrix=reshape(Zica',size(F,1),size(F,2),dim);
+    try
+        close(h);
+    catch
+    end
+
+    %extracting ROIs
+    ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
+    ROIsbw=zeros(size(F,1),size(F,2),dim);
+    smallestAcceptableArea=30;
+
+    singleFrame=mip;
+    axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+
+    for k=1:size(ICAmatrixfilt,3)
+        %converting to numbers between 0 and 1
+        ROIs=ICAmatrixfilt(:,:,k)+abs(min(min(ICAmatrixfilt(:,:,k))));
+        ROIs=ROIs./max(max(ROIs));
         ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
         ROIsbw(:,:,k)=bwlabel(ROIsBW);
-        B = bwboundaries(ROIsbw(:,:,k));
-        if sum(sum(ROIsBW))>300 || length(B)>1
-            ROIsbw(:,:,k)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
-        end
-    end   
+        if sum(sum(ROIsBW))>300
+            ROIs=imcomplement(ROIs);
+            ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+            ROIsbw(:,:,k)=bwlabel(ROIsBW);
+            B = bwboundaries(ROIsbw(:,:,k));
+            if sum(sum(ROIsBW))>300 || length(B)>1
+                ROIsbw(:,:,k)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
+            end
+        end   
+    end
 end
 
 %deleting non-round objects
@@ -100,7 +152,7 @@ for m=1:size(ROIsbw,3)
             if overlay>0
                 percMover=overlay/sumM*100;
                 percNover=overlay/sumN*100;
-                if percMover>=30 || percNover>=30 %if overlap of ROIs is greater than 50% it is interpreted as one ROI
+                if percMover>=30 || percNover>=30 %if overlap of ROIs is greater than 30% it is interpreted as one ROI
                     ROIboth(ROIboth>1)=1;
                     ROIsbw(:,:,m)=ROIboth;
                     ROIsbw(:,:,n)=zeros(size(F,1),size(F,2),1);
@@ -123,6 +175,23 @@ else
         end
     end
     ROIsbw=ROIsbw(:,:,ROIindices);
+end
+
+%splitting up multiple cell detections
+for j=1:size(ROIsbw,3)
+    [~,ROInum]=bwlabel(ROIsbw(:,:,j));
+    if ROInum>1
+        CC = bwconncomp(ROIsbw(:,:,j));
+        ROIseg=CC.PixelIdxList;
+        ROItemp = zeros(size(ROIsbw,1),size(ROIsbw,2));
+        ROItemp(ROIseg{1,1}) = 1;
+        ROIsbw(:,:,j)=ROItemp;
+        for jj=2:ROInum
+            ROItemp = zeros(size(ROIsbw,1),size(ROIsbw,2));
+            ROItemp(ROIseg{1,jj}) = 1;
+            ROIsbw(:,:,size(ROIsbw,3)+1) = ROItemp;
+        end
+    end
 end
 
 end

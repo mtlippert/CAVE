@@ -1,4 +1,4 @@
-function [] = activityLocation(mleft,totalDistIncm,VelocityIncms,percPause,percOutside)
+function [] = activityLocation(mleft)
 
 % FUNCTION  for plotting the location of the mouse during neuronal activity.
 %           It takes the spikes detected with the deconvolution of the
@@ -86,11 +86,6 @@ for j=1:size(d.ROImeans,2)
         path=[d.pn '/location/',ffname,'.png'];
         path=regexprep(path,'\','/');
         print(h,'-dpng','-r100',path); %-depsc for vector graphic
-
-        %saving table
-        T=table(totalDistIncm,VelocityIncms,percPause,percOutside);
-        filename=[d.pn '\location\' d.name '_behavior.xls'];
-        writetable(T,filename);
 
         %saving positions at ROIs
         filename=[d.pn '\location\ROIposition_' d.name];

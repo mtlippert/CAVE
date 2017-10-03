@@ -10,10 +10,15 @@ function [imd] = loadCIsingle(pn,fn,Files)
 %           follows: pixel width, pixel height, number of frames
 
 %defining dimensions of video
+h=msgbox('Please wait...');
 frames=size(imfinfo([pn '\' fn]),1);
 x=imfinfo([pn '\' fn]);
 Width=x(1).Width;
 Height=x(1).Height;
+try
+    close(h);
+catch
+end
 
 % Check to see if it's an 8-bit image needed later for scaling).
 fullFileName = fullfile([pn '\' fn]);

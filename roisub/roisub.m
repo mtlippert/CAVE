@@ -270,6 +270,7 @@ d.pn=[]; %no CI video path
 d.ROIv=0; %no ROI values were loaded
 d.ROImeans=[]; %no ROI values have been calculated
 d.decon=0; %calcium signal was not deconvoluted
+d.name=[]; %no name defined
 %colors for ROIs
 d.colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -339,12 +340,6 @@ if size(Files,1)==0
     return;
 end
 d.fn = Files(1).name;
-
-%defining dimensions of video
-frames=size(imfinfo([d.pn '\' d.fn]),1);
-x=imfinfo([d.pn '\' d.fn]);
-Width=x(1).Width;
-Height=x(1).Height;
 
 %asking frame rate of the CI video
 try
@@ -533,20 +528,6 @@ if sum(tf)>0 %if a file is found
                     d.origCI=[];
             end
         case 'NO'
-            %asking for animal name/session/date
-            prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
-            dlg_title = 'Name';
-            num_lines = 1;
-            answer = inputdlg(prompt,dlg_title,num_lines);
-            %if cancel was pressed
-            if isempty(answer)==1
-                return;
-            end
-            d.name=cell2mat(answer);
-            filename=[d.pn '\name'];
-            name=d.name;
-            save(filename, 'name');
-            
             if length(Files)==1
                 %function for loading TIFF stack
                 pn=d.pn;
@@ -594,20 +575,6 @@ if sum(tf)>0 %if a file is found
     end
 
 elseif length(Files)==1
-    %asking for animal name/session/date
-    prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
-    dlg_title = 'Name';
-    num_lines = 1;
-    answer = inputdlg(prompt,dlg_title,num_lines);
-    %if cancel was pressed
-    if isempty(answer)==1
-        return;
-    end
-    d.name=cell2mat(answer);
-    filename=[d.pn '\name'];
-    name=d.name;
-    save(filename, 'name');
-            
     %function for loading TIFF stack
     pn=d.pn;
     fn=d.fn;
@@ -635,20 +602,6 @@ elseif length(Files)==1
         axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
     end
 else
-    %asking for animal name/session/date
-    prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
-    dlg_title = 'Name';
-    num_lines = 1;
-    answer = inputdlg(prompt,dlg_title,num_lines);
-    %if cancel was pressed
-    if isempty(answer)==1
-        return;
-    end
-    d.name=cell2mat(answer);
-    filename=[d.pn '\name'];
-    name=d.name;
-    save(filename, 'name');
-         
     %function for loading single TIFFs together
     pn=d.pn;
     fn=d.fn;
@@ -982,6 +935,20 @@ if d.pre==1
     return;
 end
 
+%asking for animal name/session/date
+prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
+dlg_title = 'Name';
+num_lines = 1;
+answer = inputdlg(prompt,dlg_title,num_lines);
+%if cancel was pressed
+if isempty(answer)==1
+    return;
+end
+d.name=cell2mat(answer);
+filename=[d.pn '\name'];
+name=d.name;
+save(filename, 'name');
+
 %Downsampling
 h=msgbox('Downsampling... please wait!');
 imd=imresize(d.imd,0.4);
@@ -1135,6 +1102,22 @@ end
 %alignment, if any was done, thus adjustment of the size of the original CI
 %video
 
+%asking for animal name/session/date if not defined
+if isempty(d.name)==1
+    prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
+    dlg_title = 'Name';
+    num_lines = 1;
+    answer = inputdlg(prompt,dlg_title,num_lines);
+    %if cancel was pressed
+    if isempty(answer)==1
+        return;
+    end
+    d.name=cell2mat(answer);
+    filename=[d.pn '\name'];
+    name=d.name;
+    save(filename, 'name');
+end
+
 %function for calculating deltaF/F
 imd=d.imd;
 pn=d.pn;
@@ -1147,6 +1130,7 @@ d.imd=imddFF;
 d.ROIsbw=zeros(size(d.imd,1),size(d.imd,2),1);
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.ROIs=[];
+d.neuropil=[];
 
 %showing resulting frame
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
@@ -1801,13 +1785,25 @@ if d.ROIv==0
     n=size(d.imd,3);
     numROIs=size(d.ROIsbw,3); %number of ROIs
     d.ROIs=cell(size(d.imd,3),numROIs);
+    d.neuropil=cell(size(d.imd,3),numROIs);
+    ROIcenter=cell(1,numROIs);
+    se=strel('disk',10,8);
     h=waitbar(0,'Labeling ROIs');
     for j=1:numROIs
         % You can only multiply integers if they are of the same type.
         ROIsc = cast(d.ROIsbw(:,:,j), class(d.imd(:,:,1)));
+        ROIc=regionprops(d.ROIsbw(:,:,j),'Centroid');
+        ROIcenter{1,j}=ROIc.Centroid;
         for i=1:n
             imdrem= ROIsc .* d.imd(:,:,i);
             d.ROIs{i,j}=imdrem(imdrem~=0);
+        end
+        %neuropil around the ROI
+        neurop=imdilate(ROIsc,se);
+        neurop2=neurop-ROIsc;
+        for i=1:n
+            imdneu= neurop2 .* d.imd(:,:,i);
+            d.neuropil{i,j}=imdneu(imdneu~=0);
         end
         try
             waitbar(j/numROIs,h);
@@ -1816,26 +1812,146 @@ if d.ROIv==0
         end
     end
     close(h);
+    
+    nframes=size(d.imd,3);
+
+    % calculate mean grey value of ROIs in percent
+    d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
+    numROIs=size(d.ROIs,2);
+    h=waitbar(0,'Calculating ROI values');
+    for k=1:numROIs
+        for i=1:nframes
+            ROIm=mean(d.ROIs{i,k});
+            neuropilm=mean(d.neuropil{i,k});
+            d.ROImeans(i,k)=(ROIm-neuropilm*0.7)*100;
+        end
+        try
+            waitbar(k/numROIs,h);
+        catch
+            d.ROImeans=[];
+            return;
+        end
+    end
+    close(h);
+
+    %identifying cells that have been segmented into multiple ROIs by
+    %cross-correlation
+    change=0;
+    for m=1:size(d.ROImeans,2)
+        for n=1:size(d.ROImeans,2)
+            if m~=n
+                ROIdist=pdist([ROIcenter{1,m};ROIcenter{1,n}]);
+                if ROIdist<10
+                    ROIcorr=corrcoef(d.ROImeans(:,m),d.ROImeans(:,n));
+                    ROIboth=d.ROIsbw(:,:,m)+d.ROIsbw(:,:,n);
+                    if ROIcorr(1,2)>0.8
+                        change=1;
+                        ROIboth(ROIboth>1)=1;
+                        d.ROIsbw(:,:,m)=ROIboth;
+                        d.ROIsbw(:,:,n)=zeros(size(d.ROIsbw,1),size(d.ROIsbw,2),1);
+                    end
+                end
+            end
+        end
+    end
+    %determining indices where there are ROIs
+    c=0;
+    for j=1:size(d.ROIsbw,3)
+        if sum(sum(d.ROIsbw(:,:,j)))>0
+            c=c+1;
+            ROIindices(c,1)=j;
+        end
+    end
+    d.ROIsbw=d.ROIsbw(:,:,ROIindices);
+    if change==1;
+        %labeling ROIs for every frame of the video
+        n=size(d.imd,3);
+        numROIs=size(d.ROIsbw,3); %number of ROIs
+        d.ROIs=cell(size(d.imd,3),numROIs);
+        d.neuropil=cell(size(d.imd,3),numROIs);
+        se=strel('disk',10,8);
+        h=waitbar(0,'Relabeling ROIs');
+        for j=1:numROIs
+            % You can only multiply integers if they are of the same type.
+            ROIsc = cast(d.ROIsbw(:,:,j), class(d.imd(:,:,1)));
+            for i=1:n
+                imdrem= ROIsc .* d.imd(:,:,i);
+                d.ROIs{i,j}=imdrem(imdrem~=0);
+            end
+            %neuropil around the ROI
+            neurop=imdilate(ROIsc,se);
+            neurop2=neurop-ROIsc;
+            for i=1:n
+                imdneu= neurop2 .* d.imd(:,:,i);
+                d.neuropil{i,j}=imdneu(imdneu~=0);
+            end
+            try
+                waitbar(j/numROIs,h);
+            catch
+                return;
+            end
+        end
+        close(h);
+
+        nframes=size(d.imd,3);
+
+        % calculate mean grey value of ROIs in percent
+        d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
+        numROIs=size(d.ROIs,2);
+        h=waitbar(0,'Recalculating ROI values');
+        for k=1:numROIs
+            for i=1:nframes
+                ROIm=mean(d.ROIs{i,k});
+                neuropilm=mean(d.neuropil{i,k});
+                d.ROImeans(i,k)=(ROIm-neuropilm*0.7)*100;
+            end
+            try
+                waitbar(k/numROIs,h);
+            catch
+                d.ROImeans=[];
+                return;
+            end
+        end
+        close(h);
+        %plotting ROIs
+        singleFrame=d.mip;
+        if d.dF==1 || d.pre==1
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+        for k=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,k)))>0
+                B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            end
+        end
+        hold off;
+        %saving ROI mask
+        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+        ROImask=d.mask;
+        ROIsingles=d.ROIsbw;
+        save(filename, 'ROImask','ROIsingles');
+    end
     %saving ROI values
     filename=[d.pn '\' d.name '_ROIvalues'];
-    ROIvalues=d.ROIs;
-    save(filename, 'ROIvalues');
+    ROImeans=d.ROImeans;
+    save(filename, 'ROImeans');
     d.ROIv=1;
     d.decon=0;
 end
-
-%filter for filtering traces
-[b,a]=butter(1,0.01*(d.framerate/2),'high');
 
 colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %colors for traces
 
 %function for calculating ROI fluorescence values
 if d.decon==0;
-    imd=d.imd;
-    mask=d.mask;
-    ROIs=d.ROIs;
+    ROImeans=d.ROImeans;
     framerate=d.framerate;
-    [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROIFvalues(a,b,imd,mask,ROIs,framerate);
+    [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROIFvalues(ROImeans,framerate);
     if isempty(ROImeans)==1
         return;
     end
@@ -1853,7 +1969,6 @@ if d.decon==0;
     filename=[d.pn '\' d.name 'CaSignal'];
     save(filename, 'ROImeans','cCaSignal','spikes','decon');
 end
-
 
 %plotting ROI values
 %initializing that only 8 subplots will be in one figure
@@ -2271,6 +2386,21 @@ if d.align==1
     d.origCI=d.origCI(round(abs(d.Bvector(2,2))):round(size(d.origCI,1)-abs(d.Bvector(2,1))),round(abs(d.Bvector(1,2))):round(size(d.origCI,2)-abs(d.Bvector(1,1))),:);  %cut middle of image
 end
 
+%asking for animal name/session/date if not defined
+if isempty(d.name)==1
+    prompt = {'Enter your preferred name for this video (e.g. animalNo.-date):'};
+    dlg_title = 'Name';
+    num_lines = 1;
+    answer = inputdlg(prompt,dlg_title,num_lines);
+    %if cancel was pressed
+    if isempty(answer)==1
+        return;
+    end
+    d.name=cell2mat(answer);
+    filename=[d.pn '\name'];
+    name=d.name;
+    save(filename, 'name');
+end
 
 if d.dF==0 %saving video if it was not processed further
     %converting original CI video to double precision and to values between 1 and 0
@@ -4294,9 +4424,6 @@ end
 if v.crop==0
     msgbox('Please crop video first!','ERROR');
     return;
-elseif d.pushed==0
-    msgbox('Please load calcium imaging video first!','ERROR');
-    return;
 end
 %checks whether spots were selected
 if v.Aspot==0 && v.Pspot==0
@@ -4322,18 +4449,6 @@ elseif v.Pspot==0
             msgbox('Then please select posterior colored spot!','Attention');
             return;
     end
-end
-%making sure that the ROIs were plotted
-if isempty(d.ROImeans)==1 || d.dF==0
-    msgbox('ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
-    return;
-end
-if d.thresh==1 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0
-    msgbox('All ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
-    return;
-elseif d.thresh==0 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0
-    msgbox('All ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
-    return;
 end
 
 %plotting posterior trace
@@ -4408,53 +4523,86 @@ percPause=round(pause/length(v.traceA)*100,1); %percent in regards to the whole 
 VelocityIncms=round(totalDistIncm/(length(v.traceAplot)/d.framerate),1); %mean velocity while it was visible
 
 
+%saving table
+T=table(totalDistIncm,VelocityIncms,percPause,percOutside);
+filename=[d.pn '\location\' d.name '_behavior.xls'];
+writetable(T,filename);
+
+
 %function for defining compartments
 [cood] = defineComp;
 
-%plotting cell activity
-%checking whether animal is out of bounds at times
-if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.traceA)
-    % Construct a questdlg with two options
-    choice = questdlg('Does the animal ever leave the testing area?', ...
-        'Attention', ...
-        'Yes','No','No');
-    % Handle response
-    if isempty(choice)==1
-        return;
-    end
-    switch choice
-        case 'Yes'
-            mleft=0;
-        case 'No' %if the animal did not leave the testing area, then every postiion that equals zero will be replaced by the last detectable position of the animal to have a continuous trace of the animal throughout the video
-            if v.Pspot==1
-                cood=find(v.traceP==0);
-                for k=1:length(cood)
-                    if k==1
-                        row=find(v.traceP>0,1,'first');
-                        v.traceP(cood(k),:)=v.traceP(row,:);
-                    else
-                        v.traceP(cood(k))=v.traceP(cood(k)-1);
-                    end
-                end
-            end
-            cood=find(v.traceA==0);
-            for k=1:length(cood)
-                if k==1
-                    row=find(v.traceP>0,1,'first');
-                    v.traceA(cood(k),:)=v.traceA(row,:);
-                else
-                    v.traceA(cood(k))=v.traceA(cood(k)-1);
-                end
-            end
-            mleft=1;
-    end
-else
-    mleft=1;
-end
+
 %function for plotting location of animal while specified cells are active
-activityLocation(mleft,totalDistIncm,VelocityIncms,percPause,percOutside);
-v.pushed=1; %signals to show original video again
-msgbox('Tracing Completed. ROI traces saved in folder "location"!','Success');
+% Construct a questdlg with two options
+choice = questdlg('Would you like to correlate location and orientation of the mouse with the cell activity?', ...
+    'Attention', ...
+    'Yes','No','No');
+% Handle response
+if isempty(choice)==1
+    return;
+end
+switch choice
+    case 'Yes'
+        %making sure that the ROIs were plotted
+        if isempty(d.ROImeans)==1 || d.dF==0
+            msgbox('ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
+            return;
+        end
+        if d.thresh==1 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0
+            msgbox('All ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
+            return;
+        elseif d.thresh==0 && size(d.ROIs,2)~=size(d.ROImeans,2) && d.dF==0
+            msgbox('All ROIs need to be plotted before you can see corresponding postition of the animal with cell activity!','ATTENTION');
+            return;
+        end
+        %plotting cell activity
+        %checking whether animal is out of bounds at times
+        if length(v.tracePplot)~=length(v.traceP) || length(v.traceAplot)~=length(v.traceA)
+            % Construct a questdlg with two options
+            choice = questdlg('Does the animal ever leave the testing area?', ...
+                'Attention', ...
+                'Yes','No','No');
+            % Handle response
+            if isempty(choice)==1
+                return;
+            end
+            switch choice
+                case 'Yes'
+                    mleft=0;
+                case 'No' %if the animal did not leave the testing area, then every postiion that equals zero will be replaced by the last detectable position of the animal to have a continuous trace of the animal throughout the video
+                    if v.Pspot==1
+                        cood=find(v.traceP==0);
+                        for k=1:length(cood)
+                            if k==1
+                                row=find(v.traceP>0,1,'first');
+                                v.traceP(cood(k),:)=v.traceP(row,:);
+                            else
+                                v.traceP(cood(k))=v.traceP(cood(k)-1);
+                            end
+                        end
+                    end
+                    cood=find(v.traceA==0);
+                    for k=1:length(cood)
+                        if k==1
+                            row=find(v.traceP>0,1,'first');
+                            v.traceA(cood(k),:)=v.traceA(row,:);
+                        else
+                            v.traceA(cood(k))=v.traceA(cood(k)-1);
+                        end
+                    end
+                    mleft=1;
+            end
+        else
+            mleft=1;
+        end
+
+        activityLocation(mleft);
+        v.pushed=1; %signals to show original video again
+        msgbox('Tracing Completed. ROI traces saved in folder "location"!','Success');
+    case 'No'
+        return;
+end
     
 
 % --- Executes on button press in pushbutton37.                 IMPORT ROIs
@@ -4553,7 +4701,9 @@ if v.skdefined==0
     end
     v.skdefined=1;
 end
-    
+
+%countdown before playing the video
+h=msgbox('3...'); pause(1);close(h);h=msgbox('2...'); pause(1);close(h);h=msgbox('1...'); pause(1);close(h);h=msgbox('GO!'); pause(1);close(h);
 
 if  v.pushed>=1
     v.play=1;

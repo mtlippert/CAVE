@@ -53,7 +53,7 @@ for k=1:length(dir(d.pn))
 end
 if sum(tf)>0
     load([d.pn '\' d.fn(1:end-4) 'ROIvalues.mat']);
-    d.ROIs=ROIvalues; %ROI values trhoughout the video
+    d.ROImeans=ROIvalues; %ROI values trhoughout the video
     d.ROIv=1; %signals that ROI values have been loaded, so that you don't have to re-calculate them
 else
     d.ROIv=0; %signals that ROI values have not been loaded
