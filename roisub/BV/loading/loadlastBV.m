@@ -51,11 +51,11 @@ end
 files=dir(v.pn);
 tfb=zeros(1,length(dir(v.pn)));
 for k=1:length(dir(v.pn))
-    tfb(k)=strcmp('Behavior.mat',files(k).name);
+    tfb(k)=strcmp(['Behavior_' d.name '.mat'],files(k).name);
 end
 if sum(tfb)>0
     %saving positions at ROIs
-    load([v.pn '\Behavior']);
+    load([v.pn '\Behavior_' d.name]);
     v.amount=Amount;
     v.events=Events;
     v.shortkey=Shortkeys;

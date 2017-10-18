@@ -15,6 +15,8 @@ function [imd,bcountd] = removeDust(singleFrame,bcountd,imd)
 %           bcountd: adds one to the number of times REMOVE DUST was
 %           pressed
 
+global p
+
 %manual dust selection
 Dust = roipoly(singleFrame);    %uint8 for CI_win_S1HL_02/20151118 & DORIC; int16 for CI_S1Hl_02
 
@@ -27,7 +29,7 @@ end
 %count times button is pressed
 bcountd=bcountd+1;
 %defining surrounding neighbourhood to approximate ROI mean values
-se=strel('disk',8,8);
+se=strel('disk',p.options.dustr,8);
 Dust2=imdilate(Dust,se);
 Dust3=Dust2-Dust;
 %invert mask in order to multiplicate it with images

@@ -15,23 +15,25 @@ function [imddFF] = deltaFF(imd,pn,fn,align)
 %OUTPUT     imddFF: resulting video from delta F/F calculation showing the
 %           change in fluorescence over time.
 
+global p
+
 %deltaF/F
 h=msgbox('Calculating deltaF/F... please wait!');
-%temporal filtering
-[bFilt,aFilt] = butter(4,.5, 'low');
- imdd=zeros(size(imd));
-for kr=1:size(imd,1)
-     for kc=1:size(imd,2)
-        imdd(kr,kc,:)=filtfilt(bFilt,aFilt,double(imd(kr,kc,:))); %temporal low-passing
-     end
-end
+% %temporal filtering
+% [bFilt,aFilt] = butter(p.options.dbutterd,p.options.dbutterd2, 'low');
+%  imdd=zeros(size(imd));
+% for kr=1:size(imd,1)
+%      for kc=1:size(imd,2)
+%         imdd(kr,kc,:)=filtfilt(bFilt,aFilt,double(imd(kr,kc,:))); %temporal low-passing
+%      end
+% end
  
-Fmean=mean(imd(:,:,1:100:end),3); %mean frame of whole video
+Fmean=mean(imd(:,:,1:100:end),3); %mean frame of whole video by taking every 100th frame
 imddF=bsxfun(@rdivide,bsxfun(@minus,double(imd),Fmean),Fmean); %frame minus meanframe divided by meanframe
 
-hhh = fspecial('gaussian', 5, 5); %gaussian blur
+hhh = fspecial('gaussian', p.options.dgaussh, p.options.dgausss); %gaussian blur
 
-imddFF=imfilter(imddF,hhh); %filter taken from miniscope msRun ()
+imddFF=imfilter(imddF,hhh);
 close(h);
 
 %saving deltaF video

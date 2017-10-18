@@ -61,7 +61,7 @@ for j=1:size(d.ROImeans,2)
     h=figure(4+j); image(v.imd(1).cdata); hold on;
     string=sprintf('ROI No.%d',j);
     title(string);
-    cellactive=imresize(imresize(x(:,:,j),0.25),4);
+    cellactive=imresize(imresize(x(:,:,j),0.25),4); %shirnking the array for bigger heat map blobs and resizing to original size
     colormap(jet);grid=imagesc(cellactive);cb=colorbar;cb.Label.String = 'Relative position distribution';
     set(gcf,'renderer','OpenGL');
     alpha(grid,0.75);

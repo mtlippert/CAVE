@@ -160,7 +160,7 @@ end
 
 
 % --- Executes just before roisub is made visible.
-function roisub_OpeningFcn(hObject, eventdata, handles, varargin)
+function roisub_OpeningFcn(hObject, ~, handles, varargin)
 clear global d;
 clear global v;
 global d
@@ -183,6 +183,9 @@ d.valid=0; %no ROI was selcted incorrectly
 d.align=0; %signals whether images were aligned
 p.pnpreset=[]; %no color preset imported
 d.alignCI=[]; %alignment video is empty
+
+p.options = SetParams(varargin); %initializes all constant values
+
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -221,7 +224,7 @@ end
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = roisub_OutputFcn(hObject, eventdata, handles) 
+function varargout = roisub_OutputFcn(~, ~, handles) 
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -240,7 +243,7 @@ varargout{1} = handles.output;
 %%---------------------------Loading calcium imaging video
 
 % --- Executes on button press in pushbutton5.                   LOAD DORIC
-function pushbutton5_Callback(hObject, eventdata, handles)
+function pushbutton5_Callback(~, ~, handles)
 % hObject    handle to pushbutton5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -271,6 +274,7 @@ d.ROIv=0; %no ROI values were loaded
 d.ROImeans=[]; %no ROI values have been calculated
 d.decon=0; %calcium signal was not deconvoluted
 d.name=[]; %no name defined
+d.nscale=[]; %scale was not calculated yet
 %colors for ROIs
 d.colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -401,12 +405,12 @@ if sum(tf)>0 %if a file is found
                 %plotting ROI values
                 %initializing that only 8 subplots will be in one figure
                 onesub=(1:8);
-                anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
+                anysub=repmat(onesub,1,ceil(size(d.ROImeans,2)/8));
                 check=(9:8:200);
                 check2=(8:8:200);
 
                 figure('color','w');
-                for j=1:size(d.ROIs,2)
+                for j=1:size(d.ROImeans,2)
                     if ismember(j,check)==1 %if ROI number is 9, 18, 27... new figure is initialized, this way there are only 8 ROIs per figure
                         figure('color','w');
                     end
@@ -416,7 +420,7 @@ if sum(tf)>0 %if a file is found
                     ylim([min(d.cCaSignal(:,j)) 2*round((axlim(2)+1)/2)]); %y-axis limits: from minimum value of the current ROI to round to next even number of current axis maximum value
                     strings=sprintf('ROI No.%d',j);
                     %title('ROI values in percent');
-                    if ismember(j,check2)==1 || j==size(d.ROIs,2) %writing x-axis label only for last plot in the figure
+                    if ismember(j,check2)==1 || j==size(d.ROImeans,2) %writing x-axis label only for last plot in the figure
                         xlabel('Time in seconds');
                         %changing tick labels from frames to seconds by dividing by framerate
                         tlabel=get(gca,'XTickLabel');
@@ -641,7 +645,7 @@ msgbox('Loading Completed.','Success');
 %%---------------------------Changing contrast of calcium imaging video
 
 % --- Executes on slider movement.                           CHANGES LOW IN
-function slider5_Callback(hObject, eventdata, handles)
+function slider5_Callback(~, ~, handles)
 % hObject    handle to slider5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -674,7 +678,7 @@ else
 end
 
 % --- Executes during object creation, after setting all properties.
-function slider5_CreateFcn(hObject, eventdata, handles)
+function slider5_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -686,7 +690,7 @@ end
 
 
 % --- Executes on slider movement.                          CHANGES LOW OUT
-function slider6_Callback(hObject, eventdata, handles)
+function slider6_Callback(~, ~, handles)
 % hObject    handle to slider6 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -719,7 +723,7 @@ else
 end
 
 % --- Executes during object creation, after setting all properties.
-function slider6_CreateFcn(hObject, eventdata, handles)
+function slider6_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider6 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -731,7 +735,7 @@ end
 
 
 % --- Executes on slider movement.                          CHANGES HIGH IN
-function slider15_Callback(hObject, eventdata, handles)
+function slider15_Callback(~, ~, handles)
 % hObject    handle to slider15 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -764,7 +768,7 @@ else
 end
 
 % --- Executes during object creation, after setting all properties.
-function slider15_CreateFcn(hObject, eventdata, handles)
+function slider15_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider15 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -776,7 +780,7 @@ end
 
 
 % --- Executes on slider movement.                         CHANGES HIGH OUT
-function slider16_Callback(hObject, eventdata, handles)
+function slider16_Callback(~, ~, handles)
 % hObject    handle to slider16 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -810,7 +814,7 @@ else
 end
 
 % --- Executes during object creation, after setting all properties.
-function slider16_CreateFcn(hObject, eventdata, handles)
+function slider16_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider16 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -823,7 +827,7 @@ end
 
 
 % --- Executes on button press in pushbutton22.                       RESET
-function pushbutton22_Callback(hObject, eventdata, handles)
+function pushbutton22_Callback(~, ~, handles)
 % hObject    handle to pushbutton22 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -849,7 +853,7 @@ end
 %%---------------------------Processing calcium imaging video
 
 % --- Executes on button press in pushbutton38.                 REMOVE DUST
-function pushbutton38_Callback(hObject, eventdata, handles)
+function pushbutton38_Callback(~, ~, handles)
 % hObject    handle to pushbutton38 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -897,7 +901,7 @@ msgbox('Removal complete!','Success');
 
 
 % --- Executes on button press in pushbutton41.          RESET DUST REMOVAL
-function pushbutton41_Callback(hObject, eventdata, handles)
+function pushbutton41_Callback(~, ~, handles)
 % hObject    handle to pushbutton41 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -925,11 +929,12 @@ msgbox('Dust removal reset!');
 
 
 % --- Executes on button press in pushbutton23.               PREPROCESSING
-function pushbutton23_Callback(hObject, eventdata, handles)
+function pushbutton23_Callback(~, ~, handles)
 % hObject    handle to pushbutton23 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
+global p
 if d.pre==1
     msgbox('You already did preprocessing!','ATTENTION');
     return;
@@ -951,7 +956,7 @@ save(filename, 'name');
 
 %Downsampling
 h=msgbox('Downsampling... please wait!');
-imd=imresize(d.imd,0.4);
+imd=imresize(d.imd,p.options.dsr);
 close(h);
 
 %function for eliminating faulty frames
@@ -982,7 +987,7 @@ msgbox('Preprocessing done!','Success');
 
 
 % --- Executes on button press in pushbutton9.                ALIGNS IMAGES
-function pushbutton9_Callback(hObject, eventdata, handles)
+function pushbutton9_Callback(~, ~, handles)
 % hObject    handle to pushbutton9 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -1009,33 +1014,49 @@ end
 %saves original in different variable
 d.alignCI=d.imd;
 
-%define ROI that is used for transformation
-axes(handles.axes1);
-a=imcrop;
-cropped=clipboard('pastespecial');
-%if cancel was pressed
-if isempty(cropped)==1
+%alignment to a specified ROI from one specific frame or alignment to the respective previous frame
+choice = questdlg('Would you like to use an area to align to or just the previous frame?', ...
+'Attention', ...
+'Area','Previous frame','Area');
+% Handle response
+if isempty(choice)==1
     return;
 end
+switch choice
+    case 'Area'
+        %define ROI that is used for transformation
+        axes(handles.axes1);
+        a=imcrop;
+        cropped=clipboard('pastespecial');
+        %if cancel was pressed
+        if isempty(cropped)==1
+            return;
+        end
 
-cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
-%checks if cropping coordinates are valid
-if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0
-    msgbox('Please select valid cropping area! Check the instructions again.','ERROR');
-    return;
-end
-cc=floor(cropCoordinates);
-%function for extracting and enhancing alignment ROI
-imd=d.imd;
-[ROI] = alignmentROI(cc,imd);
-if isempty(ROI)==1
-    return;
+        cropCoordinates=str2num(cell2mat(cropped.A_pastespecial));
+        %checks if cropping coordinates are valid
+        if isempty(cropCoordinates)==1 || cropCoordinates(1,3)==0 || cropCoordinates(1,4)==0
+            msgbox('Please select valid cropping area! Check the instructions again.','ERROR');
+            return;
+        end
+        cc=floor(cropCoordinates);
+        %function for extracting and enhancing alignment ROI
+        imd=d.imd;
+        [ROI] = alignmentROI(cc,imd);
+        if isempty(ROI)==1
+            return;
+        end
+        imgA =ROI(:,:,round(handles.slider7.Value));
+        tmp=ROI(:,:,round(handles.slider7.Value));
+    case 'Previous frame'
+        ROI=d.imd; %the area to align to is the whole video
+        imgA =d.imd(:,:,1); %the template is the first frame for the second frame
+        tmp=d.imd(:,:,1); %the template is the first frame for the second frame
 end
 
 if handles.radiobutton1.Value==1
     %function for using subpixel registration algorithm
-    imgA = ROI(:,:,round(handles.slider7.Value));
-    [imdC] = subpixel(ROI,imgA);
+    [imdC]=subpixel(ROI,imgA);
     if isempty(imdC)==1
         return;
     end
@@ -1046,8 +1067,7 @@ if handles.radiobutton1.Value==1
 else
     %function for using LucasKanade algorithm
     imd=d.imd;
-    tmp= ROI(:,:,round(handles.slider7.Value));
-    [imdC,Bvector] = lucasKanade(ROI,imd,tmp);
+    [imdC,Bvector]=lucasKanade(ROI,imd,tmp);
     if isempty(imdC)==1
         return;
     end
@@ -1064,7 +1084,7 @@ msgbox('Aligning Completed.','Success');
 
 
 % --- Executes on button press in pushbutton28.            RESETS ALIGNMENT
-function pushbutton28_Callback(hObject, eventdata, handles)
+function pushbutton28_Callback(~, ~, handles)
 % hObject    handle to pushbutton28 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 global d
@@ -1082,7 +1102,7 @@ msgbox('Alignment reset!');
 
 
 % --- Executes on button press in pushbutton25.                   DELTA F/F
-function pushbutton25_Callback(hObject, eventdata, handles)
+function pushbutton25_Callback(~, ~, handles)
 % hObject    handle to pushbutton25 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -1159,7 +1179,7 @@ msgbox('Calculation done!','Success');
 %%---------------------------Selecting and processing ROIs in calcium imaging video
 
 % --- Executes on button press in pushbutton3.                         ROIs
-function pushbutton3_Callback(hObject, eventdata, handles)
+function pushbutton3_Callback(~, ~, handles)
 % hObject    handle to pushbutton3 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -1263,9 +1283,9 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
     d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
     if numel(find(d.mask>1))>0
-        choice = questdlg('Would you like to remove this ROI?', ...
+        choice = questdlg('Would you like to remove, add or make a new ROI?', ...
         'Attention', ...
-        'YES','NO','YES');
+        'Remove','Add','New','Remove');
         % Handle response
         if isempty(choice)==1
             d.bcount=d.bcount-1;
@@ -1274,7 +1294,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
             return;
         end
         switch choice
-            case 'YES'
+            case 'Remove'
                 %deleting the double assignments
                 for m=1:size(d.ROIsbw,3)
                     ROIboth=d.ROIsbw(:,:,m)+ROI;
@@ -1336,14 +1356,72 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 switch choice
                     case 'YES'
                         %saving ROI mask
-                        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                        filename=[d.pn '\' d.name 'ROIs'];
                         ROImask=d.mask;
                         ROIsingles=d.ROIsbw;
                         save(filename, 'ROImask','ROIsingles');
                     case 'NO'
                         return;
                 end
-            case 'NO'
+            case 'Add'
+                %adding new ROI to old ROI
+                for m=1:size(d.ROIsbw,3)
+                    ROIboth=d.ROIsbw(:,:,m)+ROI;
+                    overlay=numel(find(ROIboth==2));
+                    if overlay>0
+                        ROIboth=ROIboth+ROI;%removing 2*ROI since overlaps = 2
+                        ROIboth(ROIboth>1)=1; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                        d.ROIsbw(:,:,m)=ROIboth;
+                    end
+                end
+                %deleting addition of new ROI
+                d.ROIsbw=d.ROIsbw(:,:,1:size(d.ROIsbw,3)-1);
+                
+                mask=sum(d.ROIsbw,3);
+                mask(mask>1)=1;
+                d.mask=mask;
+                %plotting ROIs
+                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                if d.dF==1 || d.pre==1
+                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+                else
+                    axes(handles.axes1); imshow(singleFrame); hold on;
+                end
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                    end
+                end
+                hold off;
+                d.bcount=d.bcount-1;
+                d.pushed=4; %signals that ROIs were selected
+                d.roisdefined=1; %signals that ROIs were defined
+
+                %saving ROI mask
+                % Construct a questdlg with two options
+                choice = questdlg('Would you like to save this ROI mask?', ...
+                    'Attention', ...
+                    'YES','NO','YES');
+                % Handle response
+                if isempty(choice)==1
+                    return;
+                end
+                switch choice
+                    case 'YES'
+                        %saving ROI mask
+                        filename=[d.pn '\' d.name 'ROIs'];
+                        ROImask=d.mask;
+                        ROIsingles=d.ROIsbw;
+                        save(filename, 'ROImask','ROIsingles');
+                    case 'NO'
+                        return;
+                end
+            case 'New'
                 d.mask(d.mask>0)=1;
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
@@ -1366,7 +1444,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-                filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                filename=[d.pn '\' d.name 'ROIs'];
                 ROImask=d.mask;
                 ROIsingles=d.ROIsbw;
                 save(filename, 'ROImask','ROIsingles');
@@ -1397,7 +1475,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
     d.roisdefined=1; %signals that ROIs were defined
 
     %saving ROI mask
-    filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+    filename=[d.pn '\' d.name 'ROIs'];
     ROImask=d.mask;
     ROIsingles=d.ROIsbw;
     save(filename, 'ROImask','ROIsingles');
@@ -1406,9 +1484,9 @@ else
     d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
     if numel(find(d.mask>1))>0
-        choice = questdlg('Would you like to remove this ROI?', ...
+        choice = questdlg('Would you like to remove, add or make a new ROI?', ...
         'Attention', ...
-        'YES','NO','YES');
+        'Remove','Add','New','Remove');
         % Handle response
         if isempty(choice)==1
             d.bcount=d.bcount-1;
@@ -1417,7 +1495,7 @@ else
             return;
         end
         switch choice
-            case 'YES'
+            case 'Remove'
                 %deleting the double assignments
                 for m=1:size(d.ROIsbw,3)
                     ROIboth=d.ROIsbw(:,:,m)+ROI;
@@ -1479,14 +1557,76 @@ else
                 switch choice
                     case 'YES'
                         %saving ROI mask
-                        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                        filename=[d.pn '\' d.name 'ROIs'];
                         ROImask=d.mask;
                         ROIsingles=d.ROIsbw;
                         save(filename, 'ROImask','ROIsingles');
                     case 'NO'
                         return;
                 end
-            case 'NO'
+            case 'Add'
+                %adding new ROI to old ROI
+                for m=1:size(d.ROIsbw,3)
+                    ROIboth=d.ROIsbw(:,:,m)+ROI;
+                    overlay=numel(find(ROIboth==2));
+                    if overlay>0
+                        ROIboth=ROIboth+ROI;%removing 2*ROI since overlaps = 2
+                        ROIboth(ROIboth>1)=1; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                        d.ROIsbw(:,:,m)=ROIboth;
+                    end
+                end
+                %deleting addition of new ROI
+                d.ROIsbw=d.ROIsbw(:,:,1:size(d.ROIsbw,3)-1);
+                
+                mask=sum(d.ROIsbw,3);
+                mask(mask>1)=1;
+                d.mask=mask;
+                %plotting ROIs
+                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                if d.dF==1 || d.pre==1
+                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+                else
+                    axes(handles.axes1); imshow(singleFrame); hold on;
+                end
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                    end
+                end
+                hold off;
+                if length(ROIindices)+2==d.bcount
+                    d.bcount=d.bcount-2;
+                else
+                    d.bcount=d.bcount-1;
+                end
+                d.pushed=4; %signals that ROIs were selected
+                d.roisdefined=1; %signals that ROIs were defined
+
+                %saving ROI mask
+                % Construct a questdlg with two options
+                choice = questdlg('Would you like to save this ROI mask?', ...
+                    'Attention', ...
+                    'YES','NO','YES');
+                % Handle response
+                if isempty(choice)==1
+                    return;
+                end
+                switch choice
+                    case 'YES'
+                        %saving ROI mask
+                        filename=[d.pn '\' d.name 'ROIs'];
+                        ROImask=d.mask;
+                        ROIsingles=d.ROIsbw;
+                        save(filename, 'ROImask','ROIsingles');
+                    case 'NO'
+                        return;
+                end
+            case 'New'
                 d.mask(d.mask>0)=1;
                 singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
@@ -1509,7 +1649,7 @@ else
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-                filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                filename=[d.pn '\' d.name 'ROIs'];
                 ROImask=d.mask;
                 ROIsingles=d.ROIsbw;
                 save(filename, 'ROImask','ROIsingles');
@@ -1550,7 +1690,7 @@ d.decon=0; %calcium signal was not deconvoluted
 
 
 % --- Executes on button press in pushbutton16.              CLEAR ALL ROIS
-function pushbutton16_Callback(hObject, eventdata, handles)
+function pushbutton16_Callback(~, ~, handles)
 % hObject    handle to pushbutton16 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 global d
@@ -1587,7 +1727,7 @@ msgbox('ROIs cleared!','Success');
 
 
 % --- Executes on button press in pushbutton27.          LOAD EXISTING ROIs
-function pushbutton27_Callback(~, eventdata, handles)
+function pushbutton27_Callback(~, ~, handles)
 % hObject    handle to pushbutton27 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 global d
@@ -1651,7 +1791,7 @@ msgbox('Loading complete!');
 
 
 % --- Executes on button press in pushbutton34.                   AUTO ROIs
-function pushbutton34_Callback(hObject, eventdata, handles)
+function pushbutton34_Callback(~, ~, handles)
 % hObject    handle to pushbutton34 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -1731,7 +1871,7 @@ end
 switch choice
     case 'YES'
         %saving ROI mask
-        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+        filename=[d.pn '\' d.name 'ROIs'];
         ROImask=d.mask;
         ROIsingles=d.ROIsbw;
         save(filename, 'ROImask','ROIsingles');
@@ -1742,12 +1882,13 @@ end
 
 
 % --- Executes on button press in pushbutton14.             PLOT ROI VALUES
-function pushbutton14_Callback(hObject, eventdata, handles)
+function pushbutton14_Callback(~, ~, handles)
 % hObject    handle to pushbutton14 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -1781,13 +1922,53 @@ colorsb={[0    0.4    0.7],...
 %checking whether ROI values had been saved before and no ROI was added or
 %removed
 if d.ROIv==0
+    if isempty(d.nscale)==1
+        %asking for scale of the video to determine neuropil radius of 20 um, doric model S 700um, model L 350um, nVista 650 um (shorter side), Miniscope 450um (shorter side)
+        models=[700 350 650 450]; %predefined sizes of the different microscope models
+        prompt = {'Enter the field of view size in um for short side:';'Select microscope model:'};
+        name = 'Input for scale';
+        formats = struct('type', {}, 'style', {}, 'items', {}, ...
+          'format', {}, 'size', {});
+        formats(1,1).type   = 'edit';
+        formats(1,1).format = 'integer';
+        formats(1,1).limits = [50 5000];
+        formats(1,1).size = [100 18];
+
+        formats(2,1).type   = 'list';
+        formats(2,1).style  = 'popupmenu';
+        formats(2,1).items  = {'doric model S', 'doric model L', 'nVista', 'Miniscope'};
+        defaultanswer = {350, 2};
+
+        [answer, canceled] = inputsdlg(prompt, name, formats, defaultanswer);
+        if canceled==1
+            return;
+        end
+        if answer{1,1}~=700 && answer{1,1}~=350 && answer{1,1}~=650 && answer{1,1}~=450 %if any manual input was made that does not equal the predefined sizes
+            um=answer{1,1}; %take the manual input
+        else
+            um=models(1,answer{2,1}); %otherwise take the list input
+        end
+        if size(d.imd,1)<size(d.imd,2) %determining the shorter side of the video
+            shorterSide=floor(floor(size(d.imd,1)/0.8)/0.4); %recalculating original pixel size by reversing cutting off 80% and downsampling by 40%
+        else
+            shorterSide=floor(floor(size(d.imd,2)/0.8)/0.4); %recalculating original pixel size by reversing cutting off 80% and downsampling by 40%
+        end
+        scale=shorterSide/um; %pixel divided by um equals the scale to convert from um to pixel
+        neuropilRadius=round(20*scale); %the needed neuropil radius of 20 um equals 20 times the scale to obtain the radius in pixel
+        d.nscale=neuropilRadius;
+        %saving scale
+        filename=[d.pn '\nscale'];
+        nscale=d.nscale;
+        save(filename, 'nscale');
+    end
+    
     %labeling ROIs for every frame of the video
     n=size(d.imd,3);
     numROIs=size(d.ROIsbw,3); %number of ROIs
     d.ROIs=cell(size(d.imd,3),numROIs);
     d.neuropil=cell(size(d.imd,3),numROIs);
     ROIcenter=cell(1,numROIs);
-    se=strel('disk',10,8);
+    se=strel('disk',d.nscale,8);
     h=waitbar(0,'Labeling ROIs');
     for j=1:numROIs
         % You can only multiply integers if they are of the same type.
@@ -1822,8 +2003,10 @@ if d.ROIv==0
     for k=1:numROIs
         for i=1:nframes
             ROIm=mean(d.ROIs{i,k});
+%             ROIm(ROIm<0)=0;
             neuropilm=mean(d.neuropil{i,k});
-            d.ROImeans(i,k)=(ROIm-neuropilm*0.7)*100;
+%             neuropilm(neuropilm<0)=0;
+            d.ROImeans(i,k)=(ROIm-neuropilm*p.options.neuF)*100; %in percent
         end
         try
             waitbar(k/numROIs,h);
@@ -1838,13 +2021,17 @@ if d.ROIv==0
     %cross-correlation
     change=0;
     for m=1:size(d.ROImeans,2)
+        if max(d.ROImeans(:,m))<p.options.chg %deleting ROIs which maximum fluorescence change is smaller than 0.8%
+            change=1;
+            d.ROIsbw(:,:,m)=zeros(size(d.ROIsbw,1),size(d.ROIsbw,2),1);
+        end
         for n=1:size(d.ROImeans,2)
             if m~=n
                 ROIdist=pdist([ROIcenter{1,m};ROIcenter{1,n}]);
-                if ROIdist<10
+                if ROIdist<p.options.ROIdist %ROIs in close vicinity to eachother have to be checked for similar Ca signal
                     ROIcorr=corrcoef(d.ROImeans(:,m),d.ROImeans(:,n));
                     ROIboth=d.ROIsbw(:,:,m)+d.ROIsbw(:,:,n);
-                    if ROIcorr(1,2)>0.8
+                    if ROIcorr(1,2)>p.options.sigcorr
                         change=1;
                         ROIboth(ROIboth>1)=1;
                         d.ROIsbw(:,:,m)=ROIboth;
@@ -1863,13 +2050,25 @@ if d.ROIv==0
         end
     end
     d.ROIsbw=d.ROIsbw(:,:,ROIindices);
+    %merging multiple cell detections
+    for j=1:size(d.ROIsbw,3)
+        [~,ROInum]=bwlabel(d.ROIsbw(:,:,j));
+        c=0;
+        while ROInum>1
+            SE=strel('disk',1+c);
+            d.ROIsbw(:,:,j) = imdilate(d.ROIsbw(:,:,j),SE);
+            [~,ROInum]=bwlabel(d.ROIsbw(:,:,j));
+            c=c+1;
+        end
+    end
+
     if change==1;
         %labeling ROIs for every frame of the video
         n=size(d.imd,3);
         numROIs=size(d.ROIsbw,3); %number of ROIs
         d.ROIs=cell(size(d.imd,3),numROIs);
         d.neuropil=cell(size(d.imd,3),numROIs);
-        se=strel('disk',10,8);
+        se=strel('disk',p.options.neuR,8);
         h=waitbar(0,'Relabeling ROIs');
         for j=1:numROIs
             % You can only multiply integers if they are of the same type.
@@ -1903,7 +2102,7 @@ if d.ROIv==0
             for i=1:nframes
                 ROIm=mean(d.ROIs{i,k});
                 neuropilm=mean(d.neuropil{i,k});
-                d.ROImeans(i,k)=(ROIm-neuropilm*0.7)*100;
+                d.ROImeans(i,k)=(ROIm-neuropilm*p.options.neuF)*100;
             end
             try
                 waitbar(k/numROIs,h);
@@ -1932,10 +2131,79 @@ if d.ROIv==0
         end
         hold off;
         %saving ROI mask
-        filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
-        ROImask=d.mask;
-        ROIsingles=d.ROIsbw;
-        save(filename, 'ROImask','ROIsingles');
+        % Construct a questdlg with two options
+        choice = questdlg('Would you like to save this ROI mask?', ...
+            'Attention', ...
+            'YES','NO','YES');
+        % Handle response
+        if isempty(choice)==1
+            fn=[d.name 'ROIs.mat'];
+            load([d.pn '\' fn]);
+            d.mask=ROImask;
+            d.ROIsbw=ROIsingles;
+            %plotting ROIs
+            singleFrame=d.mip;
+            if d.dF==1 || d.pre==1
+                imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+            else
+                axes(handles.axes1); imshow(singleFrame); hold on;
+            end
+            colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+            for k=1:size(d.ROIsbw,3)
+                if sum(sum(d.ROIsbw(:,:,k)))>0
+                    B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                    stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                    %drawing ROIs
+                    plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                    text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                end
+            end
+            hold off;
+            return;
+        end
+        switch choice
+            case 'YES'
+                filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                ROImask=d.mask;
+                ROIsingles=d.ROIsbw;
+                save(filename, 'ROImask','ROIsingles');
+            case 'NO'
+                fn=[d.name 'ROIs.mat'];
+                load([d.pn '\' fn]);
+                d.mask=ROImask;
+                d.ROIsbw=ROIsingles;
+                %plotting ROIs
+                singleFrame=d.mip;
+                if d.dF==1 || d.pre==1
+                    imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+                else
+                    axes(handles.axes1); imshow(singleFrame); hold on;
+                end
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+                for k=1:size(d.ROIsbw,3)
+                    if sum(sum(d.ROIsbw(:,:,k)))>0
+                        B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                        stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                        %drawing ROIs
+                        plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                        text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+                    end
+                end
+                hold off;
+                % Construct a questdlg with two options
+                choice = questdlg('Would you like to proceed plotting the ROI values?', ...
+                    'Attention', ...
+                    'YES','NO','YES');
+                % Handle response
+                if isempty(choice)==1
+                    return;
+                end
+                switch choice
+                    case 'YES'
+                    case'NO'
+                        return;
+                end
+        end
     end
     %saving ROI values
     filename=[d.pn '\' d.name '_ROIvalues'];
@@ -1973,12 +2241,12 @@ end
 %plotting ROI values
 %initializing that only 8 subplots will be in one figure
 onesub=(1:8);
-anysub=repmat(onesub,1,ceil(size(d.ROIs,2)/8));
+anysub=repmat(onesub,1,ceil(size(d.ROImeans,2)/8));
 check=(9:8:200);
 check2=(8:8:200);
 
 figure('color','w');
-for j=1:size(d.ROIs,2)
+for j=1:size(d.ROImeans,2)
     if ismember(j,check)==1 %if ROI number is 9, 18, 27... new figure is initialized, this way there are only 8 ROIs per figure
         figure('color','w');
     end
@@ -1997,7 +2265,7 @@ for j=1:size(d.ROIs,2)
     end
     strings=sprintf('ROI No.%d',j);
     %title('ROI values in percent');
-    if ismember(j,check2)==1 || j==size(d.ROIs,2) %writing x-axis label only for last plot in the figure
+    if ismember(j,check2)==1 || j==size(d.ROImeans,2) %writing x-axis label only for last plot in the figure
         xlabel('Time in seconds');
         %changing tick labels from frames to seconds by dividing by framerate
         tlabel=get(gca,'XTickLabel');
@@ -2021,7 +2289,6 @@ end
 hold off;
 
 %plotting raster plot
-b=zeros(size(d.ROImeans,1),1);
 fig=figure;
 subplot(2,1,1);
 if v.behav==1 %drawing bars signalling the various defined behaviors, if behaviors have been defined
@@ -2036,7 +2303,6 @@ for j=1:size(d.ROImeans,2)
         plot(find(d.spikes(:,j)),j,'k.');
     end
     hold on;
-    b(d.spikes(:,j)>0)=b(d.spikes(:,j)>0)+1;
     title('Cell activity raster plot');
     xlabel('Time in seconds');
     ylabel('ROI number');
@@ -2053,7 +2319,18 @@ tilabel=tilabel./d.framerate;
 set(gca,'XTickLabel',tilabel);
 hold off;
 subplot(2,1,2);
-plot(b);
+if v.behav==1 %drawing bars signalling the various defined behaviors, if behaviors have been defined
+    plot(sum(d.spikes,2));
+    axlim=get(gca,'YLim');
+    for l=1:v.amount
+        for m=1:length(v.barstart.(char(v.name{1,l})))
+        rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),axlim(1,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+        end
+    end
+    plot(sum(d.spikes,2),'k');
+else
+    plot(sum(d.spikes,2));
+end
 xlabel('Time in seconds');
 ylabel('Number of spikes');
 xlim([0 round(size(d.imd,3))]);
@@ -2070,8 +2347,8 @@ set(gca,'XTickLabel',ticlabel);
 if v.behav==1
     names=fieldnames(v.barstart); %names of defined behaviors
     spkfreq=[];
-    spkno=b;
-    spkbehavno=0;
+    spkno=sum(d.spikes,2);
+    spkasize=size(d.spikes,1);
     for j=1:v.amount
         %creating array with framenumbers where certain behavior was
         %detected
@@ -2080,13 +2357,12 @@ if v.behav==1
             behavior=[behavior,v.barstart.(names{j,1})(k):v.barstart.(names{j,1})(k)+v.barwidth.(names{j,1})(k)];
         end
         behaviors.(names{j,1})=behavior';
-        spkbehav=b(behaviors.(names{j,1}),1);
-        spkbehavno=spkbehavno+length(spkbehav);
+        spkbehav=spkno(behaviors.(names{j,1}),1);
         spkno(behaviors.(names{j,1}),1)=0;
         spkbsum=sum(spkbehav);
-        spkfreq.(names{j,1})=spkbsum/(length(spkbehav)/d.framerate);
+        spkfreq.(names{j,1})=spkbsum/(spkasize/d.framerate);
     end
-    spkfreq.nobehavior=sum(spkno)/(spkbehavno/d.framerate);
+    spkfreq.nobehavior=sum(spkno)/(spkasize/d.framerate);
 end
 
 %saving traces
@@ -2175,7 +2451,10 @@ switch choice
             for k=1:size(d.cCaSignal,2)
                 ROInumber{k,1}=sprintf('ROI No.%d',k);
             end
-            T=table(d.NoofSpikes,d.Frequency,d.Amplitude,...
+            NoofSpikes=d.NoofSpikes;
+            Frequency=d.Frequency;
+            Amplitude=d.Amplitude;
+            T=table(NoofSpikes,Frequency,Amplitude,...
                 'RowNames',ROInumber);
             writetable(T,filename,'WriteRowNames',true);
             
@@ -2184,7 +2463,7 @@ switch choice
             field2='rawwave';
             field3='wave';
             field4='spikes';
-            field5='amp';
+            field5='no';
             field6='ts';
             value1=d.framerate;
             value2=d.ROImeans;
@@ -2235,7 +2514,7 @@ switch choice
                     rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),round(min(mVal),1),v.barwidth.(char(v.name{1,l}))(m),abs(round(min(mVal),1))+round(max(mVal),1)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
                     end
                 end
-                plot(1:length(mVal),mVal,'k');
+                plot(mVal,'k');
                 title('Mean fluorescence trace with behavior');
                 xlabel('Time in seconds');
                 ylabel('Brightness in %');
@@ -2253,14 +2532,33 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
-                
-                %saving data
-                filename=[d.pn '\traces\spkbehavior_' d.name];
-                save(filename, 'spkbehav');
-                try
-                    close(f);
-                catch
+                %saving mean firing rate with behaviour
+                meanspks=sum(d.spikes,2)*d.framerate/size(d.spikes,1);
+                h=figure;
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                for l=1:v.amount
+                    for m=1:length(v.barstart.(char(v.name{1,l})))
+                    rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),round(min(meanspks),1),v.barwidth.(char(v.name{1,l}))(m),abs(round(min(meanspks),1))+round(max(meanspks),1)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                    end
                 end
+                plot(1:size(meanspks,1),meanspks,'k');
+                title('Mean firing rate with behavior');
+                xlabel('Time in seconds');
+                ylabel('Firing rate in spk/s');
+                xlim([0 round(size(d.imd,3))]);
+                ticlabel=get(gca,'XTickLabel');
+                for k=1:length(ticlabel)
+                    ticlabel{k,1}=str2num(ticlabel{k,1});
+                end
+                ticlabel=cell2mat(ticlabel);
+                ticlabel=ticlabel./d.framerate;
+                set(gca,'XTickLabel',ticlabel);
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                fname=[d.name '_meanspksbehav'];
+                path=[d.pn '/traces/',fname,'.png'];
+                path=regexprep(path,'\','/');
+                print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                close(h);
                 msgbox('Done!','Attention');
             else %if behaviors were not defined
                 rmdir([d.pn '\traces'],'s'); %delete existing folder
@@ -2332,7 +2630,10 @@ switch choice
                 for k=1:size(d.cCaSignal,2)
                     ROInumber{k,1}=sprintf('ROI No.%d',k);
                 end
-                T=table(d.NoofSpikes,d.Frequency,d.Amplitude,...
+                NoofSpikes=d.NoofSpikes;
+                Frequency=d.Frequency;
+                Amplitude=d.Amplitude;
+                T=table(NoofSpikes,Frequency,Amplitude,...
                     'RowNames',ROInumber);
                 writetable(T,filename,'WriteRowNames',true);
 
@@ -2371,7 +2672,7 @@ end
 %%---------------------------Saving calcium imaging video
 
 % --- Executes on button press in pushbutton26.               SAVE CI VIDEO
-function pushbutton26_Callback(hObject, eventdata, handles)
+function pushbutton26_Callback(~, ~, handles)
 % hObject    handle to pushbutton26 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -2550,7 +2851,7 @@ end
 %%---------------------------Browsing through calcium imaging video/s
 
 % --- Executes on slider movement.                            CHANGES FRAME
-function slider7_Callback(hObject, eventdata, handles)
+function slider7_Callback(hObject, ~, handles)
 % hObject    handle to slider7 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -2680,7 +2981,7 @@ end
 
 
 % --- Executes during object creation, after setting all properties.
-function slider7_CreateFcn(hObject, eventdata, handles)
+function slider7_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider7 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -2693,7 +2994,7 @@ end
 
 
 % --- Executes on button press in pushbutton18.                  PLAY VIDEO
-function pushbutton18_Callback(hObject, eventdata, handles)
+function pushbutton18_Callback(~, ~, handles)
 % hObject    handle to pushbutton18 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3184,7 +3485,7 @@ end
 
 
 % --- Executes on button press in pushbutton21.                        STOP
-function pushbutton21_Callback(hObject, eventdata, handles)
+function pushbutton21_Callback(~, ~, ~)
 % hObject    handle to pushbutton21 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3209,7 +3510,7 @@ v.play=0;
 %%---------------------------Loading behavioral video
 
 % --- Executes on button press in pushbutton7.       LOADS BEHAVIORAL VIDEO
-function pushbutton7_Callback(hObject, eventdata, handles)
+function pushbutton7_Callback(~, ~, handles)
 % hObject    handle to pushbutton7 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3231,7 +3532,7 @@ v.name=[]; %no names for behaviors
 v.events=[]; %no behavior events
 v.skdefined=0; %behaviors were not specified yet
 v.behav=0; %behaviors are not defined
-v.smallestArea=25; %threshold for color spot mask to exclude small objects
+p.options.bsaa=25; %threshold for color spot mask to exclude small objects
 v.preset=0; %no color preset was selected
 p.import=0; %no ROIs were imported
 %clears axes
@@ -3341,7 +3642,7 @@ end
 %%---------------------------Processing of behavioral video
 
 % --- Executes on button press in pushbutton15. CROPPING & DOWNSAMPLING
-function pushbutton15_Callback(hObject, eventdata, handles)
+function pushbutton15_Callback(~, ~, handles)
 % hObject    handle to pushbutton15 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3408,7 +3709,7 @@ end
 %%---------------------------Creating mask for color spots on mouse
 
 % --- Executes on slider movement.                                SPOT SIZE
-function slider22_Callback(hObject, eventdata, handles)
+function slider22_Callback(~, ~, handles)
 % hObject    handle to slider22 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3417,9 +3718,10 @@ function slider22_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 global v
 global d
+global p
 
 %slider value for smallest acceptable area for spot size in the color mask
-v.smallestArea=round(handles.slider22.Value);
+p.options.bsaa=round(handles.slider22.Value);
 
 if v.pushed==0
     msgbox('Please select behavioral video first!','ATTENTION');
@@ -3472,7 +3774,7 @@ textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
 set(handles.text36, 'String', textLabel);
 
 % --- Executes during object creation, after setting all properties.
-function slider22_CreateFcn(hObject, eventdata, handles)
+function slider22_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider22 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -3485,7 +3787,7 @@ end
 
 
 % --- Executes on slider movement.                      VALUE THRESHOLD LOW
-function slider9_Callback(hObject, eventdata, handles)
+function slider9_Callback(~, ~, handles)
 % hObject    handle to slider9 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3554,7 +3856,7 @@ hold off;
 v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
-function slider9_CreateFcn(hObject, eventdata, handles)
+function slider9_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider9 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -3566,7 +3868,7 @@ end
 
 
 % --- Executes on slider movement.                     VALUE THRESHOLD HIGH
-function slider10_Callback(hObject, eventdata, handles)
+function slider10_Callback(~, ~, handles)
 % hObject    handle to slider10 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3635,7 +3937,7 @@ hold off;
 v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
-function slider10_CreateFcn(hObject, eventdata, handles)
+function slider10_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider10 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -3647,7 +3949,7 @@ end
 
 
 % --- Executes on slider movement.                SATURATION THRESHOLD HIGH
-function slider11_Callback(hObject, eventdata, handles)
+function slider11_Callback(~, ~, handles)
 % hObject    handle to slider11 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3716,7 +4018,7 @@ hold off;
 v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
-function slider11_CreateFcn(hObject, eventdata, handles)
+function slider11_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider11 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -3728,7 +4030,7 @@ end
 
 
 % --- Executes on slider movement.                 SATURATION THRESHOLD LOW
-function slider12_Callback(hObject, eventdata, handles)
+function slider12_Callback(~, ~, handles)
 % hObject    handle to slider12 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3797,7 +4099,7 @@ hold off;
 v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
-function slider12_CreateFcn(hObject, eventdata, handles)
+function slider12_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider12 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -3809,7 +4111,7 @@ end
 
 
 % --- Executes on slider movement.                        HUE THRESHOLD LOW
-function slider13_Callback(hObject, eventdata, handles)
+function slider13_Callback(~, ~, handles)
 % hObject    handle to slider13 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3878,7 +4180,7 @@ hold off;
 v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
-function slider13_CreateFcn(hObject, eventdata, handles)
+function slider13_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider13 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -3890,7 +4192,7 @@ end
 
 
 % --- Executes on slider movement.                       HUE THRESHOLD HIGH
-function slider14_Callback(hObject, eventdata, handles)
+function slider14_Callback(~, ~, handles)
 % hObject    handle to slider14 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3959,7 +4261,7 @@ hold off;
 v.pushed=4;
 
 % --- Executes during object creation, after setting all properties.
-function slider14_CreateFcn(hObject, eventdata, handles)
+function slider14_CreateFcn(hObject, ~, ~)
 % hObject    handle to slider14 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -3973,7 +4275,7 @@ end
 
 
 % --- Executes on selection change in popupmenu1.              SELECT COLOR
-function popupmenu1_Callback(hObject, eventdata, handles)
+function popupmenu1_Callback(~, ~, handles)
 % hObject    handle to popupmenu1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -3983,6 +4285,7 @@ function popupmenu1_Callback(hObject, eventdata, handles)
 
 global d
 global v
+global p
 if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -3998,39 +4301,39 @@ end
 v.preset=handles.popupmenu1.Value;
 if v.preset==1
     % Green preset values
-    hueThresholdLow = 0.25;
-    hueThresholdHigh = 0.55;
-    saturationThresholdLow = 0.16;
-    saturationThresholdHigh = 1;
-    valueThresholdLow = 0;
-    valueThresholdHigh = 0.8;
+    hueThresholdLow = p.options.hTLg;
+    hueThresholdHigh = p.options.hTHg;
+    saturationThresholdLow = p.options.sTLg;
+    saturationThresholdHigh = p.options.sTHg;
+    valueThresholdLow = p.options.vTLg;
+    valueThresholdHigh = p.options.vTHg;
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 elseif v.preset==2
     % Pink preset values
-    hueThresholdLow = 0.80;
-    hueThresholdHigh = 1;
-    saturationThresholdLow = 0.36;
-    saturationThresholdHigh = 1;
-    valueThresholdLow = 0.0;
-    valueThresholdHigh = 0.8;
+    hueThresholdLow = p.options.hTLp;
+    hueThresholdHigh = p.options.hTHp;
+    saturationThresholdLow = p.options.sTLp;
+    saturationThresholdHigh = p.options.sTHp;
+    valueThresholdLow = p.options.vTLp;
+    valueThresholdHigh = p.options.vTHp;
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.75,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), repmat(0.8,size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 elseif v.preset==3
     % Yellow preset values
-    hueThresholdLow = 0.12;
-    hueThresholdHigh = 0.25;
-    saturationThresholdLow = 0.19;
-    saturationThresholdHigh = 1;
-    valueThresholdLow = 0;
-    valueThresholdHigh = 0.8;
+    hueThresholdLow = p.options.hTLy;
+    hueThresholdHigh = p.options.hTHy;
+    saturationThresholdLow = p.options.sTLy;
+    saturationThresholdHigh = p.options.sTHy;
+    valueThresholdLow = p.options.vTLy;
+    valueThresholdHigh = p.options.vTHy;
     color = cat(3, ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 elseif v.preset==4
     % Blue preset values
-    hueThresholdLow = 0.62;
-    hueThresholdHigh = 1;
-    saturationThresholdLow = 0.3;
-    saturationThresholdHigh = 1;
-    valueThresholdLow = 0.7;
-    valueThresholdHigh = 1;
+    hueThresholdLow = p.options.hTLb;
+    hueThresholdHigh = p.options.hTHb;
+    saturationThresholdLow = p.options.sTLb;
+    saturationThresholdHigh = p.options.sTHb;
+    valueThresholdLow = p.options.vTLb;
+    valueThresholdHigh = p.options.vTHb;
     color = cat(3, zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), zeros(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)), ones(size(v.imd(1).cdata,1),size(v.imd(1).cdata,2)));
 end
 %setting sliders according to preset
@@ -4069,7 +4372,7 @@ v.pushed=4;
 
 
 % --- Executes during object creation, after setting all properties.
-function popupmenu1_CreateFcn(hObject, eventdata, handles)
+function popupmenu1_CreateFcn(hObject, ~, ~)
 % hObject    handle to popupmenu1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -4083,7 +4386,7 @@ end
 
 
 % --- Executes on button press in pushbutton36.               IMPORT PRESET
-function pushbutton36_Callback(hObject, eventdata, handles)
+function pushbutton36_Callback(~, ~, handles)
 % hObject    handle to pushbutton36 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -4093,6 +4396,7 @@ global p
 %defining folder
 %defining initial folder displayed in dialog window
 if isempty(p.pnpreset)==1
+    [p.pnpreset]=uigetdir(v.pn);
 elseif p.pnpreset==0
     [p.pnpreset]=uigetdir(v.pn);
 else
@@ -4186,12 +4490,13 @@ v.pushed=4;
 
 
 % --- Executes on button press in pushbutton10.      SAVE AS POSTERIOR SPOT
-function pushbutton10_Callback(hObject, eventdata, handles)
+function pushbutton10_Callback(~, ~, handles)
 % hObject    handle to pushbutton10 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
+global p
 if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -4228,7 +4533,7 @@ thresh.saturationThresholdLow=v.saturationThresholdLow;
 thresh.saturationThresholdHigh=v.saturationThresholdHigh;
 thresh.valueThresholdLow=v.valueThresholdLow;
 thresh.valueThresholdHigh=v.valueThresholdHigh;
-thresh.smallestArea=v.smallestArea;
+thresh.smallestArea=p.options.bsaa;
 
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
@@ -4255,7 +4560,7 @@ close(h);
 %plotting posterior trace
 v.tracePplot=v.traceP(v.traceP>0);
 v.tracePplot=reshape(v.tracePplot,[size(v.tracePplot,1)/2,2]);
-OutofBounds=100-round(length(v.tracePplot)/length(v.traceP)*100);
+OutofBounds=100-round(length(v.tracePplot)/length(v.traceP)*100); %in percent
 str=sprintf('Animal is out of bounds in %g percent of cases',OutofBounds);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
@@ -4294,12 +4599,13 @@ msgbox('Saving Completed. Please save anterior spot as well!','Success');
 
 
 % --- Executes on button press in pushbutton11.       SAVE AS ANTERIOR SPOT
-function pushbutton11_Callback(hObject, eventdata, handles)
+function pushbutton11_Callback(~, ~, handles)
 % hObject    handle to pushbutton11 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
+global p
 if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -4336,7 +4642,7 @@ thresh.saturationThresholdLow=v.saturationThresholdLow;
 thresh.saturationThresholdHigh=v.saturationThresholdHigh;
 thresh.valueThresholdLow=v.valueThresholdLow;
 thresh.valueThresholdHigh=v.valueThresholdHigh;
-thresh.smallestArea=v.smallestArea;
+thresh.smallestArea=p.options.bsaa;
 
 nframes=size(v.imd,2);
 x=zeros(nframes,1);
@@ -4363,7 +4669,7 @@ close(h);
 %plotting anterior trace
 v.traceAplot=v.traceA(v.traceA>0);
 v.traceAplot=reshape(v.traceAplot,[size(v.traceAplot,1)/2,2]);
-OutofBounds=100-round(length(v.traceAplot)/length(v.traceA)*100);
+OutofBounds=100-round(length(v.traceAplot)/length(v.traceA)*100); %in percent
 str=sprintf('Animal is out of bounds in %g percent of cases',OutofBounds);
 figure, image(v.imd(1).cdata); hold on;
 %choosing color for plot
@@ -4405,12 +4711,13 @@ msgbox('Saving Completed. If both spots are saved, please proceed by tracing the
 %%---------------------------Tracing color spots on mouse
 
 % --- Executes on button press in pushbutton12.                TRACE ANIMAL
-function pushbutton12_Callback(hObject, eventdata, handles)
+function pushbutton12_Callback(~, ~, ~)
 % hObject    handle to pushbutton12 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 if v.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -4491,7 +4798,7 @@ x=sqrt(x.^2);
 y=diff(v.traceAplot(:,2));
 y=sqrt(y.^2);
 dist=sqrt(x.^2+y.^2);
-totalDistInPx=sum(dist(dist>1 & dist<40)); %movement is consider at least 1 pixel and at most 40 pixels at once
+totalDistInPx=sum(dist(dist>p.options.bdistmin & dist<p.options.bdistmax)); %movement is consider at least 1 pixel and at most 40 pixels at once
 
 %pixel in cm
 h=figure;image(v.imd(1).cdata);hold on;
@@ -4606,7 +4913,7 @@ end
     
 
 % --- Executes on button press in pushbutton37.                 IMPORT ROIs
-function pushbutton37_Callback(hObject, eventdata, handles)
+function pushbutton37_Callback(~, ~, ~)
 % hObject    handle to pushbutton37 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -4639,12 +4946,13 @@ msgbox('Loading Complete.','Success');
 
 
 % --- Executes on button press in pushbutton29.            BUTTON DETECTION
-function pushbutton29_Callback(hObject, eventdata, handles)
+function pushbutton29_Callback(~, ~, handles)
 % hObject    handle to pushbutton29 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 d.stop=0;
 %checks if a video file was selected
 if v.pushed==0 && d.pushed==0
@@ -4703,7 +5011,7 @@ if v.skdefined==0
 end
 
 %countdown before playing the video
-h=msgbox('3...'); pause(1);close(h);h=msgbox('2...'); pause(1);close(h);h=msgbox('1...'); pause(1);close(h);h=msgbox('GO!'); pause(1);close(h);
+h=msgbox('Video starts in 3...'); pause(2.5);close(h);h=msgbox('2...'); pause(1);close(h);h=msgbox('1...'); pause(1);close(h);h=msgbox('GO!'); pause(1);close(h);
 
 if  v.pushed>=1
     v.play=1;
@@ -4774,7 +5082,7 @@ end
 
 
 % --- Executes on key press with focus on pushbutton29 and none of its controls.
-function pushbutton29_KeyPressFcn(hObject, eventdata, handles)
+function pushbutton29_KeyPressFcn(~, eventdata, ~)
 % hObject    handle to pushbutton29 (see GCBO)
 % eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
 %	Key: name of the key that was pressed, in lower case
@@ -4793,7 +5101,7 @@ global v
 
 
 % --- Executes on button press in pushbutton35.       RESET BEHAV DETECTION
-function pushbutton35_Callback(hObject, eventdata, handles)
+function pushbutton35_Callback(~, ~, ~)
 % hObject    handle to pushbutton35 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -4815,14 +5123,14 @@ msgbox('Behavioral detection was reset!');
 
 %%---------------------------Help & Documentation
 
-function Help_Callback(hObject, eventdata, handles)
+function Help_Callback(~, ~, ~)
 % hObject    handle to Help (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 
 % --------------------------------------------------------------------
-function Documentation_Callback(hObject, eventdata, handles)
+function Documentation_Callback(~, ~, ~)
 % hObject    handle to Documentation (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -4842,7 +5150,7 @@ winopen(fn);
 %%---------------------------Radio buttons
 
 % --- Executes on button press in radiobutton2.
-function radiobutton2_Callback(hObject, eventdata, handles)
+function radiobutton2_Callback(~, ~, ~)
 % hObject    handle to radiobutton2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -4851,7 +5159,7 @@ function radiobutton2_Callback(hObject, eventdata, handles)
 
 
 % --- Executes on button press in radiobutton1.
-function radiobutton1_Callback(hObject, eventdata, handles)
+function radiobutton1_Callback(~, ~, ~)
 % hObject    handle to radiobutton1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)

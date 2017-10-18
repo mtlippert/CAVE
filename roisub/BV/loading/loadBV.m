@@ -19,12 +19,17 @@ for j=1:length(fn) %loading behavioral video parts
     vid = VideoReader([pn '\' fn{j}]);
 
     %defining dimensions of video
+    h=msgbox('Please wait...');
     nframes=get(vid,'NumberOfFrames');
     vidObj = VideoReader([pn '\' fn{j}]);
     vidHeight = vidObj.Height;
     vidWidth = vidObj.Width;
     vframerate=vidObj.FrameRate;
     imd = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'));
+    try
+        close(h);
+    catch
+    end
 
     %putting each frame into variable 'imd'
     str=sprintf('Loading part %d / %d',j,length(fn));

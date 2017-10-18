@@ -11,6 +11,8 @@ function [ROIsbw] = pcaica(F,mip,handles)
 %OUTPUT     ROIsbw: resulting spatial filters each representing an
 %           individual ROI.
 
+global p
+
 h=msgbox('Please wait...');  
 %reshaping to two dimensional array: pixel x time
 F1=reshape(F,size(F,1)*size(F,2),size(F,3));
@@ -58,9 +60,8 @@ if currentSize>memval
         end
 
         %extracting ROIs
-        ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
+        ICAmatrixfilt=imgaussfilt(ICAmatrix,p.options.pigausss);
         ROIsbw=zeros(size(F,1),size(F,2),dim);
-        smallestAcceptableArea=30;
 
         singleFrame=mip;
         axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
@@ -69,14 +70,14 @@ if currentSize>memval
             %converting to numbers between 0 and 1
             ROIs=ICAmatrixfilt(:,:,l)+abs(min(min(ICAmatrixfilt(:,:,l))));
             ROIs=ROIs./max(max(ROIs));
-            ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+            ROIsBW=bwareaopen(im2bw(ROIs,p.options.pibwP),p.options.pisaa);
             ROIsbw(:,:,l+adding)=bwlabel(ROIsBW);
-            if sum(sum(ROIsBW))>300
+            if sum(sum(ROIsBW))>p.options.picsize %reverses bw image if components bigger than 300 pixels
                 ROIs=imcomplement(ROIs);
-                ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+                ROIsBW=bwareaopen(im2bw(ROIs,p.options.pibwP),p.options.pisaa);
                 ROIsbw(:,:,l+adding)=bwlabel(ROIsBW);
                 B = bwboundaries(ROIsbw(:,:,l+adding));
-                if sum(sum(ROIsBW))>300 || length(B)>1
+                if sum(sum(ROIsBW))>p.options.picsize || length(B)>1
                     ROIsbw(:,:,l+adding)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
                 end
             end   
@@ -95,9 +96,8 @@ else
     end
 
     %extracting ROIs
-    ICAmatrixfilt=imgaussfilt(ICAmatrix,1.5); %or sigma=5
+    ICAmatrixfilt=imgaussfilt(ICAmatrix,p.options.pigausss);
     ROIsbw=zeros(size(F,1),size(F,2),dim);
-    smallestAcceptableArea=30;
 
     singleFrame=mip;
     axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
@@ -106,14 +106,14 @@ else
         %converting to numbers between 0 and 1
         ROIs=ICAmatrixfilt(:,:,k)+abs(min(min(ICAmatrixfilt(:,:,k))));
         ROIs=ROIs./max(max(ROIs));
-        ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+        ROIsBW=bwareaopen(im2bw(ROIs,p.options.pibwP),p.options.pisaa);
         ROIsbw(:,:,k)=bwlabel(ROIsBW);
-        if sum(sum(ROIsBW))>300
+        if sum(sum(ROIsBW))>p.options.picsize %reverses bw image if components bigger than 300 pixels
             ROIs=imcomplement(ROIs);
-            ROIsBW=bwareaopen(im2bw(ROIs,0.8),smallestAcceptableArea);
+            ROIsBW=bwareaopen(im2bw(ROIs,p.options.pibwP),p.options.pisaa);
             ROIsbw(:,:,k)=bwlabel(ROIsBW);
             B = bwboundaries(ROIsbw(:,:,k));
-            if sum(sum(ROIsBW))>300 || length(B)>1
+            if sum(sum(ROIsBW))>p.options.picsize || length(B)>1
                 ROIsbw(:,:,k)=zeros(size(F,1),size(F,2),1); %deleting huge ROIs or ROIs with multiple cells in one picture
             end
         end   
@@ -124,7 +124,6 @@ end
 for j=1:size(ROIsbw,3)
     stats = regionprops(ROIsbw(:,:,j),'Area','Centroid');
     B = bwboundaries(ROIsbw(:,:,j),'noholes');
-    threshold = 0.6;
     if isempty(B)==0
         % obtain (X,Y) boundary coordinates
         boundary = B{1,1};
@@ -135,7 +134,7 @@ for j=1:size(ROIsbw,3)
         area = stats(1).Area;
         % compute the roundness metric
         metric= 4*pi*area/perimeter^2;
-        if metric<threshold
+        if metric<p.options.pinroT
             ROIsbw(:,:,j)=zeros(size(F,1),size(F,2),1);
         end
     end
@@ -152,7 +151,7 @@ for m=1:size(ROIsbw,3)
             if overlay>0
                 percMover=overlay/sumM*100;
                 percNover=overlay/sumN*100;
-                if percMover>=30 || percNover>=30 %if overlap of ROIs is greater than 30% it is interpreted as one ROI
+                if percMover>=p.options.piolO || percNover>=p.options.piolO %if overlap of ROIs is greater than 30% it is interpreted as one ROI
                     ROIboth(ROIboth>1)=1;
                     ROIsbw(:,:,m)=ROIboth;
                     ROIsbw(:,:,n)=zeros(size(F,1),size(F,2),1);

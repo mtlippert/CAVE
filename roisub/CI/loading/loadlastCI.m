@@ -29,10 +29,10 @@ figure,imagesc(d.mip),title('Maximum Intensity Projection');
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
-    tf(k)=strcmp([d.fn(1:end-4) 'ROIs.mat'],files(k).name);
+    tf(k)=strcmp([d.name 'ROIs.mat'],files(k).name);
 end
 if sum(tf)>0 %if a file is found
-    load([d.pn '\' d.fn(1:end-4) 'ROIs.mat']);
+    load([d.pn '\' d.name 'ROIs.mat']);
     d.mask=ROImask; %mask with all the ROIs
     d.ROIsbw=ROIsingles; %logical mask of every single ROI
     d.pushed=4; %signals that ROIs were selected
@@ -49,28 +49,43 @@ end
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
-    tf(k)=strcmp([d.fn(1:end-4) 'ROIvalues.mat'],files(k).name);
+    tf(k)=strcmp([d.name '_ROIvalues.mat'],files(k).name);
 end
 if sum(tf)>0
-    load([d.pn '\' d.fn(1:end-4) 'ROIvalues.mat']);
-    d.ROImeans=ROIvalues; %ROI values trhoughout the video
+    load([d.pn '\' d.name '_ROIvalues.mat']);
+    d.ROImeans=ROImeans; %ROI values trhoughout the video
     d.ROIv=1; %signals that ROI values have been loaded, so that you don't have to re-calculate them
 else
     d.ROIv=0; %signals that ROI values have not been loaded
+end
+%loading scale for neuropil subtraction
+%check whether scale had been saved before
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn))
+    tf(k)=strcmp('nscale.mat',files(k).name);
+end
+if sum(tf)>0
+    load([d.pn '\nscale.mat']);
+    d.nscale=nscale;
+else
+    d.nscale=[];
 end
 %loading calcium signal
 %check whether calcium signal had been saved before
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
-    tf(k)=strcmp([d.fn(1:end-4) 'CaSignal.mat'],files(k).name);
+    tf(k)=strcmp('traces',files(k).name);
 end
 if sum(tf)>0
-    load([d.pn '\' d.fn(1:end-4) 'CaSignal.mat']);
-    d.ROImeans=ROImeans;
-    d.cCaSignal=cCaSignal;
-    d.spikes=spikes;
-    d.decon=decon;
+    load([d.pn '\traces\traces_' d.name '.mat']);
+    d.cCaSignal=traces.wave;
+    d.spikes=zeros(size(d.cCaSignal));
+    for j=1:size(d.cCaSignal,2);
+        d.spikes(traces.spikes(1,j).ts,j)=traces.spikes(1,j).amp;
+    end
+    d.decon=1;
 else
     d.decon=0; %signal was not deconvoluted;
 end

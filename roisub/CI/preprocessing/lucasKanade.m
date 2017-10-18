@@ -1,11 +1,12 @@
 function [imdC,Bvector] = lucasKanade(ROI,imd,tmp)
+global p
 
 %Lucas Kanade algorithm to align images
 transform = 'translation';
 % parameters for ECC and Lucas-Kanade 
 par = [];
-par.levels =    2;
-par.iterations = 5;
+par.levels =    p.options.LClevels;
+par.iterations = p.options.LCiter;
 par.transform = transform;
 imdC = cast(zeros(size(imd,1),size(imd,2),size(imd,3)),class(imd));
 imdC(:,:,1) =  imd(:,:,1);
@@ -17,7 +18,11 @@ h=waitbar(0,'Aligning images');
 for k=1:nframes-1
     img=ROI(:,:,k+1);
     imdd=imd(:,:,k+1);
-    [LKWarp]=iat_LucasKanade(img,tmp,par);
+    if isequal(tmp,imd(:,:,1))==1 %if previous frame was selected tmp equals the first frame of imd
+        [LKWarp]=iat_LucasKanade(img,imdC(:,:,k),par); %the video is aligned to the previous aligned frame imdC
+    else
+        [LKWarp]=iat_LucasKanade(img,tmp,par);
+    end
     %biggest transform vector for cutting out middle part of the image
     if LKWarp(1,1)>Bvector(1,1)
         Bvector(1,1)=LKWarp(1,1);

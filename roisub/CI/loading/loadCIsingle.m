@@ -9,6 +9,8 @@ function [imd] = loadCIsingle(pn,fn,Files)
 %           8-bit depending on the original format. The dimensions are as
 %           follows: pixel width, pixel height, number of frames
 
+global p
+
 %defining dimensions of video
 h=msgbox('Please wait...');
 frames=size(imfinfo([pn '\' fn]),1);
@@ -40,7 +42,7 @@ for k = 1:length(Files)
     imdd = imread(fullFileName);
     if eightBit==false
         imddou=double(imdd);
-        imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*65535);
+        imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*p.options.bitconv);
     else
         imd(:,:,k)=imdd;
     end

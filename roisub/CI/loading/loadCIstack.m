@@ -19,6 +19,8 @@ function [imd,origCI,pre] = loadCIstack(pn,fn)
 %           vlaue 1 = done). ONLY 1 if the file is too big to load all at
 %           once, meaning bigger than 4500 frames.
 
+global p
+
 %defining dimensions of video
 h=msgbox('Please wait...');
 frames=size(imfinfo([pn '\' fn]),1);
@@ -30,17 +32,17 @@ try
 catch
 end
 
-if frames<=4500
+if frames<=4500 || Width<100 % if video has fewer than 4500 frames and fewer than 100 pixels in width
     % Check to see if it's an 8-bit image needed later for scaling).
     fullFileName = fullfile([pn '\' fn]);
     Image = imread(fullFileName,1);
     if strcmpi(class(Image), 'uint8')
         % Flag for 256 gray levels.
         eightBit = true;
-        imd=uint8(zeros(Width,Height,frames)); %video preallocation
+        imd=uint8(zeros(Height,Width,frames)); %video preallocation
     else
         eightBit = false;
-        imd=uint16(zeros(Width,Height,frames)); %video preallocation
+        imd=uint16(zeros(Height,Width,frames)); %video preallocation
     end
 else
     % Check to see if it's an 8-bit image needed later for scaling).
@@ -49,14 +51,14 @@ else
     if strcmpi(class(Image), 'uint8')
         % Flag for 256 gray levels.
         eightBit = true;
-        imdd=uint8(zeros(Width*0.4,Height*0.4,frames)); %video preallocation as downsampled version
+        imdd=uint8(zeros(round(Height*p.options.dsr),round(Width*p.options.dsr),frames)); %video preallocation as downsampled version
     else
         eightBit = false;
-        imdd=uint16(zeros(Width*0.4,Height*0.4,frames)); %video preallocation as downsampled version
+        imdd=uint16(zeros(round(Height*p.options.dsr),round(Width*p.options.dsr),frames)); %video preallocation as downsampled version
     end
 end
 
-if frames>4500 %if file is bigger than 4500 frames, the video will be already preprocessed to reduce size
+if frames>4500 && Width>100 %if file is bigger than 4500 frames and width is more than 100 pixels, the video will be already preprocessed to reduce size
     %putting each frame into variable 'Images'
     h=waitbar(0,'Loading');
     for k = 1:frames
@@ -64,11 +66,11 @@ if frames>4500 %if file is bigger than 4500 frames, the video will be already pr
         imdp = imread(fullFileName,k);
         if eightBit==false
             imddou=double(imdp);
-            imd=uint16(imddou./max(max(imddou,[],2))*65535);
+            imd=uint16(imddou./max(max(imddou,[],2))*p.options.bitconv);
         end
         if frames>4500
             %Downsampling
-            imdd(:,:,k)=imresize(imd,0.4);
+            imdd(:,:,k)=imresize(imd,p.options.dsr);
         end
         try
             waitbar(k/frames,h);
@@ -83,7 +85,7 @@ if frames>4500 %if file is bigger than 4500 frames, the video will be already pr
     
     %ask if dust needs to be removed
     %display current image to select ROI
-    singleFrame=imresize(double(imread(fullFileName,1)),0.4);
+    singleFrame=imresize(double(imread(fullFileName,1)),p.options.dsr);
     singleFrame=singleFrame./max(max(singleFrame));
     figure,imagesc(singleFrame),colormap(grey);
 
@@ -108,7 +110,7 @@ if frames>4500 %if file is bigger than 4500 frames, the video will be already pr
                 return;
             end
             amount=str2num(cell2mat(answer));
-            %loop of selecting compartments, giving names and calculations
+            %loop of removing specified number of dust specs
             for k=1:amount
                 figure;
                 %removing dust
@@ -147,7 +149,7 @@ else
         imdd = imread(fullFileName,k);
         if eightBit==false
             imddou=double(imdd);
-            imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*65535);
+            imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*p.options.bitconv);
         end
         try
             waitbar(k/frames,h);

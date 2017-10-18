@@ -34,9 +34,9 @@ amp=cell(1,size(ROImeans,2));
 h=waitbar(0,'Deconvoluting...');
 for k=1:size(ROImeans,2)
     y=ROImeans(:,k);
-
     [c_oasis, s_oasis] = deconvolveCa(y, 'ar2', 'constrained','optimize_b'); 
-    s_oasis(s_oasis<6*std(s_oasis))=0; %spiking threshold at 6*std, adapted from Quiroga
+%     s_oasis=sqrt(s_oasis);
+    s_oasis(s_oasis<1)=0;
     spikes(:,k)=ceil(s_oasis);
     cCaSignal(:,k)=c_oasis;
     

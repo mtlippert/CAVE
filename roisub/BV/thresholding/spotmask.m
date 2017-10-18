@@ -7,6 +7,7 @@ function [maskedRGBImage] = spotmask(handles)
 % OUTPUT    maskedRGBImage: color spot mask showing only the defined color
 
 global v
+global p
 
 %slider values
 v.hueThresholdLow = handles.slider13.Value;
@@ -28,10 +29,8 @@ valueMask = (hsvImage(:,:,3) >= v.valueThresholdLow) & (hsvImage(:,:,3) <= v.val
 % Then we will have the mask of only the green parts of the image.
 coloredObjectsMask = uint8(hueMask & saturationMask & valueMask);
 
-% Filter out small objects.
-smallestAcceptableArea = v.smallestArea;
 % Get rid of small objects.  Note: bwareaopen returns a logical.
-coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, smallestAcceptableArea));
+coloredObjectsMask = uint8(bwareaopen(coloredObjectsMask, p.options.bsaa));
 % Smooth the border using a morphological closing operation, imclose().
 structuringElement = strel('disk', 4);
 coloredObjectsMask = imclose(coloredObjectsMask, structuringElement);

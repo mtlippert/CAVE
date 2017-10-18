@@ -1,5 +1,6 @@
 function [imdC] = subpixel(ROI,imgA)
 global d
+global p
 
 %subpixel registration to align images
 imdC = cast(zeros(size(d.imd,1),size(d.imd,2),size(d.imd,3)),class(d.imd));
@@ -10,7 +11,11 @@ h=waitbar(0,'Aligning images');
 for k=1:size(d.imd,3)-1
     imgB=ROI(:,:,k+1);
     imdB=d.imd(:,:,k+1);
-    [output] = dftregistration(fft2(imgA),fft2(imgB),100);
+    if isequal(imgA,d.imd(:,:,1))==1 %if previous frame was selected imgA equals the first frame of d.imd
+        [output] = dftregistration(fft2(imdC(:,:,k)),fft2(imgB),p.options.usfac); %the video is aligned to the previous aligned frame imdC
+    else
+        [output] = dftregistration(fft2(imgA),fft2(imgB),p.options.usfac);
+    end
     if isempty(output)==1
         imdC(:,:,k+1)=imdB;
     else
