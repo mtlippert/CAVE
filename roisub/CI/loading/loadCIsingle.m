@@ -39,18 +39,27 @@ h=waitbar(0,'Loading');
 for k = 1:length(Files)
     baseFileName = Files(k).name;
     fullFileName = fullfile([pn '\' baseFileName]);
-    imdd = imread(fullFileName);
-    if eightBit==false
-        imddou=double(imdd);
-        imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*p.options.bitconv);
-    else
-        imd(:,:,k)=imdd;
-    end
+    imd(:,:,k) = imread(fullFileName);
     try
         waitbar(k/length(Files),h);
     catch
         imd=[];
         return;
+    end
+    if eightBit==false
+        imddou=double(imd);
+        maxVal=max(max(max(imddou,[],2)));
+        h=waitbar(0,'Converting');
+        for j = 1:frames
+            imd(:,:,j)=uint16((imddou(:,:,j)./maxVal).*p.options.bitconv);
+            try
+                waitbar(j/frames,h);
+            catch
+                imd=[];
+                return;
+            end
+        end
+        close(h);
     end
 end
 close(h);

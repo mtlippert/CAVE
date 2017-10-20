@@ -64,14 +64,8 @@ if frames>4500 && Width>100 %if file is bigger than 4500 frames and width is mor
     for k = 1:frames
         % Read in image into an array.
         imdp = imread(fullFileName,k);
-        if eightBit==false
-            imddou=double(imdp);
-            imd=uint16(imddou./max(max(imddou,[],2))*p.options.bitconv);
-        end
-        if frames>4500
-            %Downsampling
-            imdd(:,:,k)=imresize(imd,p.options.dsr);
-        end
+        %Downsampling
+        imdd(:,:,k)=imresize(imdp,p.options.dsr);
         try
             waitbar(k/frames,h);
         catch
@@ -146,11 +140,7 @@ else
     h=waitbar(0,'Loading');
     for k = 1:frames
         % Read in image into an array.
-        imdd = imread(fullFileName,k);
-        if eightBit==false
-            imddou=double(imdd);
-            imd(:,:,k)=uint16(imddou./max(max(imddou,[],2))*p.options.bitconv);
-        end
+        imd(:,:,k) = imread(fullFileName,k);
         try
             waitbar(k/frames,h);
         catch
@@ -160,6 +150,24 @@ else
             return;
         end
     end
+    if eightBit==false
+        imddou=double(imd);
+        maxVal=max(max(max(imddou,[],2)));
+        h=waitbar(0,'Converting');
+        for j = 1:frames
+            imd(:,:,j)=uint16((imddou(:,:,j)./maxVal).*p.options.bitconv);
+            try
+                waitbar(j/frames,h);
+            catch
+                imd=[];
+                origCI=[];
+                pre=[];
+                return;
+            end
+        end
+        close(h);
+    end
+    
     close(h);
     origCI=[]; %no original calcium imaging video saved
     pre=0; %not preprocessed
