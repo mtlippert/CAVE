@@ -153,11 +153,11 @@ else
     if eightBit==false
         imddou=double(imd);
         maxVal=max(max(max(imddou,[],2)));
-        h=waitbar(0,'Converting');
+        hh=waitbar(0,'Converting');
         for j = 1:frames
             imd(:,:,j)=uint16((imddou(:,:,j)./maxVal).*p.options.bitconv);
             try
-                waitbar(j/frames,h);
+                waitbar(j/frames,hh);
             catch
                 imd=[];
                 origCI=[];
@@ -165,7 +165,7 @@ else
                 return;
             end
         end
-        close(h);
+        close(hh);
     end
     
     close(h);

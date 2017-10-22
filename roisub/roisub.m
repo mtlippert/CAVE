@@ -2068,7 +2068,7 @@ if d.ROIv==0
         numROIs=size(d.ROIsbw,3); %number of ROIs
         d.ROIs=cell(size(d.imd,3),numROIs);
         d.neuropil=cell(size(d.imd,3),numROIs);
-        se=strel('disk',p.options.neuR,8);
+        se=strel('disk',d.nscale,8);
         h=waitbar(0,'Relabeling ROIs');
         for j=1:numROIs
             % You can only multiply integers if they are of the same type.
