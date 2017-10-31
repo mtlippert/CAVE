@@ -1,4 +1,21 @@
-function [imdC] = subpixel(ROI,imgA)
+function [imdC,Bvector] = subpixel(ROI,imgA)
+
+%FUNCTION for aligning images with the subpixel registration algorithm.
+
+%INPUT      ROI: in case the user selceted 'area' this is the video
+%           containing only the user defined area, else it contains the
+%           whole calcium imaging video
+%           imd: clacium imaging video as 8bit/16-bit with dimensions pixel
+%           width, pixel height, number of frames.
+%           imgA: template to which the images are supposed to be aligned to.
+%           In case of the user selecting 'area' this is the current frame
+%           with the user defined region, otherwise each previous frame is
+%           used as template
+
+%OUTPUT     imdC: resulting video after alignment
+%           Bvector: largest values that have been used for transforming
+%           for each direction, these are 4 values
+
 global d
 global p
 

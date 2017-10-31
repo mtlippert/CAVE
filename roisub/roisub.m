@@ -137,7 +137,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 17-May-2017 13:08:24
+% Last Modified by GUIDE v2.5 31-Oct-2017 15:00:01
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -183,6 +183,8 @@ d.valid=0; %no ROI was selcted incorrectly
 d.align=0; %signals whether images were aligned
 p.pnpreset=[]; %no color preset imported
 d.alignCI=[]; %alignment video is empty
+p.roisave=1; %ROI masks will be saved automatically
+p.roistate=0; %no method of manipulating ROIs was selected
 
 p.options = SetParams(varargin); %initializes all constant values
 
@@ -241,10 +243,10 @@ varargout{1} = handles.output;
 
 
 %%---------------------------Loading calcium imaging video
-
-% --- Executes on button press in pushbutton5.                   LOAD DORIC
-function pushbutton5_Callback(~, ~, handles)
-% hObject    handle to pushbutton5 (see GCBO)
+% --------------------------------------------------------------------
+% LOAD CALCIUM IMAGING VIDEO
+function CI_Callback(hObject, eventdata, handles)
+% hObject    handle to CI (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
@@ -403,6 +405,7 @@ if sum(tf)>0 %if a file is found
             if d.decon==1
                 h=msgbox('Please wait while calcium signal is being plotted...');
                 %plotting ROI values
+                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %repeat color scheme as many times as there are ROIs
                 %initializing that only 8 subplots will be in one figure
                 onesub=(1:8);
                 anysub=repmat(onesub,1,ceil(size(d.ROImeans,2)/8));
@@ -437,18 +440,20 @@ if sum(tf)>0 %if a file is found
                     legend(strings,'Location','eastoutside');
                     set(gca, 'box', 'off');
                     hold on;
-                    plot(find(d.spikes(:,j)),max(d.cCaSignal(:,j))+0.5,'k.');
+                    if sum(d.spikes(:,j))>0
+                        plot(find(d.spikes(:,j)),max(d.cCaSignal(:,j))+0.5,'k.');
+                    end
                 end
                 hold off;
 
                 %plotting raster plot
-                b=zeros(size(d.ROImeans,1),1);
                 figure;
                 subplot(2,1,1);
                 for j=1:size(d.ROImeans,2)
-                    plot(find(d.spikes(:,j)),j,'k.');
+                    if sum(d.spikes(:,j))>0
+                        plot(find(d.spikes(:,j)),j,'k.');
+                    end
                     hold on;
-                    b(d.spikes(:,j)>0)=b(d.spikes(:,j)>0)+1;
                     title('Cell activity raster plot');
                     xlabel('Time in seconds');
                     ylabel('ROI number');
@@ -465,7 +470,7 @@ if sum(tf)>0 %if a file is found
                 set(gca,'XTickLabel',tilabel);
                 hold off;
                 subplot(2,1,2);
-                plot(b);
+                plot(sum(d.spikes,2));
                 xlabel('Time in seconds');
                 ylabel('Number of spikes');
                 xlim([0 round(size(d.imd,3))]);
@@ -638,6 +643,7 @@ set(handles.text36, 'String', textLabel);
 handles.slider7.Max=size(d.imd,3);
 
 msgbox('Loading Completed.','Success');
+
 
 
 
@@ -954,10 +960,12 @@ filename=[d.pn '\name'];
 name=d.name;
 save(filename, 'name');
 
-%Downsampling
-h=msgbox('Downsampling... please wait!');
-imd=imresize(d.imd,p.options.dsr);
-close(h);
+%Downsampling only if Width > 100 pixel
+if size(d.imd,2)>p.options.dsw
+    h=msgbox('Downsampling... please wait!');
+    imd=imresize(d.imd,p.options.dsr);
+    close(h);
+end
 
 %function for eliminating faulty frames
 [imd] = faultyFrames(imd);
@@ -1056,10 +1064,11 @@ end
 
 if handles.radiobutton1.Value==1
     %function for using subpixel registration algorithm
-    [imdC]=subpixel(ROI,imgA);
+    [imdC,Bvector]=subpixel(ROI,imgA);
     if isempty(imdC)==1
         return;
     end
+    d.Bvector=Bvector;
     d.imd=imdC;
     %showing resulting frame
     singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
@@ -1282,7 +1291,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
     d.ROIsbw(:,:,size(d.ROIsbw,3)+1)=ROI;
     d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
-    if numel(find(d.mask>1))>0
+    if numel(find(d.mask>1))>0 && p.roistate==0
         choice = questdlg('Would you like to remove, add or make a new ROI?', ...
         'Attention', ...
         'Remove','Add','New','Remove');
@@ -1345,23 +1354,32 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-                % Construct a questdlg with two options
-                choice = questdlg('Would you like to save this ROI mask?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                if isempty(choice)==1
-                    return;
-                end
-                switch choice
-                    case 'YES'
-                        %saving ROI mask
-                        filename=[d.pn '\' d.name 'ROIs'];
-                        ROImask=d.mask;
-                        ROIsingles=d.ROIsbw;
-                        save(filename, 'ROImask','ROIsingles');
-                    case 'NO'
+                if p.roisave==0
+                    % Construct a questdlg with two options
+                    choice = questdlg('Would you like to save this ROI mask?', ...
+                        'Attention', ...
+                        'YES','NO','YES');
+                    % Handle response
+                    if isempty(choice)==1
                         return;
+                    end
+                    switch choice
+                        case 'YES'
+                            %saving ROI mask
+                            filename=[d.pn '\' d.name 'ROIs'];
+                            ROImask=d.mask;
+                            ROIsingles=d.ROIsbw;
+                            save(filename, 'ROImask','ROIsingles');
+                        case 'NO'
+                            return;
+                    end
+                else
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                    return;
                 end
             case 'Add'
                 %adding new ROI to old ROI
@@ -1403,23 +1421,32 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-                % Construct a questdlg with two options
-                choice = questdlg('Would you like to save this ROI mask?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                if isempty(choice)==1
-                    return;
-                end
-                switch choice
-                    case 'YES'
-                        %saving ROI mask
-                        filename=[d.pn '\' d.name 'ROIs'];
-                        ROImask=d.mask;
-                        ROIsingles=d.ROIsbw;
-                        save(filename, 'ROImask','ROIsingles');
-                    case 'NO'
+                if p.roisave==0
+                    % Construct a questdlg with two options
+                    choice = questdlg('Would you like to save this ROI mask?', ...
+                        'Attention', ...
+                        'YES','NO','YES');
+                    % Handle response
+                    if isempty(choice)==1
                         return;
+                    end
+                    switch choice
+                        case 'YES'
+                            %saving ROI mask
+                            filename=[d.pn '\' d.name 'ROIs'];
+                            ROImask=d.mask;
+                            ROIsingles=d.ROIsbw;
+                            save(filename, 'ROImask','ROIsingles');
+                        case 'NO'
+                            return;
+                    end
+                else
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                    return;
                 end
             case 'New'
                 d.mask(d.mask>0)=1;
@@ -1448,7 +1475,181 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 ROImask=d.mask;
                 ROIsingles=d.ROIsbw;
                 save(filename, 'ROImask','ROIsingles');
+                return;
         end
+    elseif numel(find(d.mask>1))>0 && p.roistate==1
+        %adding new ROI to old ROI
+        for m=1:size(d.ROIsbw,3)
+            ROIboth=d.ROIsbw(:,:,m)+ROI;
+            overlay=numel(find(ROIboth==2));
+            if overlay>0
+                ROIboth=ROIboth+ROI;%removing 2*ROI since overlaps = 2
+                ROIboth(ROIboth>1)=1; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                d.ROIsbw(:,:,m)=ROIboth;
+            end
+        end
+        %deleting addition of new ROI
+        d.ROIsbw=d.ROIsbw(:,:,1:size(d.ROIsbw,3)-1);
+
+        mask=sum(d.ROIsbw,3);
+        mask(mask>1)=1;
+        d.mask=mask;
+        %plotting ROIs
+        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        if d.dF==1 || d.pre==1
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+        for k=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,k)))>0
+                B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            end
+        end
+        hold off;
+        d.bcount=d.bcount-1;
+        d.pushed=4; %signals that ROIs were selected
+        d.roisdefined=1; %signals that ROIs were defined
+
+        %saving ROI mask
+        if p.roisave==0
+            % Construct a questdlg with two options
+            choice = questdlg('Would you like to save this ROI mask?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            if isempty(choice)==1
+                return;
+            end
+            switch choice
+                case 'YES'
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                case 'NO'
+                    return;
+            end
+        else
+            %saving ROI mask
+            filename=[d.pn '\' d.name 'ROIs'];
+            ROImask=d.mask;
+            ROIsingles=d.ROIsbw;
+            save(filename, 'ROImask','ROIsingles');
+            return;
+        end
+    elseif numel(find(d.mask>1))>0 && p.roistate==2
+        %deleting the double assignments
+        for m=1:size(d.ROIsbw,3)
+            ROIboth=d.ROIsbw(:,:,m)+ROI;
+            overlay=numel(find(ROIboth==2));
+            if overlay>0
+                ROIboth=ROIboth-(2*ROI);%removing 2*ROI since overlaps = 2
+                ROIboth(ROIboth<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                d.ROIsbw(:,:,m)=ROIboth;
+            end
+        end
+        %determining indices where there are ROIs
+        c=0;
+        for j=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,j)))>0
+                c=c+1;
+                ROIindices(c,1)=j;
+            end
+        end
+        d.ROIsbw=d.ROIsbw(:,:,ROIindices);
+
+        mask=sum(d.ROIsbw,3);
+        mask(mask>1)=1;
+        d.mask=mask;
+        %plotting ROIs
+        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        if d.dF==1 || d.pre==1
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+        for k=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,k)))>0
+                B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            end
+        end
+        hold off;
+        if length(ROIindices)+2==d.bcount
+            d.bcount=d.bcount-2;
+        else
+            d.bcount=d.bcount-1;
+        end
+        d.pushed=4; %signals that ROIs were selected
+        d.roisdefined=1; %signals that ROIs were defined
+
+        %saving ROI mask
+        if p.roisave==0
+            % Construct a questdlg with two options
+            choice = questdlg('Would you like to save this ROI mask?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            if isempty(choice)==1
+                return;
+            end
+            switch choice
+                case 'YES'
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                case 'NO'
+                    return;
+            end
+        else
+            %saving ROI mask
+            filename=[d.pn '\' d.name 'ROIs'];
+            ROImask=d.mask;
+            ROIsingles=d.ROIsbw;
+            save(filename, 'ROImask','ROIsingles');
+            return;
+        end
+    elseif numel(find(d.mask>1))>0 && p.roistate==3
+        d.mask(d.mask>0)=1;
+        singleFrame=d.mip;
+        if d.dF==1 || d.pre==1
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+        for k=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,k)))>0
+                B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            end
+        end
+        hold off;
+        d.pushed=4; %signals that ROIs were selected
+        d.roisdefined=1; %signals that ROIs were defined
+
+        %saving ROI mask
+        filename=[d.pn '\' d.name 'ROIs'];
+        ROImask=d.mask;
+        ROIsingles=d.ROIsbw;
+        save(filename, 'ROImask','ROIsingles');
+        return;
     else
         d.mask(d.mask>0)=1;
     end    
@@ -1483,7 +1684,7 @@ else
     d.ROIsbw(:,:,d.bcount)=ROI;
     d.mask = d.mask+ROI; %old ROI mask + new ROI mask
     %checking if ROIs are superimposed on each other
-    if numel(find(d.mask>1))>0
+    if numel(find(d.mask>1))>0 && p.roistate==0
         choice = questdlg('Would you like to remove, add or make a new ROI?', ...
         'Attention', ...
         'Remove','Add','New','Remove');
@@ -1546,23 +1747,32 @@ else
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask & ROI order
-                % Construct a questdlg with two options
-                choice = questdlg('Would you like to save this ROI mask?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                if isempty(choice)==1
-                    return;
-                end
-                switch choice
-                    case 'YES'
-                        %saving ROI mask
-                        filename=[d.pn '\' d.name 'ROIs'];
-                        ROImask=d.mask;
-                        ROIsingles=d.ROIsbw;
-                        save(filename, 'ROImask','ROIsingles');
-                    case 'NO'
+                if p.roisave==0
+                    % Construct a questdlg with two options
+                    choice = questdlg('Would you like to save this ROI mask?', ...
+                        'Attention', ...
+                        'YES','NO','YES');
+                    % Handle response
+                    if isempty(choice)==1
                         return;
+                    end
+                    switch choice
+                        case 'YES'
+                            %saving ROI mask
+                            filename=[d.pn '\' d.name 'ROIs'];
+                            ROImask=d.mask;
+                            ROIsingles=d.ROIsbw;
+                            save(filename, 'ROImask','ROIsingles');
+                        case 'NO'
+                            return;
+                    end
+                else
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                    return;
                 end
             case 'Add'
                 %adding new ROI to old ROI
@@ -1608,23 +1818,32 @@ else
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-                % Construct a questdlg with two options
-                choice = questdlg('Would you like to save this ROI mask?', ...
-                    'Attention', ...
-                    'YES','NO','YES');
-                % Handle response
-                if isempty(choice)==1
-                    return;
-                end
-                switch choice
-                    case 'YES'
-                        %saving ROI mask
-                        filename=[d.pn '\' d.name 'ROIs'];
-                        ROImask=d.mask;
-                        ROIsingles=d.ROIsbw;
-                        save(filename, 'ROImask','ROIsingles');
-                    case 'NO'
+                if p.roisave==0
+                    % Construct a questdlg with two options
+                    choice = questdlg('Would you like to save this ROI mask?', ...
+                        'Attention', ...
+                        'YES','NO','YES');
+                    % Handle response
+                    if isempty(choice)==1
                         return;
+                    end
+                    switch choice
+                        case 'YES'
+                            %saving ROI mask
+                            filename=[d.pn '\' d.name 'ROIs'];
+                            ROImask=d.mask;
+                            ROIsingles=d.ROIsbw;
+                            save(filename, 'ROImask','ROIsingles');
+                        case 'NO'
+                            return;
+                    end
+                else
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                    return;
                 end
             case 'New'
                 d.mask(d.mask>0)=1;
@@ -1653,7 +1872,181 @@ else
                 ROImask=d.mask;
                 ROIsingles=d.ROIsbw;
                 save(filename, 'ROImask','ROIsingles');
+                return;
         end
+    elseif numel(find(d.mask>1))>0 && p.roistate==1
+        %adding new ROI to old ROI
+        for m=1:size(d.ROIsbw,3)
+            ROIboth=d.ROIsbw(:,:,m)+ROI;
+            overlay=numel(find(ROIboth==2));
+            if overlay>0
+                ROIboth=ROIboth+ROI;%removing 2*ROI since overlaps = 2
+                ROIboth(ROIboth>1)=1; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                d.ROIsbw(:,:,m)=ROIboth;
+            end
+        end
+        %deleting addition of new ROI
+        d.ROIsbw=d.ROIsbw(:,:,1:size(d.ROIsbw,3)-1);
+
+        mask=sum(d.ROIsbw,3);
+        mask(mask>1)=1;
+        d.mask=mask;
+        %plotting ROIs
+        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        if d.dF==1 || d.pre==1
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+        for k=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,k)))>0
+                B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            end
+        end
+        hold off;
+        d.bcount=d.bcount-1;
+        d.pushed=4; %signals that ROIs were selected
+        d.roisdefined=1; %signals that ROIs were defined
+
+        %saving ROI mask
+        if p.roisave==0
+            % Construct a questdlg with two options
+            choice = questdlg('Would you like to save this ROI mask?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            if isempty(choice)==1
+                return;
+            end
+            switch choice
+                case 'YES'
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                case 'NO'
+                    return;
+            end
+        else
+            %saving ROI mask
+            filename=[d.pn '\' d.name 'ROIs'];
+            ROImask=d.mask;
+            ROIsingles=d.ROIsbw;
+            save(filename, 'ROImask','ROIsingles');
+            return;
+        end
+    elseif numel(find(d.mask>1))>0 && p.roistate==2
+        %deleting the double assignments
+        for m=1:size(d.ROIsbw,3)
+            ROIboth=d.ROIsbw(:,:,m)+ROI;
+            overlay=numel(find(ROIboth==2));
+            if overlay>0
+                ROIboth=ROIboth-(2*ROI);%removing 2*ROI since overlaps = 2
+                ROIboth(ROIboth<0)=0; %the romved ROI is -1 at some places, to remove that, everything below 0 = 0
+                d.ROIsbw(:,:,m)=ROIboth;
+            end
+        end
+        %determining indices where there are ROIs
+        c=0;
+        for j=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,j)))>0
+                c=c+1;
+                ROIindices(c,1)=j;
+            end
+        end
+        d.ROIsbw=d.ROIsbw(:,:,ROIindices);
+
+        mask=sum(d.ROIsbw,3);
+        mask(mask>1)=1;
+        d.mask=mask;
+        %plotting ROIs
+        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        if d.dF==1 || d.pre==1
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+        for k=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,k)))>0
+                B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            end
+        end
+        hold off;
+        if length(ROIindices)+2==d.bcount
+            d.bcount=d.bcount-2;
+        else
+            d.bcount=d.bcount-1;
+        end
+        d.pushed=4; %signals that ROIs were selected
+        d.roisdefined=1; %signals that ROIs were defined
+
+        %saving ROI mask
+        if p.roisave==0
+            % Construct a questdlg with two options
+            choice = questdlg('Would you like to save this ROI mask?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            if isempty(choice)==1
+                return;
+            end
+            switch choice
+                case 'YES'
+                    %saving ROI mask
+                    filename=[d.pn '\' d.name 'ROIs'];
+                    ROImask=d.mask;
+                    ROIsingles=d.ROIsbw;
+                    save(filename, 'ROImask','ROIsingles');
+                case 'NO'
+                    return;
+            end
+        else
+            %saving ROI mask
+            filename=[d.pn '\' d.name 'ROIs'];
+            ROImask=d.mask;
+            ROIsingles=d.ROIsbw;
+            save(filename, 'ROImask','ROIsingles');
+            return;
+        end
+    elseif numel(find(d.mask>1))>0 && p.roistate==3
+        d.mask(d.mask>0)=1;
+        singleFrame=d.mip;
+        if d.dF==1 || d.pre==1
+            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
+        else
+            axes(handles.axes1); imshow(singleFrame); hold on;
+        end
+        colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+        for k=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,k)))>0
+                B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,k});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(k));
+            end
+        end
+        hold off;
+        d.pushed=4; %signals that ROIs were selected
+        d.roisdefined=1; %signals that ROIs were defined
+
+        %saving ROI mask
+        filename=[d.pn '\' d.name 'ROIs'];
+        ROImask=d.mask;
+        ROIsingles=d.ROIsbw;
+        save(filename, 'ROImask','ROIsingles');
+        return;
     else
         d.mask(d.mask>0)=1;
     end
@@ -1860,23 +2253,32 @@ d.auto=1; %signlas that automated ROI detection was used
 d.decon=0; %calcium signal was not deconvoluted
 
 %saving ROI mask
-% Construct a questdlg with two options
-choice = questdlg('Would you like to save this ROI mask?', ...
-    'Attention', ...
-    'YES','NO','YES');
-% Handle response
-if isempty(choice)==1
-    return;
-end
-switch choice
-    case 'YES'
-        %saving ROI mask
-        filename=[d.pn '\' d.name 'ROIs'];
-        ROImask=d.mask;
-        ROIsingles=d.ROIsbw;
-        save(filename, 'ROImask','ROIsingles');
-        msgbox('Done!');
-    case 'NO'
+if p.roisave==0
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to save this ROI mask?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    if isempty(choice)==1
+        return;
+    end
+    switch choice
+        case 'YES'
+            %saving ROI mask
+            filename=[d.pn '\' d.name 'ROIs'];
+            ROImask=d.mask;
+            ROIsingles=d.ROIsbw;
+            save(filename, 'ROImask','ROIsingles');
+            msgbox('Done!');
+        case 'NO'
+    end
+else
+    %saving ROI mask
+    filename=[d.pn '\' d.name 'ROIs'];
+    ROImask=d.mask;
+    ROIsingles=d.ROIsbw;
+    save(filename, 'ROImask','ROIsingles');
+    msgbox('Done!');
 end
 
 
@@ -1965,7 +2367,6 @@ if d.ROIv==0
     %labeling ROIs for every frame of the video
     n=size(d.imd,3);
     numROIs=size(d.ROIsbw,3); %number of ROIs
-    d.ROIs=cell(size(d.imd,3),numROIs);
     d.neuropil=cell(size(d.imd,3),numROIs);
     ROIcenter=cell(1,numROIs);
     se=strel('disk',d.nscale,8);
@@ -2003,9 +2404,7 @@ if d.ROIv==0
     for k=1:numROIs
         for i=1:nframes
             ROIm=mean(d.ROIs{i,k});
-%             ROIm(ROIm<0)=0;
             neuropilm=mean(d.neuropil{i,k});
-%             neuropilm(neuropilm<0)=0;
             d.ROImeans(i,k)=(ROIm-neuropilm*p.options.neuF)*100; %in percent
         end
         try
@@ -2463,7 +2862,7 @@ switch choice
             field2='rawwave';
             field3='wave';
             field4='spikes';
-            field5='no';
+            field5='amp';
             field6='ts';
             value1=d.framerate;
             value2=d.ROImeans;
@@ -2671,9 +3070,10 @@ end
 
 %%---------------------------Saving calcium imaging video
 
-% --- Executes on button press in pushbutton26.               SAVE CI VIDEO
-function pushbutton26_Callback(~, ~, handles)
-% hObject    handle to pushbutton26 (see GCBO)
+% SAVE CI VIDEO
+% --------------------------------------------------------------------
+function Save_Callback(hObject, eventdata, handles)
+% hObject    handle to Save (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
@@ -2682,9 +3082,6 @@ if isempty(d.origCI)==1&&d.pushed==1
     d.origCI=d.imd;
 elseif isempty(d.origCI)==1&&d.pushed==4
     d.origCI=[];
-end
-if d.align==1
-    d.origCI=d.origCI(round(abs(d.Bvector(2,2))):round(size(d.origCI,1)-abs(d.Bvector(2,1))),round(abs(d.Bvector(1,2))):round(size(d.origCI,2)-abs(d.Bvector(1,1))),:);  %cut middle of image
 end
 
 %asking for animal name/session/date if not defined
@@ -2844,6 +3241,8 @@ else
             msgbox('Saving video completed.');
     end
 end
+
+
 
 
 
@@ -3509,9 +3908,10 @@ v.play=0;
 
 %%---------------------------Loading behavioral video
 
-% --- Executes on button press in pushbutton7.       LOADS BEHAVIORAL VIDEO
-function pushbutton7_Callback(~, ~, handles)
-% hObject    handle to pushbutton7 (see GCBO)
+% LOADS BEHAVIORAL VIDEO
+% --------------------------------------------------------------------
+function BV_Callback(hObject, eventdata, handles)
+% hObject    handle to BV (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global v
@@ -3636,6 +4036,7 @@ else
     handles.text28.TooltipString=v.pn;
     msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
 end
+
 
 
 
@@ -5121,7 +5522,142 @@ msgbox('Behavioral detection was reset!');
 
 %% MISC
 
-%%---------------------------Help & Documentation
+% -----------------------------------------------------FILE
+function File_Callback(hObject, eventdata, handles)
+% hObject    handle to File (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------Loading
+function Load_Callback(hObject, eventdata, handles)
+% hObject    handle to Load (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------Preferences
+function Preferences_Callback(hObject, eventdata, handles)
+% hObject    handle to Preferences (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% -----------------------------------------------------------------savemask
+function savemask_Callback(hObject, eventdata, handles)
+% hObject    handle to savemask (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+global d
+checkoff='off';
+state=handles.savemask.Checked;
+
+if strcmp(state,checkoff)==1
+    handles.savemask.Checked='on';
+    p.roisave=1; %ROImasks will be saved automatically
+else
+    handles.savemask.Checked='off';
+    p.roisave=0; %ROI masks will not be saved automatically
+end
+
+
+% -----------------------------------------------------------------disphelp
+function disphelp_Callback(hObject, eventdata, handles)
+% hObject    handle to disphelp (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+global p
+checkoff='off';
+state=handles.disphelp.Checked;
+
+if strcmp(state,checkoff)==1
+    handles.disphelp.Checked='on';
+    p.help=1;
+else
+    handles.disphelp.Checked='off';
+    p.help=0;
+end
+
+
+
+
+% -----------------------------------------------------EDIT
+function Edit_Callback(hObject, eventdata, handles)
+% hObject    handle to Edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------Expand ROI
+function Add_Callback(hObject, eventdata, handles)
+% hObject    handle to Add (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+global p
+checkoff='off';
+state=handles.Add.Checked;
+
+if strcmp(state,checkoff)==1
+    handles.Add.Checked='on';
+    handles.Remove.Checked='off';
+    handles.new.Checked='off';
+    p.roistate=1; %ROIs are expanded, no overlay
+else
+    handles.Add.Checked='off';
+    p.roistate=0; %no method of manipulating ROIs was selected
+end
+
+
+% --------------------------------------------------------------Remove ROI
+function Remove_Callback(hObject, eventdata, handles)
+% hObject    handle to Remove (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+global p
+checkoff='off';
+state=handles.Remove.Checked;
+
+if strcmp(state,checkoff)==1
+    handles.Remove.Checked='on';
+    handles.Add.Checked='off';
+    handles.new.Checked='off';
+    p.roistate=2; %ROIs or parts can be removed
+else
+    handles.Remove.Checked='off';
+    p.roistate=0; %no method of manipulating ROIs was selected
+end
+
+
+% --------------------------------------------------------------New ROI
+function new_Callback(hObject, eventdata, handles)
+% hObject    handle to new (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+global p
+checkoff='off';
+state=handles.new.Checked;
+
+if strcmp(state,checkoff)==1
+    handles.new.Checked='on';
+    handles.Remove.Checked='off';
+    handles.Add.Checked='off';
+    p.roistate=3; %ROIs can be overlayed
+else
+    handles.new.Checked='off';
+    p.roistate=0; %no method of manipulating ROIs was selected
+end
+
+
+
+
+
+
+% -----------------------------------------------------HELP & DOCUMENTATION
 
 function Help_Callback(~, ~, ~)
 % hObject    handle to Help (see GCBO)
@@ -5165,3 +5701,11 @@ function radiobutton1_Callback(~, ~, ~)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of radiobutton1
+
+
+% --------------------------------------------------------------------
+function Untitled_9_Callback(hObject, eventdata, handles)
+% hObject    handle to Remove (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+

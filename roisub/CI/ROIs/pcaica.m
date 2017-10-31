@@ -7,6 +7,9 @@ function [ROIsbw] = pcaica(F,mip,handles)
 %objects smaller than 500 pixels. The resulting spatial filters are the ROIs. 
 
 %INPUT      F: delta F/F filtered calcium imaging video.
+%           mip: maximum intensity projection of CI video
+%           handles: input from GUI handles, specifically the axes
+%           displaying the CI video
 
 %OUTPUT     ROIsbw: resulting spatial filters each representing an
 %           individual ROI.

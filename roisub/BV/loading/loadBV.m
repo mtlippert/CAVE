@@ -6,7 +6,7 @@ function [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles)
 %           dsize: length of calcium imaging video in number of frames.
 %           pn: pathname
 %           fn: filename
-%           dimd: clacium imaging video
+%           dimd: calcium imaging video
 %           handles: hanldes of the GUI for calling properties of the GUI.
 %
 % OUTPUT    sframe: number of frames that were cut.

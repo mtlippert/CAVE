@@ -9,19 +9,23 @@ function [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROI
 %The second part is the deconvolution of the signal. This part is adapted
 %from the ca extraction master suite from Pnevmatikakis.
 
-%INPUT      a: value for butterworth filtering
-%           b: value for butterworth filtering
-%           imd: clacium imaging video as 8bit/16-bit with dimensions pixel
-%           width, pixel height, number of frames.
-%           mask: ROI mask containing borders of all ROIs and defining
-%           which pixels are in the mask and which are not.
-%           ROIs: raw pixel values within the defined ROIs
+%INPUT      ROImeans: mean values within the defined ROIs subtracted by
+%           surrounding neuropil mean values resulting in raw fluorescence
+%           traces
+%           framerate: framerate of the CI video
 
 %OUTPUT     ROImeans: resulting values for ROIs after background
 %           substraction, conversion to percentage, and butterworth
 %           filtering, conveying real fluorescence signal
 %           cCaSignal: corrected calcium signal after deconvolution
-%           spikes: approximate true spikes deconvoulted from the data
+%           spikes: spike approximation deconvoulted from the data with
+%           scale matching the data (does not represent real number of spikes)
+%           ts: timestamps of spikes
+%           amp: amplitude of the spikes (matches the data, does not
+%           represent real number of spikes)
+%           NoofSpikes: number of spikes per ROI
+%           Frequency: firing rate per ROI
+%           Amplitude: highest amplitude change per ROI
 
 %deconvolution of the calcium signal adapted from ca extraction master GUI from 2015 Pnevmatikakis
 spikes=zeros(size(ROImeans));
@@ -34,7 +38,7 @@ amp=cell(1,size(ROImeans,2));
 h=waitbar(0,'Deconvoluting...');
 for k=1:size(ROImeans,2)
     y=ROImeans(:,k);
-    [c_oasis, s_oasis] = deconvolveCa(y, 'ar1', 'constrained','optimize_b'); %or ar2
+    [c_oasis, s_oasis] = oasisAR2(y); %slower: [c_oasis, s_oasis] = deconvolveCa(y, 'ar1', 'constrained','optimize_b');
 %     s_oasis=sqrt(s_oasis);
     s_oasis(s_oasis<1)=0;
     spikes(:,k)=ceil(s_oasis);

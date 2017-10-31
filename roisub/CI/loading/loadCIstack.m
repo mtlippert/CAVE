@@ -81,7 +81,7 @@ if frames>4500 && Width>100 %if file is bigger than 4500 frames and width is mor
     %display current image to select ROI
     singleFrame=imresize(double(imread(fullFileName,1)),p.options.dsr);
     singleFrame=singleFrame./max(max(singleFrame));
-    figure,imagesc(singleFrame),colormap(grey);
+    figure,imagesc(singleFrame),colormap(gray);
 
     %function for removing dust
     % Construct a questdlg with two options

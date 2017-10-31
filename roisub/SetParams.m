@@ -6,6 +6,7 @@ Names = [
     % loading
     'bitconv     '  % value for converting 8 bit to 16 bit
     % preprocessing
+    'dsw         '  % minimum width at which downsampling is performed
     'dsr         '  % downsampling rate for imresize
     'blur        '  % blur used for flat field correction
     'movav       '  % moving average window used for moving averaging temporal filter
@@ -74,6 +75,7 @@ Values = [
     % loading
     {65535}
     % preprocessing
+    {100}
     {0.4}
     {0.08}
     {3}

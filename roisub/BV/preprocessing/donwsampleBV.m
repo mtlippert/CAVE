@@ -4,7 +4,7 @@ function [imdd] = donwsampleBV(imd)
 %
 % INPUT     imd: cropped video
 %
-% OUTPUT    imd: downsampled & cropped video
+% OUTPUT    imdd: downsampled & cropped video
 
 global p
 
