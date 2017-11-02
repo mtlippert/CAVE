@@ -1,4 +1,4 @@
-function [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles)
+function [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles,decon)
 
 % FUNCTION for loading behavioral video.
 %
@@ -92,5 +92,7 @@ else
     %printing frames
     textLabel = sprintf('%d / %d', 1,size(dimd,3));
     set(handles.text36, 'String', textLabel);
-    uiwait(msgbox('Please re-plot ROI values!'));
+    if decon==1
+        uiwait(msgbox('Please re-plot ROI values!'));
+    end
 end

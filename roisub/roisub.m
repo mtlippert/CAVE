@@ -2190,6 +2190,7 @@ function pushbutton34_Callback(~, ~, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 
 if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
@@ -3434,16 +3435,21 @@ end
 if v.pushed==1 && d.pre==1 && d.pushed==1 %if BV was loaded and CI video was too big
     d.play=1;
     v.play=1;
+    axes(handles.axes2);
+    hb=v.imd(round(round(handles.slider7.Value))).cdata; %original video
+    axes(handles.axes1); %thresholded video
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1
+        hc=imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        hc=imshow(singleFrame);
+    end
     for k=round(handles.slider7.Value):size(d.imd,3)
-        axes(handles.axes2);
-        image(v.imd(round(k)).cdata); %original video
-        axes(handles.axes1); %thresholded video
+        singlebv=image(v.imd(round(k)).cdata);
+        set(hb, 'CData', singlebv);
         singleFrame=d.imd(:,:,k);
-        if d.dF==1 || d.pre==1
-            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-        else
-            axes(handles.axes1); imshow(singleFrame);
-        end
+        set(hc, 'CData', singleFrame);
+        handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
         pause(1/d.framerate);
@@ -3459,16 +3465,20 @@ if v.pushed==1 && d.pre==1 && d.pushed==1 %if BV was loaded and CI video was too
 elseif v.pushed==1 && d.pushed==1 %if both videos were loaded
     d.play=1;
     v.play=1;
+    axes(handles.axes2); %
+    hb=v.imd(round(round(handles.slider7.Value))).cdata; %original video
+    axes(handles.axes1); %original video
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1 || d.pre==1
+        hc=imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        hc=imshow(singleFrame);
+    end
     for k=round(handles.slider7.Value):size(d.imd,3)
-        axes(handles.axes2); %#ok<*LAXES>
-        image(v.imd(round(k)).cdata); %original video
-        axes(handles.axes1); %original video
-        singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        if d.dF==1 || d.pre==1
-            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-        else
-            imshow(singleFrame);
-        end
+        singlebv=image(v.imd(round(k)).cdata);
+        set(hb, 'CData', singlebv);
+        singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        set(hc, 'CData', singleFrame);
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
@@ -3487,8 +3497,10 @@ elseif v.pushed==1 && d.pushed==4 %if BV video was loaded and ROIs were defined 
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
         axes(handles.axes2);
+        cla(handles.axes2);
         image(v.imd(round(k)).cdata); %original video
         axes(handles.axes1); %ROIs with video
+        cla(handles.axes1);
         singleFrame=d.imd(:,:,k);
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
@@ -3522,6 +3534,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1 %if one color spot was defined and
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
+        cla(handles.axes2);
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
@@ -3544,6 +3557,7 @@ elseif v.pushed==2 && d.pre==1 && d.pushed==1 %if one color spot was defined and
         hold off;
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
+        cla(handles.axes1);
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
@@ -3565,6 +3579,7 @@ elseif  v.pushed==2 && d.pushed==1 %if one color spot was defined and CI video w
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
+        cla(handles.axes2);
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
@@ -3587,6 +3602,7 @@ elseif  v.pushed==2 && d.pushed==1 %if one color spot was defined and CI video w
         hold off;
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        cla(handles.axes1);
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
@@ -3609,6 +3625,7 @@ elseif v.pushed==2 && d.pushed==4 %if one color spot was defined and ROIs were d
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
+        cla(handles.axes2);
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
@@ -3631,6 +3648,7 @@ elseif v.pushed==2 && d.pushed==4 %if one color spot was defined and ROIs were d
         hold off;
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
+        cla(handles.axes1);
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
         else
@@ -3663,6 +3681,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1 %if other color spot was defined a
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
+        cla(handles.axes2);
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
@@ -3685,6 +3704,7 @@ elseif v.pushed==3 && d.pre==1 && d.pushed==1 %if other color spot was defined a
         hold off;
         axes(handles.axes1); %thresholded video
         singleFrame=d.imd(:,:,k);
+        cla(handles.axes1);
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
@@ -3706,6 +3726,7 @@ elseif v.pushed==3 && d.pushed==1 %if other color spot was defined and CI video 
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
+        cla(handles.axes2);
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
@@ -3728,6 +3749,7 @@ elseif v.pushed==3 && d.pushed==1 %if other color spot was defined and CI video 
         hold off;
         axes(handles.axes1); %original video
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        cla(handles.axes1);
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         else
@@ -3750,6 +3772,7 @@ elseif v.pushed==3 && d.pushed==4 %if other color spot was defined and ROIs were
     d.play=1;
     v.play=1;
     for k=round(handles.slider7.Value):size(d.imd,3)
+        cla(handles.axes2);
         %function for masking the colored spot of the animal
         [maskedRGBImage] = spotmask(handles);
         %showing masked image in GUI
@@ -3772,6 +3795,7 @@ elseif v.pushed==3 && d.pushed==4 %if other color spot was defined and ROIs were
         hold off;
         axes(handles.axes1); %ROIs with video
         singleFrame=d.imd(:,:,k);
+        cla(handles.axes1);
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
         else
@@ -3807,13 +3831,15 @@ end
 if d.pre==1 && d.pushed<4
     d.play=1;
     axes(handles.axes1);
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
+    if d.dF==1 || d.pre==1
+        hh=imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        hh=axes(handles.axes1); imshow(singleFrame);
+    end
     for k=round(handles.slider7.Value):size(d.imd,3)
         singleFrame=d.imd(:,:,round(handles.slider7.Value));
-        if d.dF==1 || d.pre==1
-            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-        else
-            axes(handles.axes1); imshow(singleFrame);
-        end
+        set(hh, 'CData', singleFrame);
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
@@ -3829,13 +3855,15 @@ if d.pre==1 && d.pushed<4
 elseif d.pushed==1
     d.play=1;
     axes(handles.axes1); %original video
+    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+    if d.dF==1 || d.pre==1
+        hh=imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+    else
+        hh=imshow(singleFrame);
+    end
     for k=round(handles.slider7.Value):size(d.imd,3)
         singleFrame=imadjust(d.imd(:,:,k), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
-        if d.dF==1 || d.pre==1
-            imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
-        else
-            imshow(singleFrame);
-        end
+        set(hh, 'CData', singleFrame);
         handles.slider7.Value=k;
         textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
         set(handles.text36, 'String', textLabel);
@@ -3851,34 +3879,36 @@ elseif d.pushed==1
 elseif d.pushed==4
     d.play=1;
     axes(handles.axes1); %video with ROIs
-    for k=round(handles.slider7.Value):size(d.imd,3)
-    singleFrame=d.imd(:,:,k);
+    singleFrame=d.imd(:,:,round(handles.slider7.Value));
     if d.dF==1 || d.pre==1
-        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
+        hh=imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
-        imshow(singleFrame);hold on;
+        hh=imshow(singleFrame);hold on;
     end
-    for j=1:size(d.ROIsbw,3)
-        if sum(sum(d.ROIsbw(:,:,j)))>0
-            B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
-            stat = regionprops(d.ROIsbw(:,:,j),'Centroid');
-            %drawing ROIs
-            plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
-            text(stat.Centroid(1),stat.Centroid(2),num2str(j));
+    for k=round(handles.slider7.Value):size(d.imd,3)
+        singleFrame=d.imd(:,:,k);
+        set(hh, 'CData', singleFrame);
+        for j=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,j)))>0
+                B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
+                stat = regionprops(d.ROIsbw(:,:,j),'Centroid');
+                %drawing ROIs
+                plot(B{1,1}(:,2),B{1,1}(:,1),'linewidth',2,'Color',colors{1,j});
+                text(stat.Centroid(1),stat.Centroid(2),num2str(j));
+            end
         end
-    end
-    hold off;
-    handles.slider7.Value=k;
-    textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-    set(handles.text36, 'String', textLabel);
-    pause(1/d.framerate);
-    if k==size(d.imd,3)
-        d.play=0;
-        d.stop=1;
-    end
-    if d.stop==1
-        return;
-    end
+        hold off;
+        handles.slider7.Value=k;
+        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
+        set(handles.text36, 'String', textLabel);
+        pause(1/d.framerate);
+        if k==size(d.imd,3)
+            d.play=0;
+            d.stop=1;
+        end
+        if d.stop==1
+            return;
+        end
     end
 end
 
@@ -4000,8 +4030,8 @@ if sum(tf)>0
             end
         case 'NO'
             %function for loading behavioral video
-            dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
-            [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+            dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd; decon=d.decon;
+            [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles,decon);
             if isempty(imd)==1
                 return;
             end
@@ -4020,8 +4050,8 @@ if sum(tf)>0
     end
 else
     %function for loading behavioral video
-    dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd;
-    [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles);
+    dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd; decon=d.decon;
+    [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles,decon);
     if isempty(imd)==1
         return;
     end
