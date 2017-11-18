@@ -137,7 +137,7 @@ function varargout = roisub(varargin)
 
 % Edit the above text to modify the response to help roisub
 
-% Last Modified by GUIDE v2.5 31-Oct-2017 15:00:01
+% Last Modified by GUIDE v2.5 16-Nov-2017 17:41:39
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -181,10 +181,12 @@ d.pn=[]; %CI video path empty
 d.thresh=0; %no ROI threshold
 d.valid=0; %no ROI was selcted incorrectly
 d.align=0; %signals whether images were aligned
+d.triggerts=[]; % no trigger event file was loaded
 p.pnpreset=[]; %no color preset imported
 d.alignCI=[]; %alignment video is empty
 p.roisave=1; %ROI masks will be saved automatically
 p.roistate=0; %no method of manipulating ROIs was selected
+p.F2=[]; %PCA was not calculated yet
 
 p.options = SetParams(varargin); %initializes all constant values
 
@@ -216,6 +218,7 @@ end
 switch choice
     case 'YES'
         p.help=1;
+        handles.disphelp.Checked='on';
     case 'NO'
         p.help=0;
 end
@@ -277,6 +280,7 @@ d.ROImeans=[]; %no ROI values have been calculated
 d.decon=0; %calcium signal was not deconvoluted
 d.name=[]; %no name defined
 d.nscale=[]; %scale was not calculated yet
+p.F2=[];
 %colors for ROIs
 d.colors={[0    0.4471    0.7412],...
     [0.8510    0.3255    0.0980],...
@@ -383,6 +387,9 @@ if sum(tf)>0 %if a file is found
         case 'YES'
             %function for loading last processed version
             loadlastCI;
+            if isempty(d.imd)==1
+                return;
+            end
             if sum(sum(d.mask))~=0 %if a ROI mask was loaded, plot the ROIs
                 %plotting ROIs
                 singleFrame=d.imd(:,:,round(handles.slider7.Value));
@@ -558,7 +565,12 @@ if sum(tf)>0 %if a file is found
                 d.origCI=d.imd; %saving original CI video seperately
 
                 %looking at first original picture
-                axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+                if pre==1
+                    singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+                    axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+                else
+                    axes(handles.axes1); imshow(d.imd(:,:,1));colormap(handles.axes1, gray);
+                end
             else
                 %function for loading single TIFFs together
                 pn=d.pn;
@@ -604,7 +616,7 @@ elseif length(Files)==1
     d.origCI=d.imd; %saving original CI video seperately
     
     %looking at first original picture
-    if size(d.imd,3)>=4500
+    if pre==1
         singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
         axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
     else
@@ -842,6 +854,10 @@ if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
+if d.pre==1 || d.dF==1
+    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
+    return;
+end
 
 if d.pushed<4
 %resets values of low in/out, high in/out to start values
@@ -955,10 +971,24 @@ answer = inputdlg(prompt,dlg_title,num_lines);
 if isempty(answer)==1
     return;
 end
-d.name=cell2mat(answer);
-filename=[d.pn '\name'];
-name=d.name;
-save(filename, 'name');
+%check whether another version already exists
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn))
+    tf(k)=strcmp('name.mat',files(k).name);
+end
+if sum(tf)>0 %if a file is found
+    d.name=answer;
+    load([d.pn '\name.mat']);
+    name{1,size(name,2)+1}=cell2mat(answer);
+    filename=[d.pn '\name'];
+    save(filename, 'name');
+else    
+    d.name=answer;
+    filename=[d.pn '\name'];
+    name=d.name;
+    save(filename, 'name');
+end
 
 %Downsampling only if Width > 100 pixel
 if size(d.imd,2)>p.options.dsw
@@ -987,7 +1017,7 @@ d.pre=1; %preprocessing was done
 %plotting mean change along the video
 meanChange=diff(mean(mean(d.imd,1),2));
 h=figure;plot(squeeze(meanChange));title('Mean brightness over frames');xlabel('Number of frames');ylabel('Brightness in uint16');
-fname=[d.name '_MeanChange'];
+fname=[cell2mat(d.name) '_MeanChange'];
 path=[d.pn '/',fname,'.png'];
 path=regexprep(path,'\','/');
 print(h,'-dpng','-r100',path); %-depsc for vector graphic
@@ -1001,6 +1031,7 @@ function pushbutton9_Callback(~, ~, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global v
+global p
 if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
@@ -1013,7 +1044,7 @@ if d.pre==0
     msgbox('Please do preprocessing before aligning!','ATTENTION');
     return;
 end
-% adapted from source: http://de.mathworks.com/help/vision/examples/video-stabilization-using-point-feature-matching.html
+
 if d.dF==1
      msgbox('Please align before calculating dF/F.','Attention');
      return
@@ -1032,6 +1063,9 @@ if isempty(choice)==1
 end
 switch choice
     case 'Area'
+        if d.bcountd==0 && p.help==1
+            uiwait(msgbox('Please define a region with distinct landmarks by drawing a rectangle around the area. The corners can be moved afterwards as well as the whole selected area. When satisfied with the selection please right-click, select copy position and double-click within the selected area. Press next and finish!','Attention','modal'));
+        end
         %define ROI that is used for transformation
         axes(handles.axes1);
         a=imcrop;
@@ -1141,16 +1175,30 @@ if isempty(d.name)==1
     if isempty(answer)==1
         return;
     end
-    d.name=cell2mat(answer);
-    filename=[d.pn '\name'];
-    name=d.name;
-    save(filename, 'name');
+    %check whether another version already exists
+    files=dir(d.pn);
+    tf=zeros(1,length(dir(d.pn)));
+    for k=1:length(dir(d.pn))
+        tf(k)=strcmp('name.mat',files(k).name);
+    end
+    if sum(tf)>0 %if a file is found
+        d.name=answer;
+        load([d.pn '\name.mat']);
+        name{1,size(name,2)+1}=cell2mat(answer);
+        filename=[d.pn '\name'];
+        save(filename, 'name');
+    else    
+        d.name=answer;
+        filename=[d.pn '\name'];
+        name=d.name;
+        save(filename, 'name');
+    end
 end
 
 %function for calculating deltaF/F
 imd=d.imd;
 pn=d.pn;
-fn=d.fn;
+fn=cell2mat(d.name);
 align=d.align;
 [imddFF] = deltaFF(imd,pn,fn,align);
 d.imd=imddFF;
@@ -1175,7 +1223,7 @@ if handles.radiobutton2.Value==1
 else
     h=figure;imagesc(d.mip);title('Maximum Intensity Projection');
 end
-fname=[d.name '_MIP'];
+fname=[cell2mat(d.name) '_MIP'];
 path=[d.pn '/',fname,'.png'];
 path=regexprep(path,'\','/');
 print(h,'-dpng','-r100',path); %-depsc for vector graphic
@@ -1366,7 +1414,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                     switch choice
                         case 'YES'
                             %saving ROI mask
-                            filename=[d.pn '\' d.name 'ROIs'];
+                            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                             ROImask=d.mask;
                             ROIsingles=d.ROIsbw;
                             save(filename, 'ROImask','ROIsingles');
@@ -1375,7 +1423,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                     end
                 else
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -1433,7 +1481,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                     switch choice
                         case 'YES'
                             %saving ROI mask
-                            filename=[d.pn '\' d.name 'ROIs'];
+                            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                             ROImask=d.mask;
                             ROIsingles=d.ROIsbw;
                             save(filename, 'ROImask','ROIsingles');
@@ -1442,7 +1490,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                     end
                 else
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -1471,7 +1519,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-                filename=[d.pn '\' d.name 'ROIs'];
+                filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                 ROImask=d.mask;
                 ROIsingles=d.ROIsbw;
                 save(filename, 'ROImask','ROIsingles');
@@ -1529,7 +1577,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
             switch choice
                 case 'YES'
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -1538,7 +1586,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
             end
         else
             %saving ROI mask
-            filename=[d.pn '\' d.name 'ROIs'];
+            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
             ROImask=d.mask;
             ROIsingles=d.ROIsbw;
             save(filename, 'ROImask','ROIsingles');
@@ -1607,7 +1655,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
             switch choice
                 case 'YES'
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -1616,7 +1664,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
             end
         else
             %saving ROI mask
-            filename=[d.pn '\' d.name 'ROIs'];
+            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
             ROImask=d.mask;
             ROIsingles=d.ROIsbw;
             save(filename, 'ROImask','ROIsingles');
@@ -1645,7 +1693,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
         d.roisdefined=1; %signals that ROIs were defined
 
         %saving ROI mask
-        filename=[d.pn '\' d.name 'ROIs'];
+        filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
         ROImask=d.mask;
         ROIsingles=d.ROIsbw;
         save(filename, 'ROImask','ROIsingles');
@@ -1676,7 +1724,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
     d.roisdefined=1; %signals that ROIs were defined
 
     %saving ROI mask
-    filename=[d.pn '\' d.name 'ROIs'];
+    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
     ROImask=d.mask;
     ROIsingles=d.ROIsbw;
     save(filename, 'ROImask','ROIsingles');
@@ -1759,7 +1807,7 @@ else
                     switch choice
                         case 'YES'
                             %saving ROI mask
-                            filename=[d.pn '\' d.name 'ROIs'];
+                            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                             ROImask=d.mask;
                             ROIsingles=d.ROIsbw;
                             save(filename, 'ROImask','ROIsingles');
@@ -1768,7 +1816,7 @@ else
                     end
                 else
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -1809,11 +1857,7 @@ else
                     end
                 end
                 hold off;
-                if length(ROIindices)+2==d.bcount
-                    d.bcount=d.bcount-2;
-                else
-                    d.bcount=d.bcount-1;
-                end
+                d.bcount=d.bcount-1;
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
 
@@ -1830,7 +1874,7 @@ else
                     switch choice
                         case 'YES'
                             %saving ROI mask
-                            filename=[d.pn '\' d.name 'ROIs'];
+                            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                             ROImask=d.mask;
                             ROIsingles=d.ROIsbw;
                             save(filename, 'ROImask','ROIsingles');
@@ -1839,7 +1883,7 @@ else
                     end
                 else
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -1868,7 +1912,7 @@ else
                 d.roisdefined=1; %signals that ROIs were defined
 
                 %saving ROI mask
-                filename=[d.pn '\' d.name 'ROIs'];
+                filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                 ROImask=d.mask;
                 ROIsingles=d.ROIsbw;
                 save(filename, 'ROImask','ROIsingles');
@@ -1926,7 +1970,7 @@ else
             switch choice
                 case 'YES'
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -1935,7 +1979,7 @@ else
             end
         else
             %saving ROI mask
-            filename=[d.pn '\' d.name 'ROIs'];
+            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
             ROImask=d.mask;
             ROIsingles=d.ROIsbw;
             save(filename, 'ROImask','ROIsingles');
@@ -2004,7 +2048,7 @@ else
             switch choice
                 case 'YES'
                     %saving ROI mask
-                    filename=[d.pn '\' d.name 'ROIs'];
+                    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                     ROImask=d.mask;
                     ROIsingles=d.ROIsbw;
                     save(filename, 'ROImask','ROIsingles');
@@ -2013,7 +2057,7 @@ else
             end
         else
             %saving ROI mask
-            filename=[d.pn '\' d.name 'ROIs'];
+            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
             ROImask=d.mask;
             ROIsingles=d.ROIsbw;
             save(filename, 'ROImask','ROIsingles');
@@ -2042,7 +2086,7 @@ else
         d.roisdefined=1; %signals that ROIs were defined
 
         %saving ROI mask
-        filename=[d.pn '\' d.name 'ROIs'];
+        filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
         ROImask=d.mask;
         ROIsingles=d.ROIsbw;
         save(filename, 'ROImask','ROIsingles');
@@ -2074,7 +2118,7 @@ else
     d.roisdefined=1; %signals that ROIs were defined
 
     %saving ROI mask
-    filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
     ROImask=d.mask;
     ROIsingles=d.ROIsbw;
     save(filename, 'ROImask','ROIsingles');
@@ -2101,6 +2145,7 @@ d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
 %re-initialization of variables for ROI calculations
 d.ROIs=[];
+d.neuropil=[];
 d.ROIsbw=zeros(size(d.imd,1),size(d.imd,2),1);
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.roisdefined=0; %signals no ROIs were selected
@@ -2119,11 +2164,13 @@ msgbox('ROIs cleared!','Success');
 
 
 
-% --- Executes on button press in pushbutton27.          LOAD EXISTING ROIs
-function pushbutton27_Callback(~, ~, handles)
-% hObject    handle to pushbutton27 (see GCBO)
+% --------------------------------------------------------- ROIs of cells
+function CIrois_Callback(hObject, eventdata, handles)
+% hObject    handle to CIrois (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 global d
+global p
 %resets all varibles needed for selecting ROIs
 d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
@@ -2143,7 +2190,9 @@ elseif d.dF==0
     return;
 end
 
-uiwait(msgbox('Select a "filename"ROIs.mat file!'));
+if p.help==1
+    uiwait(msgbox('Select a "filename"ROIs.mat file!'));
+end
 
 %extracts filename
 filepath=[d.pn '\'];
@@ -2155,7 +2204,7 @@ end
 
 %load the saved ROI mask, and order of labels
 load([pn fn]);
-d.mask=ROImask;
+d.mask=imresize(ROImask,[size(d.imd,1) size(d.imd,2)]);
 d.ROIsbw=ROIsingles;
 %plotting ROIs
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
@@ -2168,6 +2217,7 @@ end
 colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
 for k=1:size(d.ROIsbw,3)
     if sum(sum(d.ROIsbw(:,:,k)))>0
+        d.ROIsbw(:,:,k)=imresize(d.ROIsbw(:,:,k),[size(d.imd,1) size(d.imd,2)]);
         B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
         stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
         %drawing ROIs
@@ -2216,6 +2266,8 @@ elseif d.pushed==4
             case 'YES'
                 d.decon=0;
                 d.ROIv=0;
+                d.ROIs=[];
+                d.neuropil=[];
             case 'NO'
                 return;
         end
@@ -2226,7 +2278,9 @@ d.bcount=0;
 %using function for calculating PCA & ICA
 F=d.imd;
 mip=d.mip;
-[ROIsbw] = pcaica(F,mip,handles);
+pn=d.pn;
+fn=d.fn;
+[ROIsbw] = pcaica(F,mip,pn,fn,handles);
 %if cancel was pressed
 if isempty(ROIsbw)==1 || sum(sum(sum(ROIsbw)))==0
     return;
@@ -2266,7 +2320,7 @@ if p.roisave==0
     switch choice
         case 'YES'
             %saving ROI mask
-            filename=[d.pn '\' d.name 'ROIs'];
+            filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
             ROImask=d.mask;
             ROIsingles=d.ROIsbw;
             save(filename, 'ROImask','ROIsingles');
@@ -2275,7 +2329,7 @@ if p.roisave==0
     end
 else
     %saving ROI mask
-    filename=[d.pn '\' d.name 'ROIs'];
+    filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
     ROImask=d.mask;
     ROIsingles=d.ROIsbw;
     save(filename, 'ROImask','ROIsingles');
@@ -2324,7 +2378,7 @@ colorsb={[0    0.4    0.7],...
 
 %checking whether ROI values had been saved before and no ROI was added or
 %removed
-if d.ROIv==0
+if d.ROIv==0 && isempty(d.ROIs)==1
     if isempty(d.nscale)==1
         %asking for scale of the video to determine neuropil radius of 20 um, doric model S 700um, model L 350um, nVista 650 um (shorter side), Miniscope 450um (shorter side)
         models=[700 350 650 450]; %predefined sizes of the different microscope models
@@ -2368,6 +2422,7 @@ if d.ROIv==0
     %labeling ROIs for every frame of the video
     n=size(d.imd,3);
     numROIs=size(d.ROIsbw,3); %number of ROIs
+    d.ROIs=cell(size(d.imd,3),numROIs);
     d.neuropil=cell(size(d.imd,3),numROIs);
     ROIcenter=cell(1,numROIs);
     se=strel('disk',d.nscale,8);
@@ -2408,6 +2463,7 @@ if d.ROIv==0
             neuropilm=mean(d.neuropil{i,k});
             d.ROImeans(i,k)=(ROIm-neuropilm*p.options.neuF)*100; %in percent
         end
+        d.ROImeans(:,k)=detrend(d.ROImeans(:,k)); %removing global trends and shifting values above zero
         try
             waitbar(k/numROIs,h);
         catch
@@ -2443,6 +2499,7 @@ if d.ROIv==0
     end
     %determining indices where there are ROIs
     c=0;
+    ROIindices=[];
     for j=1:size(d.ROIsbw,3)
         if sum(sum(d.ROIsbw(:,:,j)))>0
             c=c+1;
@@ -2462,56 +2519,7 @@ if d.ROIv==0
         end
     end
 
-    if change==1;
-        %labeling ROIs for every frame of the video
-        n=size(d.imd,3);
-        numROIs=size(d.ROIsbw,3); %number of ROIs
-        d.ROIs=cell(size(d.imd,3),numROIs);
-        d.neuropil=cell(size(d.imd,3),numROIs);
-        se=strel('disk',d.nscale,8);
-        h=waitbar(0,'Relabeling ROIs');
-        for j=1:numROIs
-            % You can only multiply integers if they are of the same type.
-            ROIsc = cast(d.ROIsbw(:,:,j), class(d.imd(:,:,1)));
-            for i=1:n
-                imdrem= ROIsc .* d.imd(:,:,i);
-                d.ROIs{i,j}=imdrem(imdrem~=0);
-            end
-            %neuropil around the ROI
-            neurop=imdilate(ROIsc,se);
-            neurop2=neurop-ROIsc;
-            for i=1:n
-                imdneu= neurop2 .* d.imd(:,:,i);
-                d.neuropil{i,j}=imdneu(imdneu~=0);
-            end
-            try
-                waitbar(j/numROIs,h);
-            catch
-                return;
-            end
-        end
-        close(h);
-
-        nframes=size(d.imd,3);
-
-        % calculate mean grey value of ROIs in percent
-        d.ROImeans=zeros(size(d.ROIs,1),size(d.ROIs,2));
-        numROIs=size(d.ROIs,2);
-        h=waitbar(0,'Recalculating ROI values');
-        for k=1:numROIs
-            for i=1:nframes
-                ROIm=mean(d.ROIs{i,k});
-                neuropilm=mean(d.neuropil{i,k});
-                d.ROImeans(i,k)=(ROIm-neuropilm*p.options.neuF)*100;
-            end
-            try
-                waitbar(k/numROIs,h);
-            catch
-                d.ROImeans=[];
-                return;
-            end
-        end
-        close(h);
+    if change==1
         %plotting ROIs
         singleFrame=d.mip;
         if d.dF==1 || d.pre==1
@@ -2537,7 +2545,7 @@ if d.ROIv==0
             'YES','NO','YES');
         % Handle response
         if isempty(choice)==1
-            fn=[d.name 'ROIs.mat'];
+            fn=[cell2mat(d.name) 'ROIs.mat'];
             load([d.pn '\' fn]);
             d.mask=ROImask;
             d.ROIsbw=ROIsingles;
@@ -2563,12 +2571,12 @@ if d.ROIv==0
         end
         switch choice
             case 'YES'
-                filename=[d.pn '\' d.fn(1:end-4) 'ROIs'];
+                filename=[d.pn '\' cell2mat(d.name) 'ROIs'];
                 ROImask=d.mask;
                 ROIsingles=d.ROIsbw;
                 save(filename, 'ROImask','ROIsingles');
             case 'NO'
-                fn=[d.name 'ROIs.mat'];
+                fn=[cell2mat(d.name) 'ROIs.mat'];
                 load([d.pn '\' fn]);
                 d.mask=ROImask;
                 d.ROIsbw=ROIsingles;
@@ -2604,13 +2612,265 @@ if d.ROIv==0
                         return;
                 end
         end
+       %if a change was made to the ROI mask labeling ROIs for every first frame of the video
+        numROIs=size(d.ROIsbw,3); %number of ROIs
+        oldnumROIs=size(d.cCaSignal,2);
+        ROIs=cell(1,numROIs);
+        h=waitbar(0,'Labeling ROIs');
+        for j=1:numROIs
+            % You can only multiply integers if they are of the same type.
+            ROIsc = cast(d.ROIsbw(:,:,j), class(d.imd(:,:,1)));
+            imdrem= ROIsc .* d.imd(:,:,1);
+            ROIs{1,j}=imdrem(imdrem~=0);
+            try
+                waitbar(j/numROIs,h);
+            catch
+                return;
+            end
+        end
+        close(h);
+        %comparing the sum of values for all ROIs for the first frame to
+        %identify changes in the ROI mask
+        c=0;
+        changedROIs=[];
+        if numROIs>oldnumROIs
+            for i=1:oldnumROIs
+                if isequal(ROIs{1,i},d.ROIs{1,i})==0 %if the matrices for old ROI and new ROI are different, recalculation!
+                    c=c+1;
+                    changedROIs(1,c)=i; %varable saves all the indexes of changed ROIs;
+                end
+            end
+            cc=0;
+            chindx=length(changedROIs);
+            for k=oldnumROIs+1:numROIs
+                cc=cc+1;
+                changedROIs(1,chindx+cc)=k;
+            end
+        else
+            for i=1:numROIs
+                if isequal(ROIs{1,i},d.ROIs{1,i})==0 %if the matrices for old ROI and new ROI are different, recalculation!
+                    c=c+1;
+                    changedROIs(1,c)=i; %varable saves all the indexes of changed ROIs;
+                end
+            end
+
+        end
+        if isempty(changedROIs)==1 && numROIs<oldnumROIs
+            d.bcount=numROIs;
+            d.ROIs=d.ROIs(:,1:numROIs);
+            d.ROImeans=d.ROImeans(:,1:numROIs);
+            d.neuropil=d.neuropil(:,1:numROIs);
+            d.cCaSignal=d.cCaSignal(:,1:numROIs);
+            d.spikes=d.spikes(:,1:numROIs);
+            d.ts=d.ts(1,1:numROIs);
+            d.amp=d.amp(1,1:numROIs);
+            d.NoofSpikes=d.NoofSpikes(1:numROIs,1);
+            d.Frequency=d.Frequency(1:numROIs,1);
+            d.Amplitude=d.Amplitude(1:numROIs,1);
+            %saving calcium signal
+            ROImeans=d.ROImeans;
+            cCaSignal=d.cCaSignal;
+            spikes=d.spikes;
+            d.decon=1; %signal was deconvoluted;
+            decon=d.decon;
+            filename=[d.pn '\' cell2mat(d.name) 'CaSignal'];
+            save(filename, 'ROImeans','cCaSignal','spikes','decon');
+        else
+            %labeling ROIs for every frame of the video
+            n=size(d.imd,3);
+            numROIs=size(d.ROIsbw,3); %number of ROIs
+            ROIcenter=cell(1,numROIs);
+            if numROIs<oldnumROIs
+                d.ROIs=d.ROIs(:,1:numROIs);
+                d.neuropil=d.neuropil(:,1:numROIs);
+            end
+            se=strel('disk',d.nscale,8);
+            h=waitbar(0,'Labeling ROIs');
+            for j=1:length(changedROIs)
+                % You can only multiply integers if they are of the same type.
+                ROIsc = cast(d.ROIsbw(:,:,changedROIs(j)), class(d.imd(:,:,1)));
+                ROIc=regionprops(d.ROIsbw(:,:,changedROIs(j)),'Centroid');
+                ROIcenter{1,changedROIs(j)}=ROIc.Centroid;
+                for i=1:n
+                    imdrem= ROIsc .* d.imd(:,:,i);
+                    d.ROIs{i,changedROIs(j)}=imdrem(imdrem~=0);
+                end
+                %neuropil around the ROI
+                neurop=imdilate(ROIsc,se);
+                neurop2=neurop-ROIsc;
+                for i=1:n
+                    imdneu= neurop2 .* d.imd(:,:,i);
+                    d.neuropil{i,changedROIs(j)}=imdneu(imdneu~=0);
+                end
+                try
+                    waitbar(j/numROIs,h);
+                catch
+                    return;
+                end
+            end
+            close(h);
+
+            nframes=size(d.imd,3);
+
+            % calculate mean grey value of ROIs in percent
+            numROIs=size(d.ROIs,2);
+            if numROIs<oldnumROIs
+                d.ROImeans=d.ROImeans(:,1:numROIs);
+            end
+            h=waitbar(0,'Calculating ROI values');
+            for k=1:length(changedROIs)
+                for i=1:nframes
+                    ROIm=mean(d.ROIs{i,changedROIs(k)});
+                    neuropilm=mean(d.neuropil{i,changedROIs(k)});
+                    d.ROImeans(i,changedROIs(k))=(ROIm-neuropilm*p.options.neuF)*100; %in percent
+                end
+                d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends and shifting values above zero
+                try
+                    waitbar(k/numROIs,h);
+                catch
+                    d.ROImeans=[];
+                    return;
+                end
+            end
+            close(h);
+        end
     end
     %saving ROI values
-    filename=[d.pn '\' d.name '_ROIvalues'];
+    filename=[d.pn '\' cell2mat(d.name) '_ROIvalues'];
     ROImeans=d.ROImeans;
     save(filename, 'ROImeans');
     d.ROIv=1;
     d.decon=0;
+elseif d.ROIv==0
+    %if a change was made to the ROI mask labeling ROIs for every first frame of the video
+    numROIs=size(d.ROIsbw,3); %number of ROIs
+    oldnumROIs=size(d.cCaSignal,2);
+    ROIs=cell(1,numROIs);
+    h=waitbar(0,'Labeling ROIs');
+    for j=1:numROIs
+        % You can only multiply integers if they are of the same type.
+        ROIsc = cast(d.ROIsbw(:,:,j), class(d.imd(:,:,1)));
+        imdrem= ROIsc .* d.imd(:,:,1);
+        ROIs{1,j}=imdrem(imdrem~=0);
+        try
+            waitbar(j/numROIs,h);
+        catch
+            return;
+        end
+    end
+    close(h);
+    %comparing the sum of values for all ROIs for the first frame to
+    %identify changes in the ROI mask
+    c=0;
+    changedROIs=[];
+    if numROIs>oldnumROIs
+        for i=1:oldnumROIs
+            if isequal(ROIs{1,i},d.ROIs{1,i})==0 %if the matrices for old ROI and new ROI are different, recalculation!
+                c=c+1;
+                changedROIs(1,c)=i; %varable saves all the indexes of changed ROIs;
+            end
+        end
+        cc=0;
+        chindx=length(changedROIs);
+        for k=oldnumROIs+1:numROIs
+            cc=cc+1;
+            changedROIs(1,chindx+cc)=k;
+        end
+    else
+        for i=1:numROIs
+            if isequal(ROIs{1,i},d.ROIs{1,i})==0 %if the matrices for old ROI and new ROI are different, recalculation!
+                c=c+1;
+                changedROIs(1,c)=i; %varable saves all the indexes of changed ROIs;
+            end
+        end
+        
+    end
+    if isempty(changedROIs)==1 && numROIs<oldnumROIs
+        d.bcount=numROIs;
+        d.ROIs=d.ROIs(:,1:numROIs);
+        d.ROImeans=d.ROImeans(:,1:numROIs);
+        d.neuropil=d.neuropil(:,1:numROIs);
+        d.cCaSignal=d.cCaSignal(:,1:numROIs);
+        d.spikes=d.spikes(:,1:numROIs);
+        d.ts=d.ts(1,1:numROIs);
+        d.amp=d.amp(1,1:numROIs);
+        d.NoofSpikes=d.NoofSpikes(1:numROIs,1);
+        d.Frequency=d.Frequency(1:numROIs,1);
+        d.Amplitude=d.Amplitude(1:numROIs,1);
+        %saving calcium signal
+        ROImeans=d.ROImeans;
+        cCaSignal=d.cCaSignal;
+        spikes=d.spikes;
+        d.decon=1; %signal was deconvoluted;
+        decon=d.decon;
+        filename=[d.pn '\' cell2mat(d.name) 'CaSignal'];
+        save(filename, 'ROImeans','cCaSignal','spikes','decon');
+    else
+        %labeling ROIs for every frame of the video
+        n=size(d.imd,3);
+        numROIs=size(d.ROIsbw,3); %number of ROIs
+        ROIcenter=cell(1,numROIs);
+        if numROIs<oldnumROIs
+            d.ROIs=d.ROIs(:,1:numROIs);
+            d.neuropil=d.neuropil(:,1:numROIs);
+        end
+        se=strel('disk',d.nscale,8);
+        h=waitbar(0,'Labeling ROIs');
+        for j=1:length(changedROIs)
+            % You can only multiply integers if they are of the same type.
+            ROIsc = cast(d.ROIsbw(:,:,changedROIs(j)), class(d.imd(:,:,1)));
+            ROIc=regionprops(d.ROIsbw(:,:,changedROIs(j)),'Centroid');
+            ROIcenter{1,changedROIs(j)}=ROIc.Centroid;
+            for i=1:n
+                imdrem= ROIsc .* d.imd(:,:,i);
+                d.ROIs{i,changedROIs(j)}=imdrem(imdrem~=0);
+            end
+            %neuropil around the ROI
+            neurop=imdilate(ROIsc,se);
+            neurop2=neurop-ROIsc;
+            for i=1:n
+                imdneu= neurop2 .* d.imd(:,:,i);
+                d.neuropil{i,changedROIs(j)}=imdneu(imdneu~=0);
+            end
+            try
+                waitbar(j/numROIs,h);
+            catch
+                return;
+            end
+        end
+        close(h);
+
+        nframes=size(d.imd,3);
+
+        % calculate mean grey value of ROIs in percent
+        numROIs=size(d.ROIs,2);
+        if numROIs<oldnumROIs
+            d.ROImeans=d.ROImeans(:,1:numROIs);
+        end
+        h=waitbar(0,'Calculating ROI values');
+        for k=1:length(changedROIs)
+            for i=1:nframes
+                ROIm=mean(d.ROIs{i,changedROIs(k)});
+                neuropilm=mean(d.neuropil{i,changedROIs(k)});
+                d.ROImeans(i,changedROIs(k))=(ROIm-neuropilm*p.options.neuF)*100; %in percent
+            end
+            d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends and shifting values above zero
+            try
+                waitbar(k/numROIs,h);
+            catch
+                d.ROImeans=[];
+                return;
+            end
+        end
+        close(h);
+
+        %saving ROI values
+        filename=[d.pn '\' cell2mat(d.name) '_ROIvalues'];
+        ROImeans=d.ROImeans;
+        save(filename, 'ROImeans');
+        d.ROIv=1;
+        d.decon=0;
+    end
 end
 
 colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %colors for traces
@@ -2634,7 +2894,7 @@ if d.decon==0;
     %saving calcium signal
     d.decon=1; %signal was deconvoluted;
     decon=d.decon;
-    filename=[d.pn '\' d.name 'CaSignal'];
+    filename=[d.pn '\' cell2mat(d.name) 'CaSignal'];
     save(filename, 'ROImeans','cCaSignal','spikes','decon');
 end
 
@@ -2765,6 +3025,11 @@ if v.behav==1
     spkfreq.nobehavior=sum(spkno)/(spkasize/d.framerate);
 end
 
+% %calculating event behaviour if trigger file was loaded
+% if isempty(d.triggerts)==0
+%     
+% end
+
 %saving traces
 % Construct a questdlg with two options
 choice = questdlg('Would you like to save these traces?', ...
@@ -2791,14 +3056,14 @@ switch choice
             for j=1:tnum
                 figurenum=sprintf('-f%d',numseries(j));
                 fname=sprintf('traces_%d',j);
-                ffname=[d.name '_' fname];
+                ffname=[cell2mat(d.name) '_' fname];
                 path=[d.pn '/traces/',ffname,'.png'];
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
             end
             %saving rasterplot
             figurenum=sprintf('-f%d',hfnum);
-            fname=[d.name '_rasterplot'];
+            fname=[cell2mat(d.name) '_rasterplot'];
             path=[d.pn '/traces/',fname,'.png'];
             path=regexprep(path,'\','/');
             print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
@@ -2818,18 +3083,19 @@ switch choice
             end
             hold off;
             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-            fname=[d.name '_ROImask'];
+            fname=[cell2mat(d.name) '_ROImask'];
             path=[d.pn '/traces/',fname,'.png'];
             path=regexprep(path,'\','/');
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
             
             %saving raw ROI values over time
-            h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.8]),colorbar;
+            h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))]),c=colorbar;
             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-            title('Raw fluorescence traces');
+            title('Fluorescence traces');
             xlabel('Time in seconds');
             ylabel('Cell number');
+            c.Label.String='dF/F in %';
             xlim([0 round(size(d.imd,3))]);
             ticlabel=get(gca,'XTickLabel');
             for k=1:length(ticlabel)
@@ -2839,14 +3105,14 @@ switch choice
             ticlabel=ticlabel./d.framerate;
             set(gca,'XTickLabel',ticlabel);
             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-            fname=[d.name '_RawFluo'];
+            fname=[cell2mat(d.name) '_Fluo'];
             path=[d.pn '/traces/',fname,'.png'];
             path=regexprep(path,'\','/');
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
 
             %saving table
-            filename=[d.pn '\traces\ROIs_' d.name '.xls'];
+            filename=[d.pn '\traces\ROIs_' cell2mat(d.name) '.xls'];
             ROInumber=cell(size(d.cCaSignal,2),1);
             for k=1:size(d.cCaSignal,2)
                 ROInumber{k,1}=sprintf('ROI No.%d',k);
@@ -2872,7 +3138,7 @@ switch choice
             value6=d.ts;
             value4=struct(field5,value5,field6,value6);
             traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
-            filename=[d.pn '\traces\traces_' d.name];
+            filename=[d.pn '\traces\traces_' cell2mat(d.name)];
             save(filename, 'traces');
     
             try
@@ -2888,14 +3154,14 @@ switch choice
                 %saving traces
                 for j=1:tnum
                     fname=sprintf('traces_behav_%d',j);
-                    ffname=[d.name '_' fname];
+                    ffname=[cell2mat(d.name) '_' fname];
                     figurenum=sprintf('-f%d',numseries(j));
                     path=[d.pn '/traces/',ffname,'.png'];
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
                 %saving rasterplot
-                fname=[d.name '_rasterplot_behav'];
+                fname=[cell2mat(d.name) '_rasterplot_behav'];
                 figurenum=sprintf('-f%d',hfnum);
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
@@ -2927,7 +3193,7 @@ switch choice
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                fname=[d.name '_meanFluobehav'];
+                fname=[cell2mat(d.name) '_meanFluobehav'];
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
@@ -2936,9 +3202,11 @@ switch choice
                 meanspks=sum(d.spikes,2)*d.framerate/size(d.spikes,1);
                 h=figure;
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                plot(1:size(meanspks,1),meanspks,'k'); hold on;
+                axlim=get(gca,'YLim');
                 for l=1:v.amount
                     for m=1:length(v.barstart.(char(v.name{1,l})))
-                    rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),round(min(meanspks),1),v.barwidth.(char(v.name{1,l}))(m),abs(round(min(meanspks),1))+round(max(meanspks),1)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                        rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),axlim(2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
                     end
                 end
                 plot(1:size(meanspks,1),meanspks,'k');
@@ -2954,7 +3222,7 @@ switch choice
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                fname=[d.name '_meanspksbehav'];
+                fname=[cell2mat(d.name) '_meanspksbehav'];
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
@@ -2969,14 +3237,14 @@ switch choice
                 %saving traces
                 for j=1:tnum
                     fname=sprintf('traces_%d',j);
-                    ffname=[d.name '_' fname];
+                    ffname=[cell2mat(d.name) '_' fname];
                     figurenum=sprintf('-f%d',numseries(j));
                     path=[d.pn '/traces/',ffname,'.png'];
                     path=regexprep(path,'\','/');
                     print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 end
                 %saving rasterplot
-                fname=[d.name '_rasterplot'];
+                fname=[cell2mat(d.name) '_rasterplot'];
                 figurenum=sprintf('-f%d',hfnum);
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
@@ -2997,18 +3265,19 @@ switch choice
                 end
                 hold off;
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                fname=[d.name '_ROImask'];
+                fname=[cell2mat(d.name) '_ROImask'];
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(h,'-dpng',path); %-depsc for vector graphic
                 close(h);
                 
                 %saving raw ROI values over time
-                h=figure;imagesc(d.cCaSignal',[round(min(min(d.cCaSignal))) round(max(max(d.cCaSignal)))*0.8]),colorbar;
+                h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))]),c=colorbar;
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                title('Raw fluorescence traces');
+                title('Fluorescence traces');
                 xlabel('Time in seconds');
                 ylabel('Cell number');
+                c.Label.String='dF/F in %';
                 xlim([0 round(size(d.imd,3))]);
                 ticlabel=get(gca,'XTickLabel');
                 for k=1:length(ticlabel)
@@ -3018,14 +3287,14 @@ switch choice
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
-                fname=[d.name '_RawFluo'];
+                fname=[cell2mat(d.name) '_Fluo'];
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
 
                 %saving table
-                filename=[d.pn '\traces\ROIs_' d.name '.xls'];
+                filename=[d.pn '\traces\ROIs_' cell2mat(d.name) '.xls'];
                 ROInumber=cell(size(d.cCaSignal,2),1);
                 for k=1:size(d.cCaSignal,2)
                     ROInumber{k,1}=sprintf('ROI No.%d',k);
@@ -3051,7 +3320,7 @@ switch choice
                 value6=d.ts;
                 value4=struct(field5,value5,field6,value6);
                 traces=struct(field1,value1,field2,value2,field3,value3,field4,value4);
-                filename=[d.pn '\traces\traces_' d.name];
+                filename=[d.pn '\traces\traces_' cell2mat(d.name)];
                 save(filename, 'traces');
 
                 try
@@ -3064,6 +3333,35 @@ switch choice
     case 'NO'
         return;
 end
+
+
+
+% ------------------------------------------------------------ Trigger file
+function trigger_Callback(hObject, eventdata, handles)
+% hObject    handle to trigger (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+global p
+
+if p.help==1
+    uiwait(msgbox('Select a trigger event file!'));
+end
+
+d.triggerts=[];
+
+%extracts filename
+filepath=[d.pn '\'];
+[fn,pn,~]=uigetfile([filepath '*.mat']);
+%if cancel was pressed
+if fn==0
+    return;
+end
+
+%load the trigger event file
+triggerfile=cell2mat(struct2cell(load([pn fn])));
+%assuming zeros mean no trigger, above zero means trigger
+d.triggerts=find(triggerfile>0);
 
 
 
@@ -3095,10 +3393,24 @@ if isempty(d.name)==1
     if isempty(answer)==1
         return;
     end
-    d.name=cell2mat(answer);
-    filename=[d.pn '\name'];
-    name=d.name;
-    save(filename, 'name');
+    %check whether another version already exists
+    files=dir(d.pn);
+    tf=zeros(1,length(dir(d.pn)));
+    for k=1:length(dir(d.pn))
+        tf(k)=strcmp('name.mat',files(k).name);
+    end
+    if sum(tf)>0 %if a file is found
+        d.name=answer;
+        load([d.pn '\name.mat']);
+        name{1,size(name,2)+1}=cell2mat(answer);
+        filename=[d.pn '\name'];
+        save(filename, 'name');
+    else    
+        d.name=answer;
+        filename=[d.pn '\name'];
+        name=d.name;
+        save(filename, 'name');
+    end
 end
 
 if d.dF==0 %saving video if it was not processed further
@@ -3107,7 +3419,7 @@ if d.dF==0 %saving video if it was not processed further
     origCIdou=double(d.origCI);
     origCIconv=origCIdou./max(max(max(origCIdou)));
 
-    filename=[d.pn '\' d.name];
+    filename=[d.pn '\' cell2mat(d.name)];
     vid = VideoWriter(filename,'Grayscale AVI');
     vid.FrameRate=d.framerate;
     nframes=size(d.imd,3);
@@ -3171,7 +3483,7 @@ elseif isempty(d.origCI)==1&&d.pushed==4
             switch choice
                 case 'dF/F'
                     %function for saving dF/F video
-                    pn=d.pn; name=d.name; framerate=d.framerate; imd=d.imd;
+                    pn=d.pn; name=cell2mat(d.name); framerate=d.framerate; imd=d.imd;
                     savedFF(pn,name,framerate,imd);
                 case 'Original'
                     %converting original CI video to double precision and to values between 1 and 0
@@ -3179,7 +3491,7 @@ elseif isempty(d.origCI)==1&&d.pushed==4
                     origCIdou=double(d.origCI);
                     origCIconv=origCIdou./max(max(max(origCIdou)));
 
-                    filename=[d.pn '\' d.name];
+                    filename=[d.pn '\' cell2mat(d.name)];
                     vid = VideoWriter(filename,'Grayscale AVI');
                     vid.FrameRate=d.framerate;
                     nframes=size(d.imd,3);
@@ -3200,7 +3512,7 @@ elseif isempty(d.origCI)==1&&d.pushed==4
             
         case 'NO'
             %function for saving dF/F video
-            pn=d.pn; name=d.name; framerate=d.framerate; imd=d.imd;
+            pn=d.pn; name=cell2mat(d.name); framerate=d.framerate; imd=d.imd;
             savedFF(pn,name,framerate,imd);
     end
 else
@@ -3215,7 +3527,7 @@ else
     switch choice
         case 'dF/F'
             %function for saving dF/F video
-            pn=d.pn; name=d.name; framerate=d.framerate; imd=d.imd;
+            pn=d.pn; name=cell2mat(d.name); framerate=d.framerate; imd=d.imd;
             savedFF(pn,name,framerate,imd);
         case 'Original'
             %converting original CI video to double precision and to values between 1 and 0
@@ -3223,7 +3535,7 @@ else
             origCIdou=double(d.origCI);
             origCIconv=origCIdou./max(max(max(origCIdou)));
 
-            filename=[d.pn '\' d.name];
+            filename=[d.pn '\' cell2mat(d.name)];
             vid = VideoWriter(filename,'Grayscale AVI');
             vid.FrameRate=d.framerate;
             nframes=size(d.imd,3);
@@ -3957,7 +4269,6 @@ v.play=0; %video is not being played
 v.pn=[]; %pathname is empty
 v.fn=[]; %filename is empty
 v.amount=[]; %amount of behaviors defined is 0
-v.shortkey=[]; %no shortkeys for behaviors defined
 v.name=[]; %no names for behaviors
 v.events=[]; %no behavior events
 v.skdefined=0; %behaviors were not specified yet
@@ -4005,6 +4316,11 @@ tf=zeros(1,length(dir(v.pn)));
 for k=1:length(dir(v.pn))
     tf(k)=strcmp([v.fn{1}(1:end-4) '_converted.mat'],files(k).name);
 end
+tf2=zeros(1,length(dir(v.pn)));
+for k=1:length(dir(v.pn))
+    tf2(k)=strcmp(['Behavior_' cell2mat(d.name) '.mat'],files(k).name);
+end
+
 if sum(tf)>0
     % Construct a questdlg with two options
     choice = questdlg('Would you like to load your last processed version?', ...
@@ -4017,17 +4333,96 @@ if sum(tf)>0
     switch choice
         case 'YES'
             %function for loading last processed version
-            [skeys,tfb] = loadlastBV;
+            tfb = loadlastBV;
             %looking at first original picture
             axes(handles.axes2); image(v.imd(1).cdata);
             titleLabel = ['Behavioral video: ' v.fn];
             set(handles.text28, 'String', titleLabel);
             handles.text28.TooltipString=v.pn;
             if sum(tfb)>0
-                msgbox(cat(2, {'Loading Completed. Your shortkeys are:'}, skeys),'Success');
+                msgbox(cat(2, {'Loading Completed. Your behaviours are:'}, v.name),'Success');
             else
                 msgbox(sprintf('Loading Completed.'),'Success');
             end
+        case 'NO'
+            %function for loading behavioral video
+            dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd; decon=d.decon;
+            [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles,decon);
+            if isempty(imd)==1
+                return;
+            end
+            d.imd=dimd;
+            if isempty(dROIv)==0
+                d.ROIv=dROIv;
+            end
+            v.imd=imd;
+            v.pushed=1; %signals video is loaded
+            %looking at first original picture
+            axes(handles.axes2); image(v.imd(1).cdata);
+            titleLabel = ['Behavioral video: ' v.fn];
+            set(handles.text28, 'String', titleLabel);
+            handles.text28.TooltipString=v.pn;
+            msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+    end
+elseif sum(tf)==0 && sum(tf2)>0
+    % Construct a questdlg with two options
+    choice = questdlg('Would you like to load your last processed version?', ...
+        'Attention', ...
+        'YES','NO','YES');
+    % Handle response
+    if isempty(choice)==1
+        return;
+    end
+    switch choice
+        case 'YES'
+            %function for loading behavioral video
+            dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd; decon=d.decon;
+            [sframe,imd,dimd,dROIv] = loadBV(dframerate,dsize,pn,fn,dimd,handles,decon);
+            if isempty(imd)==1
+                return;
+            end
+            d.imd=dimd;
+            if isempty(dROIv)==0
+                d.ROIv=dROIv;
+            end
+            v.imd=imd;
+            v.pushed=1; %signals video is loaded
+            
+            %function for loading last processed version
+            load([v.pn '\Behavior_' cell2mat(d.name)]);
+            v.amount=Amount;
+            v.events=Events;
+            v.name=BehavNames;
+            v.bars=bars;
+            v.barstart=barstart;
+            v.barwidth=barwidth;
+            v.skdefined=1;
+            v.behav=1;
+            %showing plot
+            figure;
+            str={};
+            for j=1:v.amount
+                area(1:size(v.imd,2),v.bars.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
+                str(end+1)={char(v.name{1,j})}; %#ok<*AGROW>
+            end
+            %relabeling X-ticks in time in seconds
+            xlabel('Time in seconds');
+            tlabel=get(gca,'XTickLabel');
+            for k=1:length(tlabel)
+                tlabel{k,1}=str2num(tlabel{k,1});
+            end
+            tlabel=cell2mat(tlabel);
+            tlabel=tlabel./d.framerate;
+            set(gca,'XTickLabel',tlabel);
+            legend(str);
+            hold off;
+            
+            %looking at first original picture
+            axes(handles.axes2); image(v.imd(1).cdata);
+            titleLabel = ['Behavioral video: ' v.fn];
+            set(handles.text28, 'String', titleLabel);
+            handles.text28.TooltipString=v.pn;
+            msgbox(cat(2, {'Loading Completed. Your behaviours are:'}, v.name),'Success');
         case 'NO'
             %function for loading behavioral video
             dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd; decon=d.decon;
@@ -4816,25 +5211,30 @@ end
 
 
 
-% --- Executes on button press in pushbutton36.               IMPORT PRESET
-function pushbutton36_Callback(~, ~, handles)
-% hObject    handle to pushbutton36 (see GCBO)
+% --------------------------------------------------------- Colour preset
+function preset_Callback(hObject, eventdata, handles)
+% hObject    handle to preset (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global v
 global d
 global p
-%defining folder
-%defining initial folder displayed in dialog window
-if isempty(p.pnpreset)==1
-    [p.pnpreset]=uigetdir(v.pn);
-elseif p.pnpreset==0
-    [p.pnpreset]=uigetdir(v.pn);
-else
-    [p.pnpreset]=uigetdir(p.pnpreset);
+
+if p.help==1
+    uiwait(msgbox('Select a preset*.mat file!'));
 end
+
+%extracts filename
+filepath=[d.pn '\'];
+[fn,pn,~]=uigetfile([filepath '*.mat']);
 %if cancel was pressed
-if p.pnpreset==0
+if fn==0
+    return;
+end
+%checking if a Behaviour file was selected
+TF = strncmpi('preset',fn,6)
+if TF==0
+    msgbox('Please select a preset*.mat file!','ERROR');
     return;
 end
 
@@ -4849,20 +5249,20 @@ if isempty(choice)==1
 end
 switch choice
     case 'anterior'
-        load([p.pnpreset '\presetA']);
+        load([pn '\presetA']);
         v.hueThresholdHigh=hueHigh;
         v.hueThresholdLow=hueLow;
-        v.saturationThresholdLow=satHigh;
-        v.saturationThresholdHigh=satLow;
+        v.saturationThresholdLow=satLow;
+        v.saturationThresholdHigh=satHigh;
         v.valueThresholdLow=valueLow;
         v.valueThresholdHigh=valueHigh;
         v.preset=vcolor;
     case 'posterior'
-        load([p.pnpreset '\presetP']);
+        load([pn '\presetP']);
         v.hueThresholdHigh=hueHigh;
         v.hueThresholdLow=hueLow;
-        v.saturationThresholdLow=satHigh;
-        v.saturationThresholdHigh=satLow;
+        v.saturationThresholdLow=satLow;
+        v.saturationThresholdHigh=satHigh;
         v.valueThresholdLow=valueLow;
         v.valueThresholdHigh=valueHigh;
         v.preset=vcolor;
@@ -4916,6 +5316,7 @@ else
 end
 hold off;
 v.pushed=4;
+
 
 
 
@@ -5215,7 +5616,7 @@ else
     mkdir([d.pn '\location']);
 end
 fname=sprintf('mouse_trace');
-ffname=[d.name '_' fname];
+ffname=[cell2mat(d.name) '_' fname];
 path=[d.pn '/location/',ffname,'.png'];
 path=regexprep(path,'\','/');
 print(a,'-dpng','-r100',path); %-depsc for vector graphic
@@ -5263,7 +5664,7 @@ VelocityIncms=round(totalDistIncm/(length(v.traceAplot)/d.framerate),1); %mean v
 
 %saving table
 T=table(totalDistIncm,VelocityIncms,percPause,percOutside);
-filename=[d.pn '\location\' d.name '_behavior.xls'];
+filename=[d.pn '\location\' cell2mat(d.name) '_behavior.xls'];
 writetable(T,filename);
 
 
@@ -5341,27 +5742,37 @@ switch choice
     case 'No'
         return;
 end
-    
 
-% --- Executes on button press in pushbutton37.                 IMPORT ROIs
-function pushbutton37_Callback(~, ~, ~)
-% hObject    handle to pushbutton37 (see GCBO)
+
+
+% --------------------------------------------------------- ROIs of arena
+function locrois_Callback(hObject, eventdata, handles)
+% hObject    handle to locrois (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global v
+global d
 global p
-%defining folder
-%defining initial folder displayed in dialog window
-if isempty(p.pnpreset)==1 || p.pnpreset==0
-    [p.pnpreset]=uigetdir(v.pn);
-else
-    [p.pnpreset]=uigetdir(p.pnpreset);
+
+if p.help==1
+    uiwait(msgbox('Select a tracingROIs.mat file!'));
 end
-if p.pnpreset==0
+
+%extracts filename
+filepath=[d.pn '\'];
+[fn,pn,~]=uigetfile([filepath '*.mat']);
+%if cancel was pressed
+if fn==0
     return;
 end
+%checking if a Behaviour file was selected
+TF = strncmpi('tracingROIs',fn,11)
+if TF==0
+    msgbox('Please select a tracingROIs.mat file!','ERROR');
+    return;
+end
+
 %loading preset
-load([p.pnpreset '\tracingROIs']);
+load([pn fn]);
 p.amount=amount; %amount of defined ROIs
 p.name=name; %names of ROIs
 p.ROImask=ROImask; %ROI mask containing the compartments vs background
@@ -5371,12 +5782,10 @@ msgbox('Loading Complete.','Success');
 
 
 
-
-
 %% BEHAVIORAL DETECTION
 
 
-% --- Executes on button press in pushbutton29.            BUTTON DETECTION
+% --- Executes on button press in pushbutton29.         BEHAVIOUR DETECTION
 function pushbutton29_Callback(~, ~, handles)
 % hObject    handle to pushbutton29 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -5393,142 +5802,30 @@ elseif v.pushed==0
     msgbox('Please select behavioral video first!','ERROR');
     return;
 end
-maxframes=size(d.imd,3);
-
 if v.skdefined==0
-    if p.help==1
-        uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
-    end
-    %Question how many
-    prompt = {'How many behaviors would you like to track? (8 maximum)'};
-    dlg_title = 'Amount';
-    num_lines = 1;
-    answer = inputdlg(prompt,dlg_title,num_lines);
-    if isempty(answer)==1
-        return;
-    end
-    if str2num(cell2mat(answer))>8
-        uiwait(msgbox('Please define only up to 8 behaviors!'));
-        return
-    end
-    v.amount=str2num(cell2mat(answer));
-    %loop of naming behaviors
-    v.shortkey=cell(1,v.amount);
-    v.name=cell(1,v.amount);
-    for k=1:v.amount
-        %shortkey
-        str=sprintf('Please define shortkey No. %d.',k);
-        prompt = {str};
-        dlg_title = 'Shortkey';
-        num_lines = 1;
-        answer = inputdlg(prompt,dlg_title,num_lines);
-        if isempty(answer)==1
-            return;
-        end
-        v.shortkey{1,k}=answer;
-        %name of ROI
-        prompt = {'What do you want to call it? (No spaces)'};
-        dlg_title = 'Name';
-        num_lines = 1;
-        answer = inputdlg(prompt,dlg_title,num_lines);
-        if isempty(answer)==1
-            return;
-        end
-        v.name{1,k}=answer;
-        %initializing event counter
-        v.events.(char(v.name{1,k})) = zeros(size(v.imd,2),1);
-    end
-    v.skdefined=1;
+    msgbox('Please add a behavior you wish to track first!','ERROR');
+    return;
+elseif v.skdefined<2
+    msgbox('You have to track at least two behaviours!','ERROR');
+    return;
 end
 
-%countdown before playing the video
-h=msgbox('Video starts in 3...'); pause(2.5);close(h);h=msgbox('2...'); pause(1);close(h);h=msgbox('1...'); pause(1);close(h);h=msgbox('GO!'); pause(1);close(h);
-
-if  v.pushed>=1
-    v.play=1;
-    axes(handles.axes2);
-    for k=round(handles.slider7.Value):size(v.imd,2)
-        v.k=k;
-        image(v.imd(k).cdata); %original video
-        handles.slider7.Value=k;
-        textLabel = sprintf('%d / %d', round(handles.slider7.Value),maxframes);
-        set(handles.text36, 'String', textLabel);
-        pause(1/d.framerate);
-        if k==size(v.imd,2)
-            d.stop=1;
-            d.play=0;
-            v.play=0;
-        end
-        if d.stop==1
-            d.stop=1;
-            d.play=0;
-            a=figure;
-            str={};
-            for j=1:v.amount
-                v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
-                %timebars
-                bars=diff(v.events.(char(v.name{1,j})));
-                bars(size(v.imd,2))=0;
-                v.barstart.(char(v.name{1,j}))=find(bars==1);
-                if numel(find(bars==1))>numel(find(bars==-1))
-                    v.barstart.(char(v.name{1,j}))=v.barstart.(char(v.name{1,j}))(1:numel(find(bars==-1)),1);
-                end
-                v.barwidth.(char(v.name{1,j}))=find(bars==-1)-v.barstart.(char(v.name{1,j}));
-                area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
-                str(end+1)={char(v.name{1,j})}; %#ok<AGROW>
-            end
-            xlabel('Time in seconds');
-            tlabel=get(gca,'XTickLabel');
-            for i=1:length(tlabel)
-                tlabel{i,1}=str2num(tlabel{i,1});
-            end
-                tlabel=cell2mat(tlabel);
-                tlabel=tlabel./d.framerate;
-                set(gca,'XTickLabel',tlabel);
-                legend(str);
-                hold off;
-                %saving plot
-                fname=sprintf('mouse_behavior');
-                ffname=[d.name '_' fname];
-                path=[d.pn '/',ffname,'.png'];
-                path=regexprep(path,'\','/');
-                print(a,'-dpng','-r100',path); %-depsc for vector graphic
-                %saving positions at ROIs
-                filename=[d.pn '\Behavior_' d.name];
-                Amount=v.amount;
-                Events=v.events;
-                Shortkeys=v.shortkey;
-                BehavNames=v.name;
-                barstart=v.barstart;
-                barwidth=v.barwidth;
-                save(filename, 'Amount','Events','Shortkeys','BehavNames','barstart','barwidth');
-                v.behav=1;
-                uiwait(msgbox('Plot and settings saved! You can now plot the behavior with the ROI traces together!'));
-            return;
-        end
-    end
+if p.help==1
+    uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
 end
 
+%tracking of one behaviour
+[Selection,~] = listdlg('PromptString','Which behaviour:',...
+                'SelectionMode','single',...
+                'ListSize',[160 100],...
+                'ListString',v.name);
+if isempty(Selection)==1
+    return;
+end
+
+v.events.(char(v.name{1,Selection}))(round(handles.slider7.Value))=1; %in case event was registered multiple times at the same frame
 
 
-
-% --- Executes on key press with focus on pushbutton29 and none of its controls.
-function pushbutton29_KeyPressFcn(~, eventdata, ~)
-% hObject    handle to pushbutton29 (see GCBO)
-% eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
-%	Key: name of the key that was pressed, in lower case
-%	Character: character interpretation of the key(s) that was pressed
-%	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
-% handles    structure with handles and user data (see GUIDATA)
-global v
-% determine the key that was pressed 
- keyPressed = eventdata.Key;
-
- for k=1:v.amount
-     if strcmpi(keyPressed,v.shortkey{1,k})
-         v.events.(char(v.name{1,k}))(v.k)=1;
-     end
- end
 
 
 % --- Executes on button press in pushbutton35.       RESET BEHAV DETECTION
@@ -5538,16 +5835,208 @@ function pushbutton35_Callback(~, ~, ~)
 % handles    structure with handles and user data (see GUIDATA)
 global v
 v.amount=[]; %amount of behaviors is zero
-v.shortkey=[]; %no shortkeys defined
 v.name=[]; %no names defined
-v.events=[]; %no events 
+v.events=[]; %no events
+v.barstart=[];
+v.barwidth=[];
 v.skdefined=0; %signals that not shortkeys were defined
 v.behav=0; %signals that behavior was not tracked
 msgbox('Behavioral detection was reset!');
 
 
 
+% --- Executes on button press in pushbutton46.               ADD BEHAVIOUR
+function pushbutton46_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton46 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+global v
+global p
+d.stop=0;
+%checks if a video file was selected
+if v.pushed==0 && d.pushed==0
+    msgbox('Please select folder first!','ERROR');
+    return;
+elseif v.pushed==0
+    msgbox('Please select behavioral video first!','ERROR');
+    return;
+end
 
+v.skdefined=v.skdefined+1;
+
+if v.skdefined>8
+    msgbox('You can only track 8 behaviours!','ERROR');
+    return;
+end
+
+%name of behaviour
+prompt = {'What do you want to call this behaviour? (No spaces)'};
+dlg_title = 'Name';
+num_lines = 1;
+answer = inputdlg(prompt,dlg_title,num_lines);
+if isempty(answer)==1
+    return;
+end
+v.name{1,v.skdefined}=cell2mat(answer);
+%initializing event counter
+v.events.(char(v.name{1,v.skdefined})) = zeros(size(v.imd,2),1);
+
+
+% --- Executes on button press in pushbutton47.            REMOVE BEHAVIOUR
+function pushbutton47_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton47 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+global v
+global p
+d.stop=0;
+%checks if a video file was selected
+if v.pushed==0 && d.pushed==0
+    msgbox('Please select folder first!','ERROR');
+    return;
+elseif v.pushed==0
+    msgbox('Please select behavioral video first!','ERROR');
+    return;
+end
+if v.skdefined==0
+    msgbox('You are not tracking any behaviours, thus you cannot remove any!','ERROR');
+    return;
+end
+
+%removing of one behaviour
+[Selection,~] = listdlg('PromptString','Which behaviour:',...
+                'SelectionMode','single',...
+                'ListSize',[160 100],...
+                'ListString',v.name)
+if isempty(Selection)==1
+    return;
+end
+%deleting events corresponding to selected behaviour
+v.events.(char(v.name{1,Selection})) = [];
+field=v.name{1,Selection};
+v.events=rmfield(v.events,field);
+%deleting name of selected behaviour
+v.name{1,Selection}=[];
+namenum=find(~cellfun(@isempty,v.name));
+v.name=v.name(~cellfun('isempty',v.name));
+
+v.skdefined=v.skdefined-1;
+
+
+% --- Executes on button press in pushbutton48.              PLOT BEHAVIOUR
+function pushbutton48_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton48 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global v
+global d
+global p
+
+%finding start and end of behaviours
+v.amount=length(v.name);
+allbehav=zeros(size(v.events.(char(v.name{1,1}))));
+for m=1:v.amount
+    allbehav=allbehav+v.events.(char(v.name{1,m}));
+end
+str={};
+h=figure;
+v.barstart=[];
+v.barwidth=[];
+for i=1:v.amount
+    v.bars.(char(v.name{1,i}))=zeros(size(v.events.(char(v.name{1,1}))));
+    behav=v.events.(char(v.name{1,i}));
+    otherbehav=allbehav-v.events.(char(v.name{1,i}));
+    otherbehav(otherbehav>0)=2;
+    indxother=find(otherbehav==2);
+    behavstart=find(behav==1);
+    behavend=[];
+    for k=1:length(behavstart)
+        a=indxother(indxother>behavstart(k),1);
+        if isempty(a)==0
+            behavend(k,1)=a(1,1)-1;
+        else
+            behavend(k,1)=size(d.imd,3);
+        end
+        v.bars.(char(v.name{1,i}))(behavstart(k):behavend(k))=1;
+    end
+    v.barstart.(char(v.name{1,i}))=behavstart;
+    v.barwidth.(char(v.name{1,i}))=behavend-behavstart;
+    %plotting timebars
+    area(1:size(v.imd,2),v.bars.(char(v.name{1,i})),'edgecolor',d.colors{1,i},'facecolor',d.colors{1,i},'facealpha',0.5),hold on;
+    str(end+1)={char(v.name{1,i})}; %#ok<AGROW>
+end
+xlabel('Time in seconds');
+tlabel=get(gca,'XTickLabel');
+for n=1:length(tlabel)
+tlabel{n,1}=str2num(tlabel{n,1});
+end
+tlabel=cell2mat(tlabel);
+tlabel=tlabel./d.framerate;
+set(gca,'XTickLabel',tlabel);
+legend(str);
+hold off;
+    
+%saving plot
+fname=sprintf('mouse_behavior');
+ffname=[cell2mat(d.name) '_' fname];
+path=[d.pn '/',ffname,'.png'];
+path=regexprep(path,'\','/');
+print(h,'-dpng','-r100',path); %-depsc for vector graphic
+%saving positions at ROIs
+filename=[d.pn '\Behavior_' cell2mat(d.name)];
+Amount=v.amount;
+Events=v.events;
+BehavNames=v.name;
+bars=v.bars;
+barstart=v.barstart;
+barwidth=v.barwidth;
+save(filename, 'Amount','Events','BehavNames','bars','barstart','barwidth');
+v.behav=1;
+uiwait(msgbox('Plot and settings saved! You can now plot the behavior with the ROI traces together!'));
+
+
+% --------------------------------------------------------- Behaviour names
+function behav_Callback(hObject, eventdata, handles)
+% hObject    handle to behav (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global v
+global d
+global p
+%resets all varibles needed for behavioral tracking
+v.amount=[]; %amount of behaviors is zero
+v.name=[]; %no names defined
+v.events=[]; %no events
+v.barstart=[];
+v.barwidth=[];
+v.skdefined=0; %signals that not shortkeys were defined
+v.behav=0; %signals that behavior was not tracked
+
+if p.help==1
+    uiwait(msgbox('Select a Behavior_"filename".mat file!'));
+end
+
+%extracts filename
+filepath=[d.pn '\'];
+[fn,pn,~]=uigetfile([filepath '*.mat']);
+%if cancel was pressed
+if fn==0
+    return;
+end
+%checking if a Behaviour file was selected
+TF = strncmpi('Behavior',fn,8)
+if TF==0
+    msgbox('Please select a Behavior_"filename".mat file!','ERROR');
+    return;
+end
+
+%load the saved ROI mask, and order of labels
+load([pn fn]);
+v.name=BehavNames;
+v.skdefined=Amount;
+msgbox('Loading complete!');
 
 
 %% MISC
@@ -5562,6 +6051,13 @@ function File_Callback(hObject, eventdata, handles)
 % --------------------------------------------------------------Loading
 function Load_Callback(hObject, eventdata, handles)
 % hObject    handle to Load (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------Import
+function import_Callback(hObject, eventdata, handles)
+% hObject    handle to import (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
@@ -5609,6 +6105,62 @@ else
     handles.disphelp.Checked='off';
     p.help=0;
 end
+
+
+% -----------------------------------------------------------------nscale
+function nscale_Callback(hObject, eventdata, handles)
+% hObject    handle to nscale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+path=cd;
+pcd=strfind(path,'roisub');
+if isempty(pcd)==1
+    msgbox('Please change the current directory to ./roisub!');
+       return;
+end
+
+%asking for scale of the video to determine neuropil radius of 20 um, doric model S 700um, model L 350um, nVista 650 um (shorter side), Miniscope 450um (shorter side)
+models=[700 350 650 450]; %predefined sizes of the different microscope models
+prompt = {'Enter the field of view size in um for short side:';'Select microscope model:'};
+name = 'Input for scale';
+formats = struct('type', {}, 'style', {}, 'items', {}, ...
+  'format', {}, 'size', {});
+formats(1,1).type   = 'edit';
+formats(1,1).format = 'integer';
+formats(1,1).limits = [50 5000];
+formats(1,1).size = [100 18];
+
+formats(2,1).type   = 'list';
+formats(2,1).style  = 'popupmenu';
+formats(2,1).items  = {'doric model S', 'doric model L', 'nVista', 'Miniscope'};
+defaultanswer = {350, 2};
+
+[answer, canceled] = inputsdlg(prompt, name, formats, defaultanswer);
+if canceled==1
+    return;
+end
+if answer{1,1}~=700 && answer{1,1}~=350 && answer{1,1}~=650 && answer{1,1}~=450 %if any manual input was made that does not equal the predefined sizes
+    um=answer{1,1}; %take the manual input
+else
+    um=models(1,answer{2,1}); %otherwise take the list input
+end
+if size(d.imd,1)<size(d.imd,2) %determining the shorter side of the video
+    shorterSide=floor(floor(size(d.imd,1)/0.8)/0.4); %recalculating original pixel size by reversing cutting off 80% and downsampling by 40%
+else
+    shorterSide=floor(floor(size(d.imd,2)/0.8)/0.4); %recalculating original pixel size by reversing cutting off 80% and downsampling by 40%
+end
+scale=shorterSide/um; %pixel divided by um equals the scale to convert from um to pixel
+neuropilRadius=round(20*scale); %the needed neuropil radius of 20 um equals 20 times the scale to obtain the radius in pixel
+d.nscale=neuropilRadius;
+%saving scale
+filename=[d.pn '\nscale'];
+nscale=d.nscale;
+save(filename, 'nscale');
+%saving preference
+filename=[cd '\preferences'];
+preferences.nscale=d.nscale;
+save(filename, 'preferences');
 
 
 

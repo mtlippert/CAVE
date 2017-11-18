@@ -60,5 +60,6 @@ for k=1:size(d.imd,3)-1
         return;
     end
 end
+Bvector(Bvector==0)=1;
 imdC=imdC(ceil(abs(Bvector(2,2))):round(size(wimage,1)-floor(abs(Bvector(2,1)))),ceil(abs(Bvector(1,2))):round(size(wimage,2)-floor(abs(Bvector(1,1)))),:);  %cut middle of image
 close(h);

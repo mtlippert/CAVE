@@ -1,10 +1,8 @@
-function [skeys,tfb] = loadlastBV
+function tfb = loadlastBV
 
 %FUNCTION for loading last processed version of behavioral video.
 
-%OUTPUT     skeys: shortkeys used for defining behaviors.
-%
-%           tfb: names of behaviors.
+%OUTPUT     tfb: Indicator whether behaviors could be loaded, 0 for no, 1 for yes.
 
 global v
 global d
@@ -51,15 +49,14 @@ end
 files=dir(v.pn);
 tfb=zeros(1,length(dir(v.pn)));
 for k=1:length(dir(v.pn))
-    tfb(k)=strcmp(['Behavior_' d.name '.mat'],files(k).name);
+    tfb(k)=strcmp(['Behavior_' cell2mat(d.name) '.mat'],files(k).name);
 end
 if sum(tfb)>0
-    %saving positions at ROIs
-    load([v.pn '\Behavior_' d.name]);
+    load([v.pn '\Behavior_' cell2mat(d.name)]);
     v.amount=Amount;
     v.events=Events;
-    v.shortkey=Shortkeys;
     v.name=BehavNames;
+    v.bars=bars;
     v.barstart=barstart;
     v.barwidth=barwidth;
     v.skdefined=1;
@@ -67,12 +64,9 @@ if sum(tfb)>0
     %showing plot
     figure;
     str={};
-    skeys={};
     for j=1:v.amount
-        v.events.(char(v.name{1,j}))(v.events.(char(v.name{1,j}))>1)=1; %in case event was registered multiple times at the same frame
-        area(1:size(v.imd,2),v.events.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
+        area(1:size(v.imd,2),v.bars.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
         str(end+1)={char(v.name{1,j})}; %#ok<*AGROW>
-        skeys(end+1)={char(v.shortkey{1,j})};
     end
     %relabeling X-ticks in time in seconds
     xlabel('Time in seconds');
@@ -85,7 +79,5 @@ if sum(tfb)>0
     set(gca,'XTickLabel',tlabel);
     legend(str);
     hold off;
-else
-    skeys={};
 end
 close(h);

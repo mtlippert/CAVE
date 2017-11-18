@@ -39,8 +39,8 @@ h=waitbar(0,'Deconvoluting...');
 for k=1:size(ROImeans,2)
     y=ROImeans(:,k);
     [c_oasis, s_oasis] = oasisAR2(y); %slower: [c_oasis, s_oasis] = deconvolveCa(y, 'ar1', 'constrained','optimize_b');
-%     s_oasis=sqrt(s_oasis);
-    s_oasis(s_oasis<1)=0;
+    s_oasis(s_oasis<2*std(c_oasis))=0; %1
+    s_oasis(s_oasis~=0)=1;
     spikes(:,k)=ceil(s_oasis);
     cCaSignal(:,k)=c_oasis;
     

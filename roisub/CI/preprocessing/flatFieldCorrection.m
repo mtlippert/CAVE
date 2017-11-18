@@ -22,7 +22,7 @@ global p
 % imdr=reshape(imdcorr,size(imd,1),size(imd,2),size(imd,3));
 
 H = fspecial('average',round(p.options.blur*size(imd,1))); %8 % blur
-a=(imfilter(imd(:,:,1),H,'replicate')); %blur frame totally
+a=(imfilter(mean(imd,3),H,'replicate')); %blur frame totally
 imd16=uint16(single(mean(mean(mean(imd))))*bsxfun(@rdivide,single(imd),single(a))); %max(max(imd(:,:,1)))
 
 s=size(imd16); %cut middle 80 % of image

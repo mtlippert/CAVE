@@ -1,4 +1,4 @@
-function [ROIsbw] = pcaica(F,mip,handles)
+function [ROIsbw] = pcaica(F,mip,pn,fn,handles)
 
 %FUNCTION for calculating PCA and ICA in order to automatically find ROIs
 %in the calcium imaging video. First the deimencions are reduced by PCA and
@@ -16,12 +16,23 @@ function [ROIsbw] = pcaica(F,mip,handles)
 
 global p
 
-h=msgbox('Please wait...');  
-%reshaping to two dimensional array: pixel x time
-F1=reshape(F,size(F,1)*size(F,2),size(F,3));
+h=msgbox('Please wait...');
+if isempty(p.F2)==1
+    %reshaping to two dimensional array: pixel x time
+    F1=reshape(F,size(F,1)*size(F,2),size(F,3));
 
-%PCA
-F2=pca(F1');
+    %PCA
+    p.F2=pca(F1');
+    try
+        close(h);
+    catch
+    end
+end
+%saving PCA
+h=msgbox('Saving progress... Program might seem unresponsive, please wait!');
+filename=[pn '\' fn 'PCA.mat'];
+PCA=p.F2;
+save(filename, 'PCA','-v7.3');
 try
     close(h);
 catch
@@ -46,7 +57,7 @@ h=msgbox('Please wait...');
 mem=memory; %how much memory available
 memval=struct2cell(mem); %converting to cell array to get values
 memval=memval{1};
-currentSize=dim*dim*size(F2,1)*8; %current needed memory, array size * 8 because it is class double that has 8 bits per element
+currentSize=dim*dim*size(p.F2,1)*8; %current needed memory, array size * 8 because it is class double that has 8 bits per element
 if currentSize>memval
     segments=ceil(currentSize/memval);
     start=1;
@@ -54,7 +65,7 @@ if currentSize>memval
     increment=round(dim/segments);
     adding=0;
     for k=1:segments
-        F2s=F2(:,start:finish);
+        F2s=p.F2(:,start:finish);
         [Zica] = fastICA(F2s',increment);
         ICAmatrix=reshape(Zica',size(F,1),size(F,2),increment);
         try
@@ -90,7 +101,7 @@ if currentSize>memval
         finish=finish+increment;
     end
 else  
-    F2s=F2(:,1:dim);
+    F2s=p.F2(:,1:dim);
     [Zica] = fastICA(F2s',dim);
     ICAmatrix=reshape(Zica',size(F,1),size(F,2),dim);
     try
@@ -166,6 +177,7 @@ end
 
 %determining indices where there are ROIs
 c=0;
+ROIindices=[];
 if sum(sum(sum(ROIsbw)))==0
     msgbox('No cells found!','Attention')
     return;

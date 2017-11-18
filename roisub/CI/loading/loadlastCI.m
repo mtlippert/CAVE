@@ -8,12 +8,30 @@ function [] = loadlastCI
 %no INPUT or OUTPUT since everything is calculated with global variables
 
 global d
+global p
 
 %loading delta F/F video
 h=msgbox('Loading... please wait!');
 load([d.pn '\name']); %load name
-d.name=name;
-load([d.pn '\' d.fn(1:end-4) 'dFvid']);
+%if more than one version
+if length(name)>1
+    [Selection,~] = listdlg('PromptString','Select a version:',...
+                    'SelectionMode','single',...
+                    'ListSize',[160 100],...
+                    'ListString',name);
+    if isempty(Selection)==1
+        d.imd=[];
+        close(h);
+        return;
+    end
+    d.name=cell(1,1);
+    d.name{1,1}=name{1,Selection};
+else
+    d.name=cell(1,1);
+    d.name{1,1}=name;
+end
+
+load([d.pn '\' cell2mat(d.name) 'dFvid']);
 d.imd=deltaFimd;
 close(h);
 d.pushed=1; %signals that CI video was loaded
@@ -24,15 +42,26 @@ MaxIntensProj = max(d.imd, [], 3);
 stdIm = std(d.imd,0,3);
 d.mip=MaxIntensProj./stdIm;
 figure,imagesc(d.mip),title('Maximum Intensity Projection');
+%loading PCA
+%check whether PCA values had been saved before
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn))
+    tf(k)=strcmp([cell2mat(d.name) 'PCA.mat'],files(k).name);
+end
+if sum(tf)>0 %if a file is found
+    load([d.pn '\' cell2mat(d.name) 'PCA.mat']);
+    p.F2=PCA; %mask with all the ROIs
+end
 %loading ROI mask
 %check whether ROI mask had been saved before
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
-    tf(k)=strcmp([d.name 'ROIs.mat'],files(k).name);
+    tf(k)=strcmp([cell2mat(d.name) 'ROIs.mat'],files(k).name);
 end
 if sum(tf)>0 %if a file is found
-    load([d.pn '\' d.name 'ROIs.mat']);
+    load([d.pn '\' cell2mat(d.name) 'ROIs.mat']);
     d.mask=ROImask; %mask with all the ROIs
     d.ROIsbw=ROIsingles; %logical mask of every single ROI
     d.pushed=4; %signals that ROIs were selected
@@ -49,14 +78,15 @@ end
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
-    tf(k)=strcmp([d.name '_ROIvalues.mat'],files(k).name);
+    tf(k)=strcmp([cell2mat(d.name) '_ROIvalues.mat'],files(k).name);
 end
 if sum(tf)>0
-    load([d.pn '\' d.name '_ROIvalues.mat']);
+    load([d.pn '\' cell2mat(d.name) '_ROIvalues.mat']);
     d.ROImeans=ROImeans; %ROI values trhoughout the video
     d.ROIv=1; %signals that ROI values have been loaded, so that you don't have to re-calculate them
 else
     d.ROIv=0; %signals that ROI values have not been loaded
+    d.ROIs=0;
 end
 %loading scale for neuropil subtraction
 %check whether scale had been saved before
@@ -76,10 +106,10 @@ end
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
-    tf(k)=strcmp('traces',files(k).name);
+    tf(k)=strcmp([cell2mat(d.name) 'traces'],files(k).name);
 end
 if sum(tf)>0
-    load([d.pn '\traces\traces_' d.name '.mat']);
+    load([d.pn '\traces\traces_' cell2mat(d.name) '.mat']);
     d.cCaSignal=traces.wave;
     d.spikes=zeros(size(d.cCaSignal));
     for j=1:size(d.cCaSignal,2);
