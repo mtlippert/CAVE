@@ -24,11 +24,19 @@ if length(name)>1
         close(h);
         return;
     end
-    d.name=cell(1,1);
-    d.name{1,1}=name{1,Selection};
+    if length(name{1,Selection})>1
+        d.name=cell(1,1);
+        d.name{1,1}=name{1,Selection};
+    else
+        d.name=name{1,Selection};
+    end
 else
-    d.name=cell(1,1);
-    d.name{1,1}=name;
+    if length(name{1,Selection})>1
+        d.name=cell(1,1);
+        d.name{1,1}=name{1,Selection};
+    else
+        d.name=name{1,Selection};
+    end
 end
 
 load([d.pn '\' cell2mat(d.name) 'dFvid']);
@@ -51,7 +59,7 @@ for k=1:length(dir(d.pn))
 end
 if sum(tf)>0 %if a file is found
     load([d.pn '\' cell2mat(d.name) 'PCA.mat']);
-    p.F2=PCA; %mask with all the ROIs
+    p.F2=PCAF2; %mask with all the ROIs
 end
 %loading ROI mask
 %check whether ROI mask had been saved before
@@ -86,7 +94,7 @@ if sum(tf)>0
     d.ROIv=1; %signals that ROI values have been loaded, so that you don't have to re-calculate them
 else
     d.ROIv=0; %signals that ROI values have not been loaded
-    d.ROIs=0;
+    d.ROIs=[];
 end
 %loading scale for neuropil subtraction
 %check whether scale had been saved before
@@ -103,10 +111,10 @@ else
 end
 %loading calcium signal
 %check whether calcium signal had been saved before
-files=dir(d.pn);
-tf=zeros(1,length(dir(d.pn)));
-for k=1:length(dir(d.pn))
-    tf(k)=strcmp([cell2mat(d.name) 'traces'],files(k).name);
+files=dir([d.pn '\traces']);
+tf=zeros(1,length(files));
+for k=1:length(files)
+    tf(k)=strcmp(['traces_' cell2mat(d.name) '.mat'],files(k).name);
 end
 if sum(tf)>0
     load([d.pn '\traces\traces_' cell2mat(d.name) '.mat']);

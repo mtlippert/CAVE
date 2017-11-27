@@ -182,6 +182,7 @@ d.thresh=0; %no ROI threshold
 d.valid=0; %no ROI was selcted incorrectly
 d.align=0; %signals whether images were aligned
 d.triggerts=[]; % no trigger event file was loaded
+p.nscale=[]; %no scale for microscope field of view defined
 p.pnpreset=[]; %no color preset imported
 d.alignCI=[]; %alignment video is empty
 p.roisave=1; %ROI masks will be saved automatically
@@ -189,6 +190,23 @@ p.roistate=0; %no method of manipulating ROIs was selected
 p.F2=[]; %PCA was not calculated yet
 
 p.options = SetParams(varargin); %initializes all constant values
+
+%loading preferences if existing
+path=cd;
+pcd=strfind(path,'roisub');
+if isempty(pcd)==1
+    uiwait(msgbox('Please change the current directory to ./roisub and restart the program!'));
+       return;
+end
+files=dir(path);
+tf=zeros(1,length(dir(path)));
+for k=1:length(dir(path))
+    tf(k)=strcmp('preferences.mat',files(k).name); %looking for dF/F processed video as .mat file
+end
+if sum(tf)>0 %if a file is found
+    load([path '\preferences.mat']);
+    p.nscale=preferences.nscale;
+end
 
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
@@ -276,10 +294,11 @@ d.pre=0; %no preprocessing
 d.mip=0; %no maximum intensity projection
 d.pn=[]; %no CI video path
 d.ROIv=0; %no ROI values were loaded
-d.ROImeans=[]; %no ROI values have been calculated
+d.ROIs=[]; %no ROI values have been collected
+d.ROImeans=[]; %no mean ROI values have been calculated
 d.decon=0; %calcium signal was not deconvoluted
 d.name=[]; %no name defined
-d.nscale=[]; %scale was not calculated yet
+d.triggerts=[]; % no triggerfile loaded
 p.F2=[];
 %colors for ROIs
 d.colors={[0    0.4471    0.7412],...
@@ -372,7 +391,7 @@ end
 files=dir(d.pn);
 tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
-    tf(k)=strcmp([d.fn(1:end-4) 'dFvid.mat'],files(k).name); %looking for dF/F processed video as .mat file
+    tf(k)=strcmp('name.mat',files(k).name); %looking for dF/F processed video as .mat file
 end
 if sum(tf)>0 %if a file is found
     % Construct a questdlg with two options
@@ -531,14 +550,14 @@ if sum(tf)>0 %if a file is found
                         d.origCI=imd;
                     end
                     d.dF=1; %signals that dF/F was performed
-                    load([d.pn '\' d.fn(1:end-4) 'vidalign']);
+                    load([d.pn '\' cell2mat(d.name) 'vidalign']);
                     d.align=vidalign; %whether alignment was applied
                     d.pre=1; %presprocessing was performed
 
                     msgbox('Loading complete!');
                 case 'NO'
                     d.dF=1; %signals that dF/F was performed
-                    load([d.pn '\' d.fn(1:end-4) 'vidalign']);
+                    load([d.pn '\' cell2mat(d.name) 'vidalign']);
                     d.align=vidalign; %whether alignment was applied
                     d.pre=1; %presprocessing was performed
                     d.origCI=[];
@@ -2176,11 +2195,13 @@ d.bcount=0; %signals ROI button was not pressed
 d.pushed=1; %signals video was loaded
 %re-initialization of variables for ROI calculations
 d.ROIs=[];
+d.neuropil=[];
 d.mask=zeros(size(d.imd,1),size(d.imd,2));
 d.ROIsbw=zeros(size(d.imd,1),size(d.imd,2));
 d.roisdefined=0; %signals no ROIs were selected
 d.load=0; %signals that no ROI mask was loaded
 d.ROIv=0; %no ROI values loaded
+d.decon=0;
 
 if d.pre==0
     msgbox('Please do preprocessing & Delta F/F calculation before proceeding!','ATTENTION');
@@ -2279,8 +2300,8 @@ d.bcount=0;
 F=d.imd;
 mip=d.mip;
 pn=d.pn;
-fn=d.fn;
-[ROIsbw] = pcaica(F,mip,pn,fn,handles);
+name=d.name;
+[ROIsbw] = pcaica(F,mip,pn,name,handles);
 %if cancel was pressed
 if isempty(ROIsbw)==1 || sum(sum(sum(ROIsbw)))==0
     return;
@@ -2378,8 +2399,8 @@ colorsb={[0    0.4    0.7],...
 
 %checking whether ROI values had been saved before and no ROI was added or
 %removed
-if d.ROIv==0 && isempty(d.ROIs)==1
-    if isempty(d.nscale)==1
+if d.ROIv==0 && isempty(d.ROIs)==1 && d.decon==0
+    if isempty(p.nscale)==1
         %asking for scale of the video to determine neuropil radius of 20 um, doric model S 700um, model L 350um, nVista 650 um (shorter side), Miniscope 450um (shorter side)
         models=[700 350 650 450]; %predefined sizes of the different microscope models
         prompt = {'Enter the field of view size in um for short side:';'Select microscope model:'};
@@ -2412,10 +2433,10 @@ if d.ROIv==0 && isempty(d.ROIs)==1
         end
         scale=shorterSide/um; %pixel divided by um equals the scale to convert from um to pixel
         neuropilRadius=round(20*scale); %the needed neuropil radius of 20 um equals 20 times the scale to obtain the radius in pixel
-        d.nscale=neuropilRadius;
+        p.nscale=neuropilRadius;
         %saving scale
         filename=[d.pn '\nscale'];
-        nscale=d.nscale;
+        nscale=p.nscale;
         save(filename, 'nscale');
     end
     
@@ -2425,7 +2446,7 @@ if d.ROIv==0 && isempty(d.ROIs)==1
     d.ROIs=cell(size(d.imd,3),numROIs);
     d.neuropil=cell(size(d.imd,3),numROIs);
     ROIcenter=cell(1,numROIs);
-    se=strel('disk',d.nscale,8);
+    se=strel('disk',p.nscale,8);
     h=waitbar(0,'Labeling ROIs');
     for j=1:numROIs
         % You can only multiply integers if they are of the same type.
@@ -2446,6 +2467,8 @@ if d.ROIv==0 && isempty(d.ROIs)==1
         try
             waitbar(j/numROIs,h);
         catch
+            d.ROIs=[];
+            d.neuropil=[];
             return;
         end
     end
@@ -2612,9 +2635,8 @@ if d.ROIv==0 && isempty(d.ROIs)==1
                         return;
                 end
         end
-       %if a change was made to the ROI mask labeling ROIs for every first frame of the video
+        %if a change was made to the ROI mask labeling ROIs for every first frame of the video
         numROIs=size(d.ROIsbw,3); %number of ROIs
-        oldnumROIs=size(d.cCaSignal,2);
         ROIs=cell(1,numROIs);
         h=waitbar(0,'Labeling ROIs');
         for j=1:numROIs
@@ -2625,6 +2647,7 @@ if d.ROIv==0 && isempty(d.ROIs)==1
             try
                 waitbar(j/numROIs,h);
             catch
+                d.ROIs=[];
                 return;
             end
         end
@@ -2633,107 +2656,67 @@ if d.ROIv==0 && isempty(d.ROIs)==1
         %identify changes in the ROI mask
         c=0;
         changedROIs=[];
-        if numROIs>oldnumROIs
-            for i=1:oldnumROIs
-                if isequal(ROIs{1,i},d.ROIs{1,i})==0 %if the matrices for old ROI and new ROI are different, recalculation!
-                    c=c+1;
-                    changedROIs(1,c)=i; %varable saves all the indexes of changed ROIs;
-                end
+        for i=1:numROIs
+            if isequal(ROIs{1,i},d.ROIs{1,i})==0 %if the matrices for old ROI and new ROI are different, recalculation!
+                c=c+1;
+                changedROIs(1,c)=i; %varable saves all the indexes of changed ROIs;
             end
-            cc=0;
-            chindx=length(changedROIs);
-            for k=oldnumROIs+1:numROIs
-                cc=cc+1;
-                changedROIs(1,chindx+cc)=k;
-            end
-        else
-            for i=1:numROIs
-                if isequal(ROIs{1,i},d.ROIs{1,i})==0 %if the matrices for old ROI and new ROI are different, recalculation!
-                    c=c+1;
-                    changedROIs(1,c)=i; %varable saves all the indexes of changed ROIs;
-                end
-            end
-
         end
-        if isempty(changedROIs)==1 && numROIs<oldnumROIs
-            d.bcount=numROIs;
-            d.ROIs=d.ROIs(:,1:numROIs);
-            d.ROImeans=d.ROImeans(:,1:numROIs);
-            d.neuropil=d.neuropil(:,1:numROIs);
-            d.cCaSignal=d.cCaSignal(:,1:numROIs);
-            d.spikes=d.spikes(:,1:numROIs);
-            d.ts=d.ts(1,1:numROIs);
-            d.amp=d.amp(1,1:numROIs);
-            d.NoofSpikes=d.NoofSpikes(1:numROIs,1);
-            d.Frequency=d.Frequency(1:numROIs,1);
-            d.Amplitude=d.Amplitude(1:numROIs,1);
-            %saving calcium signal
-            ROImeans=d.ROImeans;
-            cCaSignal=d.cCaSignal;
-            spikes=d.spikes;
-            d.decon=1; %signal was deconvoluted;
-            decon=d.decon;
-            filename=[d.pn '\' cell2mat(d.name) 'CaSignal'];
-            save(filename, 'ROImeans','cCaSignal','spikes','decon');
-        else
-            %labeling ROIs for every frame of the video
-            n=size(d.imd,3);
-            numROIs=size(d.ROIsbw,3); %number of ROIs
-            ROIcenter=cell(1,numROIs);
-            if numROIs<oldnumROIs
-                d.ROIs=d.ROIs(:,1:numROIs);
-                d.neuropil=d.neuropil(:,1:numROIs);
+        %labeling ROIs for every frame of the video
+        n=size(d.imd,3);
+        numROIs=size(d.ROIsbw,3); %number of ROIs
+        ROIcenter=cell(1,numROIs);
+        d.ROIs=d.ROIs(:,1:numROIs);
+        d.neuropil=d.neuropil(:,1:numROIs);
+        se=strel('disk',p.nscale,8);
+        h=waitbar(0,'Labeling ROIs');
+        for j=1:length(changedROIs)
+            % You can only multiply integers if they are of the same type.
+            ROIsc = cast(d.ROIsbw(:,:,changedROIs(j)), class(d.imd(:,:,1)));
+            ROIc=regionprops(d.ROIsbw(:,:,changedROIs(j)),'Centroid');
+            ROIcenter{1,changedROIs(j)}=ROIc.Centroid;
+            for i=1:n
+                imdrem= ROIsc .* d.imd(:,:,i);
+                d.ROIs{i,changedROIs(j)}=imdrem(imdrem~=0);
             end
-            se=strel('disk',d.nscale,8);
-            h=waitbar(0,'Labeling ROIs');
-            for j=1:length(changedROIs)
-                % You can only multiply integers if they are of the same type.
-                ROIsc = cast(d.ROIsbw(:,:,changedROIs(j)), class(d.imd(:,:,1)));
-                ROIc=regionprops(d.ROIsbw(:,:,changedROIs(j)),'Centroid');
-                ROIcenter{1,changedROIs(j)}=ROIc.Centroid;
-                for i=1:n
-                    imdrem= ROIsc .* d.imd(:,:,i);
-                    d.ROIs{i,changedROIs(j)}=imdrem(imdrem~=0);
-                end
-                %neuropil around the ROI
-                neurop=imdilate(ROIsc,se);
-                neurop2=neurop-ROIsc;
-                for i=1:n
-                    imdneu= neurop2 .* d.imd(:,:,i);
-                    d.neuropil{i,changedROIs(j)}=imdneu(imdneu~=0);
-                end
-                try
-                    waitbar(j/numROIs,h);
-                catch
-                    return;
-                end
+            %neuropil around the ROI
+            neurop=imdilate(ROIsc,se);
+            neurop2=neurop-ROIsc;
+            for i=1:n
+                imdneu= neurop2 .* d.imd(:,:,i);
+                d.neuropil{i,changedROIs(j)}=imdneu(imdneu~=0);
             end
-            close(h);
-
-            nframes=size(d.imd,3);
-
-            % calculate mean grey value of ROIs in percent
-            numROIs=size(d.ROIs,2);
-            if numROIs<oldnumROIs
-                d.ROImeans=d.ROImeans(:,1:numROIs);
+            try
+                waitbar(j/numROIs,h);
+            catch
+                d.ROIs=[];
+                d.neuropil=[];
+                return;
             end
-            h=waitbar(0,'Calculating ROI values');
-            for k=1:length(changedROIs)
-                for i=1:nframes
-                    ROIm=mean(d.ROIs{i,changedROIs(k)});
-                    neuropilm=mean(d.neuropil{i,changedROIs(k)});
-                    d.ROImeans(i,changedROIs(k))=(ROIm-neuropilm*p.options.neuF)*100; %in percent
-                end
-                d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends and shifting values above zero
-                try
-                    waitbar(k/numROIs,h);
-                catch
-                    d.ROImeans=[];
-                    return;
-                end
-            end
-            close(h);
         end
+        close(h);
+
+        nframes=size(d.imd,3);
+
+        % calculate mean grey value of ROIs in percent
+        numROIs=size(d.ROIs,2);
+        d.ROImeans=d.ROImeans(:,1:numROIs);
+        h=waitbar(0,'Calculating ROI values');
+        for k=1:length(changedROIs)
+            for i=1:nframes
+                ROIm=mean(d.ROIs{i,changedROIs(k)});
+                neuropilm=mean(d.neuropil{i,changedROIs(k)});
+                d.ROImeans(i,changedROIs(k))=(ROIm-neuropilm*p.options.neuF)*100; %in percent
+            end
+            d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends and shifting values above zero
+            try
+                waitbar(k/numROIs,h);
+            catch
+                d.ROImeans=[];
+                return;
+            end
+        end
+        close(h);
     end
     %saving ROI values
     filename=[d.pn '\' cell2mat(d.name) '_ROIvalues'];
@@ -2741,7 +2724,7 @@ if d.ROIv==0 && isempty(d.ROIs)==1
     save(filename, 'ROImeans');
     d.ROIv=1;
     d.decon=0;
-elseif d.ROIv==0
+elseif isempty(d.ROIs)==0 && d.ROIv==0 && d.decon==1
     %if a change was made to the ROI mask labeling ROIs for every first frame of the video
     numROIs=size(d.ROIsbw,3); %number of ROIs
     oldnumROIs=size(d.cCaSignal,2);
@@ -2755,6 +2738,8 @@ elseif d.ROIv==0
         try
             waitbar(j/numROIs,h);
         catch
+            d.ROIs=[];
+            d.neuropil=[];
             return;
         end
     end
@@ -2814,7 +2799,7 @@ elseif d.ROIv==0
             d.ROIs=d.ROIs(:,1:numROIs);
             d.neuropil=d.neuropil(:,1:numROIs);
         end
-        se=strel('disk',d.nscale,8);
+        se=strel('disk',p.nscale,8);
         h=waitbar(0,'Labeling ROIs');
         for j=1:length(changedROIs)
             % You can only multiply integers if they are of the same type.
@@ -2835,6 +2820,8 @@ elseif d.ROIv==0
             try
                 waitbar(j/numROIs,h);
             catch
+                d.ROIs=[];
+                d.neuropil=[];
                 return;
             end
         end
@@ -2918,7 +2905,9 @@ for j=1:size(d.ROImeans,2)
         axlim=get(gca,'YLim'); %limits of y-axis
         for l=1:v.amount
             for m=1:length(v.barstart.(char(v.name{1,l})))
-            rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),axlim(1),v.barwidth.(char(v.name{1,l}))(m),axlim(2)*2],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                if isempty(v.barstart.(char(v.name{1,l})))==0
+                    rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),axlim(1),v.barwidth.(char(v.name{1,l}))(m),axlim(2)*2],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                end
             end
         end
         plot(d.cCaSignal(:,j),'Color',colors{1,j}),hold on;
@@ -2954,7 +2943,9 @@ subplot(2,1,1);
 if v.behav==1 %drawing bars signalling the various defined behaviors, if behaviors have been defined
     for l=1:v.amount
         for m=1:length(v.barstart.(char(v.name{1,l})))
-        rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),size(d.ROImeans,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+            if isempty(v.barstart.(char(v.name{1,l})))==0
+                rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),size(d.ROImeans,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+            end
         end
     end
 end
@@ -2984,7 +2975,9 @@ if v.behav==1 %drawing bars signalling the various defined behaviors, if behavio
     axlim=get(gca,'YLim');
     for l=1:v.amount
         for m=1:length(v.barstart.(char(v.name{1,l})))
-        rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),axlim(1,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+            if isempty(v.barstart.(char(v.name{1,l})))==0
+                rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),axlim(1,2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+            end
         end
     end
     plot(sum(d.spikes,2),'k');
@@ -2992,7 +2985,7 @@ else
     plot(sum(d.spikes,2));
 end
 xlabel('Time in seconds');
-ylabel('Number of spikes');
+ylabel('Number of Ca events');
 xlim([0 round(size(d.imd,3))]);
 %changing tick labels from frames to seconds by dividing by framerate
 ticlabel=get(gca,'XTickLabel');
@@ -3016,19 +3009,12 @@ if v.behav==1
         for k=1:length(v.barstart.(names{j,1}))
             behavior=[behavior,v.barstart.(names{j,1})(k):v.barstart.(names{j,1})(k)+v.barwidth.(names{j,1})(k)];
         end
-        behaviors.(names{j,1})=behavior';
-        spkbehav=spkno(behaviors.(names{j,1}),1);
-        spkno(behaviors.(names{j,1}),1)=0;
+        behaviors=behavior';
+        spkbehav=spkno(behaviors,1);
         spkbsum=sum(spkbehav);
         spkfreq.(names{j,1})=spkbsum/(spkasize/d.framerate);
     end
-    spkfreq.nobehavior=sum(spkno)/(spkasize/d.framerate);
 end
-
-% %calculating event behaviour if trigger file was loaded
-% if isempty(d.triggerts)==0
-%     
-% end
 
 %saving traces
 % Construct a questdlg with two options
@@ -3089,7 +3075,7 @@ switch choice
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
             
-            %saving raw ROI values over time
+            %saving fluorescence traces over time
             h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))]),c=colorbar;
             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
             title('Fluorescence traces');
@@ -3110,6 +3096,69 @@ switch choice
             path=regexprep(path,'\','/');
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
+            
+            %calculating event behaviour if trigger file was loaded
+            if isempty(d.triggerts)==0 && d.decon==1
+                %plotting mean fluorescence
+                mVal=mean(d.cCaSignal,2);
+                win=[5 50];
+                rep=zeros(size(d.triggerts,1),sum(win)+1);
+                for i=1:size(d.triggerts,1)
+                    rep(i,:)=mVal(d.triggerts(i,1)-win(1):d.triggerts(i,1)+win(2));
+                end
+                meantrig=mean(rep,1);
+                e = std(meantrig);
+                h=figure;
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                errorbar([1:length(meantrig)],meantrig,e);hold on;
+                %plotting vertical line to indicate time of trigger
+                axlim=get(gca,'YLim');
+                a=win(1);
+                plot([a a],axlim);
+                title('Mean fluorescence trace with trigger');
+                xlabel('Time in seconds');
+                ylabel('dF/F in %');
+                xlim([0 round(size(d.imd,3))]);
+                ticlabel=get(gca,'XTickLabel');
+                for k=1:length(ticlabel)
+                    ticlabel{k,1}=str2num(ticlabel{k,1});
+                end
+                ticlabel=cell2mat(ticlabel);
+                ticlabel=ticlabel./d.framerate;
+                set(gca,'XTickLabel',ticlabel);
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                fname=[cell2mat(d.name) '_Fluotrig'];
+                path=[d.pn '/traces/',fname,'.png'];
+                path=regexprep(path,'\','/');
+                print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                close(h);
+                
+                %plotting mean fluorescence with trigger as heat map image
+                h=figure;imagesc(rep',[round(min(min(rep))) round(max(max(rep)))]),c=colorbar;hold on;
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                %plotting vertical line to indicate time of trigger
+                axlim=get(gca,'YLim');
+                a=win(1);
+                plot([a a],axlim);
+                title('Fluorescence traces');
+                xlabel('Time in seconds');
+                ylabel('Cell number');
+                c.Label.String='dF/F in %';
+                xlim([0 round(size(d.imd,3))]);
+                ticlabel=get(gca,'XTickLabel');
+                for k=1:length(ticlabel)
+                    ticlabel{k,1}=str2num(ticlabel{k,1});
+                end
+                ticlabel=cell2mat(ticlabel);
+                ticlabel=ticlabel./d.framerate;
+                set(gca,'XTickLabel',ticlabel);
+                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                fname=[cell2mat(d.name) '_Fluotrigheat'];
+                path=[d.pn '/traces/',fname,'.png'];
+                path=regexprep(path,'\','/');
+                print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                close(h);
+            end
 
             %saving table
             filename=[d.pn '\traces\ROIs_' cell2mat(d.name) '.xls'];
@@ -3167,7 +3216,7 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(figurenum,'-dpng','-r200',path); %-depsc for vector graphic
                 %saving table
-                filename=[d.pn '\traces\freqbehav_' d.fn(1:end-4) '.xls'];
+                filename=[d.pn '\traces\freqbehav_' cell2mat(d.name) '.xls'];
                 T=struct2table(spkfreq);
                 writetable(T,filename);
 
@@ -3177,13 +3226,15 @@ switch choice
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 for l=1:v.amount
                     for m=1:length(v.barstart.(char(v.name{1,l})))
-                    rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),round(min(mVal),1),v.barwidth.(char(v.name{1,l}))(m),abs(round(min(mVal),1))+round(max(mVal),1)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                        if isempty(v.barstart.(char(v.name{1,l})))==0
+                            rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),round(min(mVal),1),v.barwidth.(char(v.name{1,l}))(m),abs(round(min(mVal),1))+ceil(max(mVal))],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                        end
                     end
                 end
                 plot(mVal,'k');
                 title('Mean fluorescence trace with behavior');
                 xlabel('Time in seconds');
-                ylabel('Brightness in %');
+                ylabel('dF/F in %');
                 xlim([0 round(size(d.imd,3))]);
                 ticlabel=get(gca,'XTickLabel');
                 for k=1:length(ticlabel)
@@ -3198,21 +3249,23 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
-                %saving mean firing rate with behaviour
-                meanspks=sum(d.spikes,2)*d.framerate/size(d.spikes,1);
+                %saving mean event rate with behaviour
+                meanspks=mean(d.spikes,2)*d.framerate;
                 h=figure;
                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 plot(1:size(meanspks,1),meanspks,'k'); hold on;
                 axlim=get(gca,'YLim');
                 for l=1:v.amount
                     for m=1:length(v.barstart.(char(v.name{1,l})))
-                        rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),axlim(2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                        if isempty(v.barstart.(char(v.name{1,l})))==0
+                            rectangle('Position',[v.barstart.(char(v.name{1,l}))(m),0,v.barwidth.(char(v.name{1,l}))(m),axlim(2)],'edgecolor',colorsb{1,l},'facecolor',colorsb{1,l}),hold on;
+                        end
                     end
                 end
                 plot(1:size(meanspks,1),meanspks,'k');
-                title('Mean firing rate with behavior');
+                title('Mean event rate with behavior');
                 xlabel('Time in seconds');
-                ylabel('Firing rate in spk/s');
+                ylabel('Event rate in ev/s');
                 xlim([0 round(size(d.imd,3))]);
                 ticlabel=get(gca,'XTickLabel');
                 for k=1:length(ticlabel)
@@ -3227,6 +3280,10 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
+                try
+                    close(f);
+                catch
+                end
                 msgbox('Done!','Attention');
             else %if behaviors were not defined
                 rmdir([d.pn '\traces'],'s'); %delete existing folder
@@ -3292,6 +3349,67 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
+                
+                %calculating event behaviour if trigger file was loaded
+                if isempty(d.triggerts)==0 && d.decon==1
+                    %plotting mean fluorescence
+                    mVal=mean(d.cCaSignal,2);
+                    win=[5 50];
+                    rep=zeros(size(d.triggerts,1),sum(win)+1);
+                    for i=1:size(d.triggerts,1)
+                        rep(i,:)=mVal(d.triggerts(i,1)-win(1):d.triggerts(i,1)+win(2));
+                    end
+                    meantrig=mean(rep,1);
+                    e = std(rep,[],1);
+                    eup=meantrig+e;
+                    edown=meantrig-e;
+                    h=figure;
+                    set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                    area(eup,'FaceColor',[0.8 0.8 0.8],'EdgeColor',[1 1 1]),hold on,area(edown,'FaceColor',[1 1 1],'EdgeColor',[1 1 1]),plot(meantrig,'k');
+                    %plotting vertical line to indicate time of trigger
+                    aylim=get(gca,'YLim');
+                    a=win(1);
+                    plot([a a],aylim);hold off;
+                    title('Mean fluorescence trace with trigger');
+                    xlabel('Time in seconds');
+                    ylabel('dF/F in %');
+                    axlim=get(gca,'XLim');
+                    ticlabel=get(gca,'XTickLabel');
+                    for k=1:length(ticlabel)
+                        ticlabel{k,1}=str2num(ticlabel{k,1});
+                    end
+                    ticlabel=cell2mat(ticlabel);
+                    ticlabel=ticlabel./d.framerate;
+                    set(gca,'XTickLabel',ticlabel);
+                    set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+                    fname=[cell2mat(d.name) '_Fluotrig'];
+                    path=[d.pn '/traces/',fname,'.png'];
+                    path=regexprep(path,'\','/');
+                    print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                    close(h);
+                    
+                    %plotting mean fluorescence with trigger as heat map image
+                    h=figure;imagesc(rep),c=colorbar;hold on;
+                    %plotting vertical line to indicate time of trigger
+                    a=win(1);
+                    plot([a a],[0 size(rep,1)+0.5],'w','LineWidth',2);
+                    title('Fluorescence traces with trigger');
+                    xlabel('Time in seconds');
+                    ylabel('Trial number');
+                    c.Label.String='dF/F in %';
+                    ticlabel=get(gca,'XTickLabel');
+                    for k=1:length(ticlabel)
+                        ticlabel{k,1}=str2num(ticlabel{k,1});
+                    end
+                    ticlabel=cell2mat(ticlabel);
+                    ticlabel=ticlabel./d.framerate;
+                    set(gca,'XTickLabel',ticlabel);
+                    fname=[cell2mat(d.name) '_Fluotrigheat'];
+                    path=[d.pn '/traces/',fname,'.png'];
+                    path=regexprep(path,'\','/');
+                    print(h,'-dpng','-r200',path); %-depsc for vector graphic
+                    close(h);
+                end
 
                 %saving table
                 filename=[d.pn '\traces\ROIs_' cell2mat(d.name) '.xls'];
@@ -3361,7 +3479,12 @@ end
 %load the trigger event file
 triggerfile=cell2mat(struct2cell(load([pn fn])));
 %assuming zeros mean no trigger, above zero means trigger
-d.triggerts=find(triggerfile>0);
+d.triggerts=triggerfile;
+d.triggerts(:,1)=triggerfile(:,1)/1000*d.framerate; %converting ms to frames for this file
+
+%define display window
+
+msgbox('Done!');
 
 
 
@@ -4402,8 +4525,10 @@ elseif sum(tf)==0 && sum(tf2)>0
             figure;
             str={};
             for j=1:v.amount
-                area(1:size(v.imd,2),v.bars.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
-                str(end+1)={char(v.name{1,j})}; %#ok<*AGROW>
+                if isempty(v.bars.(char(v.name{1,j})))==0
+                    area(1:size(v.imd,2),v.bars.(char(v.name{1,j})),'edgecolor',d.colors{1,j},'facecolor',d.colors{1,j},'facealpha',0.5),hold on;
+                    str(end+1)={char(v.name{1,j})}; %#ok<*AGROW>
+                end
             end
             %relabeling X-ticks in time in seconds
             xlabel('Time in seconds');
@@ -5232,7 +5357,7 @@ if fn==0
     return;
 end
 %checking if a Behaviour file was selected
-TF = strncmpi('preset',fn,6)
+TF = strncmpi('preset',fn,6);
 if TF==0
     msgbox('Please select a preset*.mat file!','ERROR');
     return;
@@ -5765,7 +5890,7 @@ if fn==0
     return;
 end
 %checking if a Behaviour file was selected
-TF = strncmpi('tracingROIs',fn,11)
+TF = strncmpi('tracingROIs',fn,11);
 if TF==0
     msgbox('Please select a tracingROIs.mat file!','ERROR');
     return;
@@ -5947,35 +6072,42 @@ v.barwidth=[];
 for i=1:v.amount
     v.bars.(char(v.name{1,i}))=zeros(size(v.events.(char(v.name{1,1}))));
     behav=v.events.(char(v.name{1,i}));
-    otherbehav=allbehav-v.events.(char(v.name{1,i}));
-    otherbehav(otherbehav>0)=2;
-    indxother=find(otherbehav==2);
-    behavstart=find(behav==1);
-    behavend=[];
-    for k=1:length(behavstart)
-        a=indxother(indxother>behavstart(k),1);
-        if isempty(a)==0
-            behavend(k,1)=a(1,1)-1;
-        else
-            behavend(k,1)=size(d.imd,3);
+    if sum(behav)>0
+        otherbehav=allbehav-v.events.(char(v.name{1,i}));
+        otherbehav(otherbehav>0)=2;
+        indxother=find(otherbehav==2);
+        behavstart=find(behav==1);
+        behavend=[];
+        for k=1:length(behavstart)
+            a=indxother(indxother>behavstart(k),1);
+            if isempty(a)==0
+                behavend(k,1)=a(1,1)-1;
+            else
+                behavend(k,1)=size(d.imd,3);
+            end
+            v.bars.(char(v.name{1,i}))(behavstart(k):behavend(k))=1;
         end
-        v.bars.(char(v.name{1,i}))(behavstart(k):behavend(k))=1;
+        v.barstart.(char(v.name{1,i}))=behavstart;
+        v.barwidth.(char(v.name{1,i}))=behavend-behavstart;
+        %plotting timebars
+        area(1:size(v.imd,2),v.bars.(char(v.name{1,i})),'edgecolor',d.colors{1,i},'facecolor',d.colors{1,i}),hold on;
+        str(end+1)={char(v.name{1,i})}; %#ok<AGROW>
+    else
+        v.bars.(char(v.name{1,i}))=[];
+        v.barstart.(char(v.name{1,i}))=[];
+        v.barwidth.(char(v.name{1,i}))=[];
     end
-    v.barstart.(char(v.name{1,i}))=behavstart;
-    v.barwidth.(char(v.name{1,i}))=behavend-behavstart;
-    %plotting timebars
-    area(1:size(v.imd,2),v.bars.(char(v.name{1,i})),'edgecolor',d.colors{1,i},'facecolor',d.colors{1,i},'facealpha',0.5),hold on;
-    str(end+1)={char(v.name{1,i})}; %#ok<AGROW>
 end
 xlabel('Time in seconds');
 tlabel=get(gca,'XTickLabel');
 for n=1:length(tlabel)
-tlabel{n,1}=str2num(tlabel{n,1});
+    tlabel{n,1}=str2num(tlabel{n,1});
 end
 tlabel=cell2mat(tlabel);
 tlabel=tlabel./d.framerate;
 set(gca,'XTickLabel',tlabel);
 legend(str);
+title('Behaviour')
 hold off;
     
 %saving plot
@@ -6026,7 +6158,7 @@ if fn==0
     return;
 end
 %checking if a Behaviour file was selected
-TF = strncmpi('Behavior',fn,8)
+TF = strncmpi('Behavior',fn,8);
 if TF==0
     msgbox('Please select a Behavior_"filename".mat file!','ERROR');
     return;
@@ -6036,6 +6168,13 @@ end
 load([pn fn]);
 v.name=BehavNames;
 v.skdefined=Amount;
+v.amount=Amount;
+
+%re-initializing event counter
+for k=1:v.amount
+    v.events.(char(v.name{1,k})) = zeros(size(v.imd,2),1);
+end
+
 msgbox('Loading complete!');
 
 
@@ -6113,6 +6252,7 @@ function nscale_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
+global p
 path=cd;
 pcd=strfind(path,'roisub');
 if isempty(pcd)==1
@@ -6152,14 +6292,14 @@ else
 end
 scale=shorterSide/um; %pixel divided by um equals the scale to convert from um to pixel
 neuropilRadius=round(20*scale); %the needed neuropil radius of 20 um equals 20 times the scale to obtain the radius in pixel
-d.nscale=neuropilRadius;
+p.nscale=neuropilRadius;
 %saving scale
 filename=[d.pn '\nscale'];
-nscale=d.nscale;
+nscale=p.nscale;
 save(filename, 'nscale');
 %saving preference
 filename=[cd '\preferences'];
-preferences.nscale=d.nscale;
+preferences.nscale=p.nscale;
 save(filename, 'preferences');
 
 

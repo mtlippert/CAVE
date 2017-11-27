@@ -1,4 +1,4 @@
-function [ROIsbw] = pcaica(F,mip,pn,fn,handles)
+function [ROIsbw] = pcaica(F,mip,pn,name,handles)
 
 %FUNCTION for calculating PCA and ICA in order to automatically find ROIs
 %in the calcium imaging video. First the deimencions are reduced by PCA and
@@ -27,15 +27,15 @@ if isempty(p.F2)==1
         close(h);
     catch
     end
-end
-%saving PCA
-h=msgbox('Saving progress... Program might seem unresponsive, please wait!');
-filename=[pn '\' fn 'PCA.mat'];
-PCA=p.F2;
-save(filename, 'PCA','-v7.3');
-try
-    close(h);
-catch
+    %saving PCA
+    h=msgbox('Saving progress... Program might seem unresponsive, please wait!');
+    filename=[pn '\' cell2mat(name) 'PCA.mat'];
+    PCAF2=p.F2;
+    save(filename, 'PCAF2','-v7.3');
+    try
+        close(h);
+    catch
+    end
 end
 
 %ICA

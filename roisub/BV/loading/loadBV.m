@@ -48,7 +48,7 @@ for j=1:length(fn) %loading behavioral video parts
                 sframe=[];
                 imd=[];
                 dimd=[];
-                dROIv=[];
+                dROIv=0;
                 return;
             end
         end
@@ -62,7 +62,7 @@ for j=1:length(fn) %loading behavioral video parts
                 sframe=[];
                 imd=[];
                 dimd=[];
-                dROIv=[];
+                dROIv=0;
                 return;
             end
         end
@@ -84,7 +84,7 @@ end
 sframe=size(imd,2)-dsize;
 if sframe>=0
     imd=imd(1:dsize); %cutting of BV video
-    dROIv=[];
+    dROIv=0;
 else
     dimd=dimd(:,:,1:length(imd)); %cutting of CI video
     %re-initialization for ROI plotting
