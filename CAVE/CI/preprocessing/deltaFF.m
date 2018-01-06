@@ -15,6 +15,9 @@ function [imddFF] = deltaFF(imd,pn,fn,align)
 %OUTPUT     imddFF: resulting video from delta F/F calculation showing the
 %           change in fluorescence over time.
 
+%OPTIONAL   temporal filtering
+
+
 global p
 
 %deltaF/F
@@ -27,6 +30,7 @@ h=msgbox('Calculating deltaF/F... please wait!');
 %         imdd(kr,kc,:)=filtfilt(bFilt,aFilt,double(imd(kr,kc,:))); %temporal low-passing
 %      end
 % end
+%imd=imdd;
  
 Fmean=mean(imd(:,:,1:100:end),3); %mean frame of whole video by taking every 100th frame
 imddF=bsxfun(@rdivide,bsxfun(@minus,double(imd),Fmean),Fmean); %frame minus meanframe divided by meanframe

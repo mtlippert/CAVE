@@ -9,13 +9,12 @@ Names = [
     'dsw         '  % minimum width at which downsampling is performed
     'dsr         '  % downsampling rate for imresize
     'blur        '  % blur used for flat field correction
-    'movav       '  % moving average window used for moving averaging temporal filter
     % dust removal
     'dustr       '  % radius of the disk surrounding the ROI to obtain the neighbourhood mean of the ROI
     % alignment
     'wienerp     '  % neighbourhood of m-by-n to estimate local image mean with wiener2 filter
     'usfac       '  % upsampling factor Images will be registered to within 1/usfac of a pixel
-    'LClevels    '  % the number of levels for multi-resolution axecution, LucasKanade
+    'LClevels    '  % the number of levels for multi-resolution execution, LucasKanade
     'LCiter      '  % the number of algorithm's iteration, LucasKanade
     % delta F/F
     'dbutterd    '  % value for designing butterworth filter
@@ -27,10 +26,11 @@ Names = [
     'pisaa       '  % smallest acceptable area for ica results
     'pibwP       '  % removes all connected components that have fewer than P pixels from the binary image BW
     'picsize     '  % first inverts images that contain components bigger than P pixels, then removes all components bigger than P pixels
-    'pinroT      '  % deletes objects that roundness metric is greater than T
+    'pinroT      '  % deletes objects that roundness metric is smaller than T
     'piolO       '  % deletes objects that overlap more than O percent
     % ROI plotting
     'neuF        '  % neuropil correction factor r
+    'spkthrs     '  % threshold for detecting spikes from deconvoluted calcium traces as in factor of std
     'ROIdist     '  % distance threshold D between the center of two ROIs, if smaller, then ROIs will bechecked for similar Ca signals
     'sigcorr     '  % correlation coefficient threshold C of the signal of two ROIs, if smaller, ROIs are assumed to be one cell
     'chg         '  % deleting ROIs which maximum fluorescence change is smaller than 0.8%
@@ -78,7 +78,6 @@ Values = [
     {100}
     {0.4}
     {0.08}
-    {3}
     % dust removal
     {8}
     % alignment
@@ -100,6 +99,7 @@ Values = [
     {30}
     % ROI plotting
     {0.7}
+    {2}
     {8}
     {0.8}
     {0.8}

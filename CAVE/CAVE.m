@@ -270,6 +270,10 @@ if sum(tf)>0 %if a file is found
         case 'YES'
             p.help=1;
             handles.disphelp.Checked='on';
+            %saving preference
+            filename=[cd '\preferences'];
+            preferences.help=p.help;
+            save(filename, 'preferences');
         case 'NO'
             p.help=0;
             %saving preference
@@ -469,7 +473,7 @@ if sum(tf)>0 %if a file is found
             if d.decon==1
                 h=msgbox('Please wait while calcium signal is being plotted...');
                 %plotting ROI values
-                colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8)); %repeat color scheme as many times as there are ROIs
+                colors=repmat(d.colors,1,ceil(size(d.ROImeans,2)/8)); %repeat color scheme as many times as there are ROIs
                 %initializing that only 8 subplots will be in one figure
                 onesub=(1:8);
                 anysub=repmat(onesub,1,ceil(size(d.ROImeans,2)/8));
@@ -1035,12 +1039,34 @@ tf=zeros(1,length(dir(d.pn)));
 for k=1:length(dir(d.pn))
     tf(k)=strcmp('name.mat',files(k).name);
 end
+
 if sum(tf)>0 %if a file is found
-    d.name=answer;
     load([d.pn '\name.mat']);
-    name{1,size(name,2)+1}=cell2mat(answer);
-    filename=[d.pn '\name'];
-    save(filename, 'name');
+    for k=1:size(name,2)
+        tff(k)=strcmp(name{1,k},answer);
+    end
+    if sum(tff)>0
+        %when name already exist as previous version
+        % Construct a questdlg with two options
+        choice = questdlg('This name already exists, do you wish to overwrite it?', ...
+            'Attention', ...
+            'YES','NO','YES');
+        % Handle response
+        if isempty(choice)==1 %window was closed
+            return;
+        end
+        switch choice
+            case 'YES'
+
+            case 'NO'
+                return;
+        end
+    else
+        d.name=answer;
+        name{1,size(name,2)+1}=cell2mat(answer);
+        filename=[d.pn '\name'];
+        save(filename, 'name');
+    end
 else    
     d.name=answer;
     filename=[d.pn '\name'];
@@ -1245,12 +1271,34 @@ if isempty(d.name)==1
     for k=1:length(dir(d.pn))
         tf(k)=strcmp('name.mat',files(k).name);
     end
+    
     if sum(tf)>0 %if a file is found
-        d.name=answer;
         load([d.pn '\name.mat']);
-        name{1,size(name,2)+1}=cell2mat(answer);
-        filename=[d.pn '\name'];
-        save(filename, 'name');
+        for k=1:size(name,2)
+            tff(k)=strcmp(name{1,k},answer);
+        end
+        if sum(tff)>0
+            %when name already exist as previous version
+            % Construct a questdlg with two options
+            choice = questdlg('This name already exists, do you wish to overwrite it?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            if isempty(choice)==1 %window was closed
+                return;
+            end
+            switch choice
+                case 'YES'
+
+                case 'NO'
+                    return;
+            end
+        else
+            d.name=answer;
+            name{1,size(name,2)+1}=cell2mat(answer);
+            filename=[d.pn '\name'];
+            save(filename, 'name');
+        end
     else    
         d.name=answer;
         filename=[d.pn '\name'];
@@ -2231,7 +2279,7 @@ msgbox('ROIs cleared!','Success');
 
 
 
-% --------------------------------------------------------- ROIs of cells
+% ---------------------------------------------------- IMPORT ROIs of cells
 function CIrois_Callback(hObject, eventdata, handles)
 % hObject    handle to CIrois (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -2266,9 +2314,12 @@ end
 %extracts filename
 filepath=[d.pn '\'];
 [fn,pn,~]=uigetfile([filepath '*.mat']);
+TF = strfind(fn,'ROIs.mat');
 %if cancel was pressed
 if fn==0
     return;
+elseif isempty(TF)==1
+    uiwait(msgbox('You did not select a "filename"ROIs.mat file!','ERROR'));
 end
 
 %load the saved ROI mask, and order of labels
@@ -2539,7 +2590,7 @@ if d.ROIv==0 && isempty(d.ROIs)==1 && d.decon==0
             neuropilm=mean(d.neuropil{i,k});
             d.ROImeans(i,k)=(ROIm-neuropilm*p.options.neuF)*100; %in percent
         end
-        d.ROImeans(:,k)=detrend(d.ROImeans(:,k)); %removing global trends and shifting values above zero
+        d.ROImeans(:,k)=detrend(d.ROImeans(:,k)); %removing global trends
         try
             waitbar(k/numROIs,h);
         catch
@@ -2761,7 +2812,7 @@ if d.ROIv==0 && isempty(d.ROIs)==1 && d.decon==0
                 neuropilm=mean(d.neuropil{i,changedROIs(k)});
                 d.ROImeans(i,changedROIs(k))=(ROIm-neuropilm*p.options.neuF)*100; %in percent
             end
-            d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends and shifting values above zero
+            d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends
             try
                 waitbar(k/numROIs,h);
             catch
@@ -2894,7 +2945,7 @@ elseif isempty(d.ROIs)==0 && d.ROIv==0 && d.decon==1
                 neuropilm=mean(d.neuropil{i,changedROIs(k)});
                 d.ROImeans(i,changedROIs(k))=(ROIm-neuropilm*p.options.neuF)*100; %in percent
             end
-            d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends and shifting values above zero
+            d.ROImeans(:,changedROIs(k))=detrend(d.ROImeans(:,changedROIs(k))); %removing global trends
             try
                 waitbar(k/numROIs,h);
             catch
@@ -2968,7 +3019,7 @@ for j=1:size(d.ROImeans,2)
     strings=sprintf('ROI No.%d',j);
     %title('ROI values in percent');
     if ismember(j,check2)==1 || j==size(d.ROImeans,2) %writing x-axis label only for last plot in the figure
-        xlabel('Time in seconds');
+        xlabel('time [s]');
         %changing tick labels from frames to seconds by dividing by framerate
         tlabel=get(gca,'XTickLabel');
         for k=1:length(tlabel)
@@ -3008,7 +3059,7 @@ for j=1:size(d.ROImeans,2)
     end
     hold on;
     title('Cell activity raster plot');
-    xlabel('Time in seconds');
+    xlabel('time [s]');
     ylabel('ROI number');
     xlim([0 round(size(d.imd,3))]);
     ylim([0 size(d.ROImeans,2)+1]);
@@ -3037,8 +3088,8 @@ if v.behav==1 %drawing bars signalling the various defined behaviors, if behavio
 else
     plot(sum(d.spikes,2));
 end
-xlabel('Time in seconds');
-ylabel('Number of Ca events');
+xlabel('time [s]');
+ylabel('Calcium transients [1/s]');
 xlim([0 round(size(d.imd,3))]);
 %changing tick labels from frames to seconds by dividing by framerate
 ticlabel=get(gca,'XTickLabel');
@@ -3130,10 +3181,10 @@ switch choice
             
             %saving fluorescence traces over time
             h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))]),c=colorbar;
-            set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
             title('Fluorescence traces');
-            xlabel('Time in seconds');
-            ylabel('Cell number');
+            xlabel('time [s]');
+            ylabel('ROI number');
             c.Label.String='dF/F in %';
             xlim([0 round(size(d.imd,3))]);
             ticlabel=get(gca,'XTickLabel');
@@ -3143,7 +3194,7 @@ switch choice
             ticlabel=cell2mat(ticlabel);
             ticlabel=ticlabel./d.framerate;
             set(gca,'XTickLabel',ticlabel);
-            set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%             set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
             fname=[cell2mat(d.name) '_Fluo'];
             path=[d.pn '/traces/',fname,'.png'];
             path=regexprep(path,'\','/');
@@ -3169,7 +3220,7 @@ switch choice
                 a=p.win(1);
                 plot([a a],aylim,'LineWidth',2);hold off;
                 title('Mean fluorescence trace with trigger');
-                xlabel('Time in seconds');
+                xlabel('time [s]');
                 ylabel('dF/F in %');
                 axlim=get(gca,'XLim');
                 ticlabel=get(gca,'XTickLabel');
@@ -3191,7 +3242,7 @@ switch choice
                 a=p.win(1);
                 plot([a a],[0 size(rep,1)+0.5],'w','LineWidth',2);
                 title('Fluorescence traces with trigger');
-                xlabel('Time in seconds');
+                xlabel('time [s]');
                 ylabel('Trial number');
                 c.Label.String='dF/F in %';
                 ticlabel=get(gca,'XTickLabel');
@@ -3271,7 +3322,7 @@ switch choice
                 %saving mean values of ROIs over time with behavior
                 mVal=mean(d.cCaSignal,2);
                 h=figure;
-                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 for l=1:v.amount
                     for m=1:length(v.barstart.(char(v.name{1,l})))
                         if isempty(v.barstart.(char(v.name{1,l})))==0
@@ -3281,7 +3332,7 @@ switch choice
                 end
                 plot(mVal,'k');
                 title('Mean fluorescence trace with behavior');
-                xlabel('Time in seconds');
+                xlabel('time [s]');
                 ylabel('dF/F in %');
                 xlim([0 round(size(d.imd,3))]);
                 ticlabel=get(gca,'XTickLabel');
@@ -3291,7 +3342,7 @@ switch choice
                 ticlabel=cell2mat(ticlabel);
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
-                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 fname=[cell2mat(d.name) '_meanFluobehav'];
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
@@ -3300,7 +3351,7 @@ switch choice
                 %saving mean event rate with behaviour
                 meanspks=mean(d.spikes,2)*d.framerate;
                 h=figure;
-                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 plot(1:size(meanspks,1),meanspks,'k'); hold on;
                 axlim=get(gca,'YLim');
                 for l=1:v.amount
@@ -3312,8 +3363,8 @@ switch choice
                 end
                 plot(1:size(meanspks,1),meanspks,'k');
                 title('Mean event rate with behavior');
-                xlabel('Time in seconds');
-                ylabel('Event rate in ev/s');
+                xlabel('time [s]');
+                ylabel('Calcium transients [1/s]');
                 xlim([0 round(size(d.imd,3))]);
                 ticlabel=get(gca,'XTickLabel');
                 for k=1:length(ticlabel)
@@ -3322,7 +3373,7 @@ switch choice
                 ticlabel=cell2mat(ticlabel);
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
-                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 fname=[cell2mat(d.name) '_meanspksbehav'];
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
@@ -3379,12 +3430,12 @@ switch choice
                         
                         mVal=mean(d.cCaSignal,2);
                         for k=1:v.amount
-                            if v.barstart.(char(v.name{1,k}))(1,1)==1
+                            if v.barstart.(char(v.name{1,k}))(1,1)<=p.win(1)
                                 rep=zeros(size(v.barstart.(char(v.name{1,k})),1)-1,sum(p.win)+1);
                                 for i=2:size(v.barstart.(char(v.name{1,k})),1)
                                     rep(i,:)=mVal(v.barstart.(char(v.name{1,k}))(i,1)-p.win(1):v.barstart.(char(v.name{1,k}))(i,1)+p.win(2));
                                 end
-                            elseif v.barstart.(char(v.name{1,k}))(1,1)==size(mVal,1)
+                            elseif v.barstart.(char(v.name{1,k}))(end)>=size(mVal,1)-p.win(2)
                                 rep=zeros(size(v.barstart.(char(v.name{1,k})),1)-1,sum(p.win)+1);
                                 for i=1:size(v.barstart.(char(v.name{1,k})),1)-1
                                     rep(i,:)=mVal(v.barstart.(char(v.name{1,k}))(i,1)-p.win(1):v.barstart.(char(v.name{1,k}))(i,1)+p.win(2));
@@ -3399,29 +3450,38 @@ switch choice
                             %plotting vertical line to indicate time of trigger
                             a=p.win(1);
                             plot([a a],[0 size(rep,1)+0.5],'w','LineWidth',2);
-                            title('Fluorescence traces of ');
+                            title(['Fluorescence traces of ',char(v.name{1,k})]);
                             xlabel('time [s]');
                             ylabel('Trial number');
                             c.Label.String='dF/F in %';
                             ticlabel=get(gca,'XTickLabel');
-                            for k=1:length(ticlabel)
-                                ticlabel{k,1}=str2num(ticlabel{k,1});
+                            for j=1:length(ticlabel)
+                                ticlabel{j,1}=str2num(ticlabel{j,1});
                             end
                             ticlabel=cell2mat(ticlabel);
                             ticlabel=ticlabel./d.framerate;
                             set(gca,'XTickLabel',ticlabel);
-                            fname=[cell2mat(d.name) '_Fluotrigbehav'];
+                            stringname=sprintf('_Fluotrigbehav_%d',k);
+                            fname=[cell2mat(d.name) stringname];
                             path=[d.pn '/traces/',fname,'.png'];
                             path=regexprep(path,'\','/');
                             print(h,'-dpng','-r200',path); %-depsc for vector graphic
                             close(h);
+                            msgbox('Done!','Attention');
                         end
                     case 'NO'
                 end
                 
             else %if behaviors were not defined
-                rmdir([d.pn '\traces'],'s'); %delete existing folder
-                mkdir([d.pn '\traces']); %create same folder new, so that results are overwritten
+                files=dir([d.pn '\traces']);
+                tff=zeros(1,length(dir([d.pn '\traces'])));
+                for k=1:length(dir([d.pn '\traces']))
+                    tff(k)=strcmp([cell2mat(d.name) '_rasterplot.png'],files(k).name);
+                end
+                if sum(tff)>0
+                    rmdir([d.pn '\traces'],'s'); %delete existing folder
+                    mkdir([d.pn '\traces']); %create same folder new, so that results are overwritten
+                end
                 tnum=ceil(size(d.ROImeans,2)/8); %total number of figures with ROI traces
                 hfnum=get(fig,'Number'); %highest figure number
                 numseries=(hfnum-tnum:1:hfnum-1); %figure numbers with ROI values
@@ -3464,10 +3524,10 @@ switch choice
                 
                 %saving raw ROI values over time
                 h=figure;imagesc(d.ROImeans',[round(min(min(d.ROImeans))) round(max(max(d.ROImeans)))]),c=colorbar;
-                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 title('Fluorescence traces');
-                xlabel('Time in seconds');
-                ylabel('Cell number');
+                xlabel('time [s]');
+                ylabel('ROI number');
                 c.Label.String='dF/F in %';
                 xlim([0 round(size(d.imd,3))]);
                 ticlabel=get(gca,'XTickLabel');
@@ -3477,7 +3537,7 @@ switch choice
                 ticlabel=cell2mat(ticlabel);
                 ticlabel=ticlabel./d.framerate;
                 set(gca,'XTickLabel',ticlabel);
-                set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
+%                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
                 fname=[cell2mat(d.name) '_Fluo'];
                 path=[d.pn '/traces/',fname,'.png'];
                 path=regexprep(path,'\','/');
@@ -3503,7 +3563,7 @@ switch choice
                     a=p.win(1);
                     plot([a a],aylim,'LineWidth',2);hold off;
                     title('Mean fluorescence trace with trigger');
-                    xlabel('Time in seconds');
+                    xlabel('time [s]');
                     ylabel('dF/F in %');
                     axlim=get(gca,'XLim');
                     ticlabel=get(gca,'XTickLabel');
@@ -3525,7 +3585,7 @@ switch choice
                     a=p.win(1);
                     plot([a a],[0 size(rep,1)+0.5],'w','LineWidth',2);
                     title('Fluorescence traces with trigger');
-                    xlabel('Time in seconds');
+                    xlabel('time [s]');
                     ylabel('Trial number');
                     c.Label.String='dF/F in %';
                     ticlabel=get(gca,'XTickLabel');
@@ -3611,7 +3671,7 @@ end
 
 %load the trigger event file
 triggerfile=cell2mat(struct2cell(load([pn fn])));
-%assuming zeros mean no trigger, above zero means trigger
+
 d.triggerts=triggerfile;
 d.triggerts(:,1)=triggerfile(:,1)/1000*d.framerate; %converting ms to frames for this file
 
@@ -3684,12 +3744,34 @@ if isempty(d.name)==1
     for k=1:length(dir(d.pn))
         tf(k)=strcmp('name.mat',files(k).name);
     end
+    
     if sum(tf)>0 %if a file is found
-        d.name=answer;
         load([d.pn '\name.mat']);
-        name{1,size(name,2)+1}=cell2mat(answer);
-        filename=[d.pn '\name'];
-        save(filename, 'name');
+        for k=1:size(name,2)
+            tff(k)=strcmp(name{1,k},answer);
+        end
+        if sum(tff)>0
+            %when name already exist as previous version
+            % Construct a questdlg with two options
+            choice = questdlg('This name already exists, do you wish to overwrite it?', ...
+                'Attention', ...
+                'YES','NO','YES');
+            % Handle response
+            if isempty(choice)==1 %window was closed
+                return;
+            end
+            switch choice
+                case 'YES'
+
+                case 'NO'
+                    return;
+            end
+        else
+            d.name=answer;
+            name{1,size(name,2)+1}=cell2mat(answer);
+            filename=[d.pn '\name'];
+            save(filename, 'name');
+        end
     else    
         d.name=answer;
         filename=[d.pn '\name'];
@@ -4593,6 +4675,10 @@ end
 %check whether converted video has been saved before
 filePattern = fullfile(v.pn, '*.mp4');
 Files = dir(filePattern);
+if size(Files,1)==0
+    msgbox('This folder does not contain a MP4 file!','ATTENTION');
+    return;
+end
 for j=1:length(Files)
     v.fn{j} = Files(j).name;
 end
@@ -4606,7 +4692,7 @@ for k=1:length(dir(v.pn))
     tf2(k)=strcmp(['Behavior_' cell2mat(d.name) '.mat'],files(k).name);
 end
 
-if sum(tf)>0
+if sum(tf)>0 && sum(tf2)==0
     % Construct a questdlg with two options
     choice = questdlg('Would you like to load your last processed version?', ...
         'Attention', ...
@@ -4647,9 +4733,16 @@ if sum(tf)>0
             titleLabel = ['Behavioral video: ' v.fn];
             set(handles.text28, 'String', titleLabel);
             handles.text28.TooltipString=v.pn;
-            msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+            if sframe>=0
+                msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+            elseif sframe <0 && d.decon ==1
+                string=sprintf('Loading Completed. Frames cut off: %d',sframe)
+                msgbox(cat(2, string,{'Please re-plot calcium traces!'}),'Success');
+            else
+                msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+            end
     end
-elseif sum(tf)==0 && sum(tf2)>0
+elseif (sum(tf)==0 && sum(tf2)>0) || (sum(tf)>0 && sum(tf2)>0)
     % Construct a questdlg with two options
     choice = questdlg('Would you like to load your last processed version?', ...
         'Attention', ...
@@ -4681,7 +4774,7 @@ elseif sum(tf)==0 && sum(tf2)>0
             v.bars=bars;
             v.barstart=barstart;
             v.barwidth=barwidth;
-            v.skdefined=1;
+            v.skdefined=Amount;
             v.behav=1;
             %showing plot
             figure;
@@ -4702,6 +4795,7 @@ elseif sum(tf)==0 && sum(tf2)>0
             tlabel=tlabel./d.framerate;
             set(gca,'XTickLabel',tlabel);
             legend(str);
+            title('Behavior');
             hold off;
             
             %looking at first original picture
@@ -4728,7 +4822,14 @@ elseif sum(tf)==0 && sum(tf2)>0
             titleLabel = ['Behavioral video: ' v.fn];
             set(handles.text28, 'String', titleLabel);
             handles.text28.TooltipString=v.pn;
-            msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+            if sframe>=0
+                msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+            elseif sframe <0 && d.decon ==1
+                string=sprintf('Loading Completed. Frames cut off: %d',sframe)
+                msgbox(cat(2, string,{'Please re-plot calcium traces!'}),'Success');
+            else
+                msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+            end
     end
 else
     %function for loading behavioral video
@@ -4746,7 +4847,14 @@ else
     titleLabel = ['Behavioral video: ' v.fn];
     set(handles.text28, 'String', titleLabel);
     handles.text28.TooltipString=v.pn;
-    msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+    if sframe>=0
+        msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+    elseif sframe <0 && d.decon ==1
+        string=sprintf('Loading Completed. Frames cut off: %d',sframe)
+        msgbox(cat(2, string,{'Please re-plot calcium traces!'}),'Success');
+    else
+        msgbox(sprintf('Loading Completed. Frames cut off: %d',sframe),'Success');
+    end
 end
 
 
@@ -5905,8 +6013,15 @@ end
 if sum(tf)==0
     mkdir([d.pn '\location']);
 else
-    rmdir([d.pn '\location'],'s');
-    mkdir([d.pn '\location']);
+    files=dir([d.pn '\location']);
+    tff=zeros(1,length(dir([d.pn '\location'])));
+    for k=1:length(dir([d.pn '\location']))
+        tff(k)=strcmp([cell2mat(d.name) '_mouse_trace.png'],files(k).name);
+    end
+    if sum(tff)>0
+        rmdir([d.pn '\location'],'s');
+        mkdir([d.pn '\location']);
+    end
 end
 fname=sprintf('mouse_trace');
 ffname=[cell2mat(d.name) '_' fname];
@@ -5949,7 +6064,9 @@ if isempty(p.ascale)==1
         return;
     end
 
-    p.ascale=answer;
+    testsizecm=str2num(cell2mat(answer)); %real size in cm
+    factor=testsizecm/testsizepixel; %multiplication factor for converting pixel to cm
+    p.ascale=factor;
     %saving scale
     filename=[d.pn '\ascale'];
     ascale=p.ascale;
@@ -5960,12 +6077,10 @@ if isempty(p.ascale)==1
     save(filename, 'preferences');
 end
 
-testsizecm=str2num(cell2mat(answer)); %real size in cm
-factor=testsizecm/testsizepixel; %multiplication factor for converting pixel to cm
-totalDistIncm=round(totalDistInPx*factor,1);
+totalDistIncm=round(totalDistInPx*p.ascale,1);
 
 %calculating percent pause
-pause=sum(dist(:) <= 1); % change 1 to any other number if wanted, 1 is one pixel movement
+pause=sum(dist(:) <= p.options.bdistmin);
 percPause=round(pause/length(v.traceA)*100,1); %percent in regards to the whole time
 
 %velocity in cm/s
@@ -6349,7 +6464,7 @@ if TF==0
     return;
 end
 
-%load the saved ROI mask, and order of labels
+%load the saved behaviour names and amount
 load([pn fn]);
 v.name=BehavNames;
 v.skdefined=Amount;
@@ -6438,6 +6553,21 @@ function nscale_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global d
 global p
+
+if d.pushed==0
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+end
+if d.play==1 || v.play==1
+    msgbox('Please push stop button before proceeding!','ATTENTION');
+    return;
+end
+%check whether dF/F was calculated
+if d.dF==0
+    msgbox('Please calculate Delta F/F first!','ERROR');
+    return;
+end
+
 path=cd;
 pcd=strfind(path,'CAVE');
 if isempty(pcd)==1
@@ -6494,7 +6624,18 @@ function ascale_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global d
+global v
 global p
+
+if v.pushed==0
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+end
+if d.play==1 || v.play==1
+    msgbox('Please push stop button before proceeding!','ATTENTION');
+    return;
+end
+
 path=cd;
 pcd=strfind(path,'CAVE');
 if isempty(pcd)==1
@@ -6524,7 +6665,9 @@ if isempty(answer)==1
     return;
 end
 
-p.ascale=answer;
+testsizecm=str2num(cell2mat(answer)); %real size in cm
+factor=testsizecm/testsizepixel; %multiplication factor for converting pixel to cm
+p.ascale=factor;
 %saving scale
 filename=[d.pn '\ascale'];
 ascale=p.ascale;
@@ -6543,6 +6686,16 @@ function win_Callback(hObject, eventdata, handles)
 
 global d
 global p
+
+if d.pushed==0
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+end
+if d.pre==1 || d.dF==1
+    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
+    return;
+end
+
 %define display window
 prompt = {'Enter window size in s ["time before trigger" "time after trigger"] e.g.: 1 3'};
 dlg_title = 'Window';

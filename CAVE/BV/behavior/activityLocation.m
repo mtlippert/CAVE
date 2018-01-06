@@ -58,7 +58,7 @@ for j=1:size(d.ROImeans,2)
         end
     end
     %plot cell activity
-    h=figure(4+j); image(v.imd(1).cdata); hold on;
+    h=figure(1+j); image(v.imd(1).cdata); hold on;
     string=sprintf('ROI No.%d',j);
     title(string);
     cellactive=imresize(imresize(x(:,:,j),0.25),4); %shirnking the array for bigger heat map blobs and resizing to original size
@@ -82,17 +82,17 @@ for j=1:size(d.ROImeans,2)
     %saving plots
     if printyn==1
         fname=sprintf('ROI%d_trace',j);
-        ffname=[d.name '_' fname];
+        ffname=[cell2mat(d.name) '_' fname];
         path=[d.pn '/location/',ffname,'.png'];
         path=regexprep(path,'\','/');
         print(h,'-dpng','-r100',path); %-depsc for vector graphic
 
         %saving positions at ROIs
-        filename=[d.pn '\location\ROIposition_' d.name];
+        filename=[d.pn '\location\ROIposition_' cell2mat(d.name)];
         field1='ROIposition';
         field2='ts';
-        value1{j,1}=x;
-        value2{j,1}=ts';
+        value1{j,1}=x(:,:,j);
+        value2{j,1}=ts{1,j};
         Positions=struct(field1,value1,field2,value2);
         OutofBounds=OoB;
         save(filename, 'Positions','OutofBounds');

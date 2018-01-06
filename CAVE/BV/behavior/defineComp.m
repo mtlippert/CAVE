@@ -30,10 +30,10 @@ if p.import==1
         end
         %saving table
         T=struct2table(Compartments);
-        filename=[d.pn '\location\' d.name '_compartments.xls'];
+        filename=[d.pn '\location\' cell2mat(d.name) '_compartments.xls'];
         writetable(T,filename);
         %saving tracing ROIs
-        filename=[d.pn '\tracingROIs_' d.name];
+        filename=[d.pn '\tracingROIs_' cell2mat(d.name)];
         save(filename, 'amount','name','ROImask');
 else
     %question if
@@ -65,6 +65,8 @@ else
             for k=1:amount
                 %selecting ROI
                 figure,image(v.imd(1).cdata);
+                str=sprintf('Define ROI No. %d',k);
+                title(str);
                 if p.help==1
                     str=sprintf('Please define compartment No. %d by clicking around the area!',k);
                     uiwait(msgbox(str,'Attention'));
@@ -96,10 +98,10 @@ else
             end
             %saving table
             T=struct2table(Compartments);
-            filename=[d.pn '\location\' d.name '_compartments.xls'];
+            filename=[d.pn '\location\' cell2mat(d.name) '_compartments.xls'];
             writetable(T,filename);
             %saving tracing ROIs
-            filename=[d.pn '\tracingROIs_' d.name];
+            filename=[d.pn '\tracingROIs_' cell2mat(d.name)];
             save(filename, 'amount','name','ROImask');
         case 'No'
             cood=[];

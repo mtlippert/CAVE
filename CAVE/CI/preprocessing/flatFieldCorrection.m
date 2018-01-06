@@ -8,9 +8,11 @@ function [imdd] = flatFieldCorrection(imd)
 %OUTPUT     imdd: flat field corrected video in the format pixel width,
 %           pixel height, number of frames; 8-bit or 16-bit
 
+%OPTIONAL   global temporal filter
+
 global p
 
-% %dorics global temporal filter
+% %global temporal filter
 % imd2d=reshape(imd,size(imd,1)*size(imd,2),size(imd,3));
 % spatialavg=mean(imd2d,1);
 % globalavg=mean(spatialavg);
@@ -19,7 +21,7 @@ global p
 % for k=1:size(imd,3)
 %     imdcorr(:,k)=double(imd2d(:,k)).*corrmatrix(1,k);
 % end
-% imdr=reshape(imdcorr,size(imd,1),size(imd,2),size(imd,3));
+% imd=reshape(imdcorr,size(imd,1),size(imd,2),size(imd,3));
 
 H = fspecial('average',round(p.options.blur*size(imd,1))); %8 % blur
 a=(imfilter(mean(imd,3),H,'replicate')); %blur frame totally

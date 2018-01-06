@@ -4,7 +4,7 @@ function [ROIsbw] = pcaica(F,mip,pn,name,handles)
 %in the calcium imaging video. First the deimencions are reduced by PCA and
 %then independent components are identified by ICA. Finally those
 %components are thresholded and processed to only include round objects and
-%objects smaller than 500 pixels. The resulting spatial filters are the ROIs. 
+%objects smaller than 300 pixels. The resulting spatial filters are the ROIs. 
 
 %INPUT      F: delta F/F filtered calcium imaging video.
 %           mip: maximum intensity projection of CI video

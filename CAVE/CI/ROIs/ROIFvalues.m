@@ -27,6 +27,8 @@ function [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROI
 %           Frequency: firing rate per ROI
 %           Amplitude: highest amplitude change per ROI
 
+global p
+
 %deconvolution of the calcium signal adapted from ca extraction master GUI from 2015 Pnevmatikakis
 spikes=zeros(size(ROImeans));
 cCaSignal=zeros(size(ROImeans));
@@ -39,7 +41,7 @@ h=waitbar(0,'Deconvoluting...');
 for k=1:size(ROImeans,2)
     y=ROImeans(:,k);
     [c_oasis, s_oasis] = oasisAR2(y); %slower: [c_oasis, s_oasis] = deconvolveCa(y, 'ar1', 'constrained','optimize_b');
-    s_oasis(s_oasis<2*std(c_oasis))=0; %1
+    s_oasis(s_oasis<p.options.spkthrs*std(c_oasis))=0; %1
     s_oasis(s_oasis~=0)=1;
     spikes(:,k)=ceil(s_oasis);
     cCaSignal(:,k)=c_oasis;
