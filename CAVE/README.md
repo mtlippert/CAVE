@@ -1,5 +1,2 @@
-# Matlab
-useful matlab toolboxes
-contains the calcium imaging GUI programmed by Jenny consisting of roisub.mat and roisub.fig.
-The oiTool toolbox which is intended for processing electrophysiological Neuralynx files is located on the network VSDdata/_software/Matlab/toolboxes/oiTool.
-# this is on a new branch
+# CAVE - Calcium ActiVity Explorer
+MATLAB GUI for correlating calcium imaging with behaviour. The software can view and process calcium imaging TIFF files and track location and behaviour of the animal. Finally, it correlates the calcium activity with the behaviour.
