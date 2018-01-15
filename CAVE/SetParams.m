@@ -73,69 +73,69 @@ Names = [
 
 Values = [
     % loading
-    {65535}
+    {65535}     %default: 65535
     % preprocessing
-    {100}
-    {0.4}
-    {0.08}
+    {100}       %default: 100
+    {0.4}       %default: 0.4
+    {0.08}      %default: 0.08
     % dust removal
-    {8}
+    {8}         %default: 8
     % alignment
-    {[6 6]}
-    {100}
-    {2}
-    {5}
+    {[6 6]}     %default: [6 6]
+    {100}       %default: 100
+    {2}         %default: 2
+    {5}         %default: 5
     % delta F/F
-    {4}
-    {0.5}
-    {5}
-    {5}
+    {4}         %default: 4
+    {0.5}       %default: 0.5
+    {5}         %default: 5
+    {5}         %default: 5
     % pca/ica
-    {1.5}   %or 5
-    {30}
-    {0.8}
-    {300}
-    {0.6}
-    {30}
+    {1.5}       %default: 1.5
+    {30}        %default: 30
+    {0.8}       %default: 0.8
+    {300}       %default: 300
+    {0.6}       %default: 0.6
+    {30}        %default: 30
     % ROI plotting
-    {0.7}
-    {2}
-    {8}
-    {0.8}
-    {0.8}
+    {0.7}       %default: 0.7
+    {0.5}       %default: 0.5
+    {8}         %default: 8
+    {0.8}       %default: 0.8
+    {0.8}       %default: 0.8
     % Behavioural video
-    {0.6}
-    {25}
-    {1}
-    {40}
+    {0.6}       %default: 0.6
+    {25}        %default: 25
+    {1}         %default: 1
+    {40}        %default: 40
     % Green preset values
-    {0.25}
-    {0.55}
-    {0.16}
-    {1}
-    {0}
-    {0.8}
+    {0.25}      %default: 0.25
+    {0.55}      %default: 0.55
+    {0.16}      %default: 0.16
+    {1}         %default: 1
+    {0}         %default: 0
+    {0.8}       %default: 0.8
     % Pink preset values
-    {0.80}
-    {1}
-    {0.36}
-    {1}
-    {0}
-    {0.8}
+    {0.8}       %default: 0.8
+    {1}         %default: 1
+    {0.36}      %default: 0.36
+    {1}         %default: 1
+    {0}         %default: 0
+    {0.8}       %default: 0.8
     % Yellow preset values
-    {0.12}
-    {0.25}
-    {0.19}
-    {1}
-    {0}
-    {0.8}
+    {0.12}      %default: 0.12
+    {0.25}      %default: 0.25
+    {0.19}      %default: 0.19
+    {1}         %default: 1
+    {0}         %default: 0
+    {0.8}       %default: 0.8
     % Blue preset values
-    {0.62}
-    {1}
-    {0.3}
-    {1}
-    {0.7}
-    {1}
+    {0.62}      %default: 0.62
+    {1}         %default: 1
+    {0.3}       %default: 0.3
+    {1}         %default: 1
+    {0.7}       %default: 0.7
+    {1}         %default: 1
     ];
 
 for j = 1:m

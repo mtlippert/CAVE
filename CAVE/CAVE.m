@@ -137,7 +137,7 @@ function varargout = CAVE(varargin)
 
 % Edit the above text to modify the response to help CAVE
 
-% Last Modified by GUIDE v2.5 29-Dec-2017 11:35:34
+% Last Modified by GUIDE v2.5 11-Jan-2018 10:17:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -204,7 +204,7 @@ end
 files=dir(path);
 tf=zeros(1,length(dir(path)));
 for k=1:length(dir(path))
-    tf(k)=strcmp('preferences.mat',files(k).name); %looking for dF/F processed video as .mat file
+    tf(k)=strcmp('preferences.mat',files(k).name);
 end
 if sum(tf)>0 %if a file is found
     load([path '\preferences.mat']);
@@ -3383,7 +3383,6 @@ switch choice
                     close(f);
                 catch
                 end
-                msgbox('Done!','Attention');
                 
                 %heat map triggered to behaviours
                 % Construct a questdlg with two options
@@ -3446,12 +3445,13 @@ switch choice
                                     rep(i,:)=mVal(v.barstart.(char(v.name{1,k}))(i,1)-p.win(1):v.barstart.(char(v.name{1,k}))(i,1)+p.win(2));
                                 end
                             end
-                            h=figure;imagesc(rep),c=colorbar;hold on;
+                            h=figure;subplot(3,1,[1,2]);
+                            imagesc(rep),c=colorbar;hold on;
+                            xlimit=get(gca,'XLim');
                             %plotting vertical line to indicate time of trigger
                             a=p.win(1);
                             plot([a a],[0 size(rep,1)+0.5],'w','LineWidth',2);
                             title(['Fluorescence traces of ',char(v.name{1,k})]);
-                            xlabel('time [s]');
                             ylabel('Trial number');
                             c.Label.String='dF/F in %';
                             ticlabel=get(gca,'XTickLabel');
@@ -3461,14 +3461,46 @@ switch choice
                             ticlabel=cell2mat(ticlabel);
                             ticlabel=ticlabel./d.framerate;
                             set(gca,'XTickLabel',ticlabel);
+                            hold off;
+                            stderr=std(rep);
+                            errorp=mean(rep)+stderr;
+                            errorn=mean(rep)-stderr;
+                            basevalue=round(min(errorn),2)+round(min(errorn),2)*0.1;
+                            subplot(3,1,3),area(errorp,basevalue,'FaceColor',[0 0.8 0.9],'EdgeColor','none','ShowBaseLine','off'),hold on;
+                            area(errorn,basevalue,'FaceColor',[1 1 1],'EdgeColor','none','ShowBaseLine','off'),plot(mean(rep),'Color',[0 0.4 0.7],'LineWidth',2);
+                            xlim(xlimit);
+                            ylim([basevalue ceil(max(errorp))]);
+                            ylimit=get(gca,'YLim');
+                            plot([a a],ylimit,'Color',[0.08,0.17,0.55],'LineWidth',2);
+                            xlabel('time [s]');
+                            ticlabel=get(gca,'XTickLabel');
+                            for j=1:length(ticlabel)
+                                ticlabel{j,1}=str2num(ticlabel{j,1});
+                            end
+                            ticlabel=cell2mat(ticlabel);
+                            ticlabel=ticlabel./d.framerate;
+                            set(gca,'XTickLabel',ticlabel);
+                            hold off;
                             stringname=sprintf('_Fluotrigbehav_%d',k);
                             fname=[cell2mat(d.name) stringname];
                             path=[d.pn '/traces/',fname,'.png'];
                             path=regexprep(path,'\','/');
                             print(h,'-dpng','-r200',path); %-depsc for vector graphic
                             close(h);
-                            msgbox('Done!','Attention');
                         end
+                        %statistics
+                        for i=1:v.amount
+                            for k=1:length(v.barstart.(char(v.name{1,i})))
+                                spikes=sum(spkno(v.barstart.(char(v.name{1,i}))(k,1):v.barstart.(char(v.name{1,i}))(k,1)+v.barwidth.(char(v.name{1,i}))(k,1),1));
+                                blength=v.barwidth.(char(v.name{1,i}))(k,1)+1;
+                                stat.(char(v.name{1,i}))(k,1)=spikes/(blength/d.framerate);
+                            end
+                        end
+                        %saving data
+                        filename=[d.pn '\traces\freqbehavrep_' cell2mat(d.name)];
+                        save(filename, 'stat');
+
+                        msgbox('Done!','Attention');
                     case 'NO'
                 end
                 
@@ -6691,10 +6723,6 @@ if d.pushed==0
     msgbox('Please select folder first!','ATTENTION');
     return;
 end
-if d.pre==1 || d.dF==1
-    msgbox('Image is displayed scaled! No need to adjust!','ATTENTION');
-    return;
-end
 
 %define display window
 prompt = {'Enter window size in s ["time before trigger" "time after trigger"] e.g.: 1 3'};
@@ -6724,6 +6752,100 @@ save(filename, 'win');
 filename=[cd '\preferences'];
 preferences.win=p.win;
 save(filename, 'preferences');
+
+
+% -----------------------------------------------------------------advanced
+function advanced_Callback(hObject, eventdata, handles)
+% hObject    handle to advanced (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global d
+global v
+global p
+
+if d.pushed==0
+    msgbox('Please select folder first!','ATTENTION');
+    return;
+end
+if d.play==1 || v.play==1
+    msgbox('Please push stop button before proceeding!','ATTENTION');
+    return;
+end
+
+path=cd;
+pcd=strfind(path,'CAVE');
+if isempty(pcd)==1
+    msgbox('Please change the current directory to ./CAVE!');
+       return;
+end
+
+defaultanswer = {'0.4', '100', '2', '5', '30', '300', '30', '2', '8', '0.8', '0.8', '0.6'};
+
+files=dir(path);
+tf=zeros(1,length(dir(path)));
+for k=1:length(dir(path))
+    tf(k)=strcmp('preferences.mat',files(k).name);
+end
+if sum(tf)>0 %if a file is found
+    load([path '\preferences.mat']);
+    try
+        p.options=preferences.options;
+        defaultanswer = {mat2str(p.options.dsr), mat2str(p.options.usfac), mat2str(p.options.LClevels), mat2str(p.options.LCiter), mat2str(p.options.pisaa), mat2str(p.options.picsize), mat2str(p.options.piolO), mat2str(p.options.spkthrs), mat2str(p.options.ROIdist), mat2str(p.options.sigcorr), mat2str(p.options.chg), mat2str(p.options.bdsr)};
+    catch
+    end
+end
+
+%advanced settings window
+prompt = {'Down sample rate CI (0.4):';'Upsampling factor (100):';'LClevels (2):';'LCiteration (5):';'Smallest cell (30):';'Largest cell (300):';'Overlap (30):';'Spike threshold (2):';'Center distance (8):';'Correlation (0.8):';'Minimum amplitude (0.8):';'Down sample rate BV (0.6):'};
+name = 'Advanced Settings';
+
+[answer] = inputdlg(prompt, name, 1, defaultanswer);
+if isempty(answer)==1
+    return;
+end
+if str2num(cell2mat(answer(1,1)))~=str2num(defaultanswer{1,1}) || str2num(cell2mat(answer(12,1)))~=str2num(defaultanswer{1,12}) %if down sampling rates were changed
+    msgbox('You have to re-load the video for your settings to have effect!','Attention');
+end
+if str2num(cell2mat(answer(5,1)))~=str2num(defaultanswer{1,5}) || str2num(cell2mat(answer(6,1)))~=str2num(defaultanswer{1,6}) || str2num(cell2mat(answer(7,1)))~=str2num(defaultanswer{1,7}) %if alignment parameters were changed
+    if isempty(d.alignCI)==1
+    else
+        d.imd=d.alignCI;
+        d.align=0; %signals that image alignment was reset
+        d.dF=0; %deltaF/F claculation is reset as well
+        %showing resulting frame
+        singleFrame=imadjust(d.imd(:,:,round(handles.slider7.Value)), [handles.slider5.Value handles.slider15.Value],[handles.slider6.Value handles.slider16.Value]);
+        axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
+        msgbox('Alignment reset, you can now align with your new settings!','Attention');
+    end
+end
+if str2num(cell2mat(answer(5,1)))~=str2num(defaultanswer{1,5}) || str2num(cell2mat(answer(6,1)))~=str2num(defaultanswer{1,6}) || str2num(cell2mat(answer(7,1)))~=str2num(defaultanswer{1,7}) % if PCA/ICA values were changed
+    d.ROIv=0; %ROI values are reset
+    p.F2=[];  %PCA is reset
+    msgbox('You can now repeat "Auto ROIs"!','Attention');
+end
+if str2num(cell2mat(answer(8,1)))~=str2num(defaultanswer{1,8}) || str2num(cell2mat(answer(9,1)))~=str2num(defaultanswer{1,9}) || str2num(cell2mat(answer(10,1)))~=str2num(defaultanswer{1,10}) || str2num(cell2mat(answer(11,1)))~=str2num(defaultanswer{1,11}) %if ROI plotting values were changed
+    d.decon=0; %deconvolution is reset
+    msgbox('You can now repeat the deconvolution!','Attention');
+end
+
+p.options.dsr=str2num(cell2mat(answer(1,1)));
+p.options.usfac=str2num(cell2mat(answer(2,1)));
+p.options.LClevels=str2num(cell2mat(answer(3,1)));
+p.options.LCiter=str2num(cell2mat(answer(4,1)));
+p.options.pisaa=str2num(cell2mat(answer(5,1)));
+p.options.picsize=str2num(cell2mat(answer(6,1)));
+p.options.piolO=str2num(cell2mat(answer(7,1)));
+p.options.spkthrs=str2num(cell2mat(answer(8,1)));
+p.options.ROIdist=str2num(cell2mat(answer(9,1)));
+p.options.sigcorr=str2num(cell2mat(answer(10,1)));
+p.options.chg=str2num(cell2mat(answer(11,1)));
+p.options.bdsr=str2num(cell2mat(answer(12,1)));
+
+%saving preference
+filename=[cd '\preferences'];
+preferences.options=p.options;
+save(filename, 'preferences');
+
 
 
 
