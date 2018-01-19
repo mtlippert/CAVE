@@ -1,15 +1,15 @@
 function varargout = CAVE(varargin)
-% ROISUB MATLAB code for CAVE.fig
-%      ROISUB, by itself, creates a new ROISUB or raises the existing
+% Calcium ActiVity Explorer MATLAB code for CAVE.fig
+%      CAVE, by itself, creates a new CAVE or raises the existing
 %      singleton*.
 %
-%      H = ROISUB returns the handle to a new ROISUB or the handle to
+%      H = CAVE returns the handle to a new ROISUB or the handle to
 %      the existing singleton*.
 %
-%      ROISUB('CALLBACK',hObject,eventData,handles,...) calls the local
-%      function named CALLBACK in ROISUB.M with the given input arguments.
+%      CAVE('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in CAVE.M with the given input arguments.
 %
-%      ROISUB('Property','Value',...) creates a new ROISUB or raises the
+%      CAVE('Property','Value',...) creates a new CAVE or raises the
 %      existing singleton*.  Starting from the left, property value pairs are
 %      applied to the GUI before roisub_OpeningFcn gets called.  An
 %      unrecognized property name or invalid value makes property application
@@ -17,120 +17,6 @@ function varargout = CAVE(varargin)
 %
 %      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
 %      instance to run (singleton)".
-%       
-% 
-%       QUICK GUIDE ON HOW TO USE THIS GUI FOR CALCIUM IMAGING DATA OF THE 
-%       DORIC ENDOMICROSCOPE:
-% 
-%       -PREPARATIONS to work with this program: one TIFF stack/data set
-%       per folder; optional: text file named 'Framerate' containing only a 
-%       number describing the framerate of the calcium imaging video (TIFF 
-%       file)
-% 
-%       -load .tif data recorded by doric endomicroscope by pushing SELECT
-%       FOLDER button, if you do not have a text file containing the
-%       framerate, a dialog window will open asking to enter the framerate
-%       IF, you already worked on the file before, the program will ask if
-%       you want to load the last version
-% 
-%       -LOW IN, HIGH IN, LOW OUT, HIGH OUT sliders for changes brightness
-%       and contrast to investigate images (RESET resets values to initial
-%       values)
-% 
-%       -FRAMES SLIDER for sliding through TIFF images from frame to frame
-%       -PLAY button to play the video from current frame in FRAME SLIDER,
-%       STOP for stopping the video immediately
-% 
-%       -REMOVE DUST to remove any stationary distubrances wihtin the movie
-%       by selecting a ROI and filling the ROI with the mean value of the
-%       surroundings (RESET resets to original video)
-% 
-%       -PREPROCESSING downsamples the file to 40 percent, kicks out faulty
-%       frames and does flat field correction; additionally gives you a 
-%       graph of 'mean change over time'
-%       -if needed, ALIGN IMAGES allows to align the images with two 
-%       different algorithms (Lucas Kanade or subpixel registration) to the
-%       currently displayed frame (RESET if you want to reset the alignment)
-%
-%       -DELTA F/F calculates the change over time of the video by
-%       substracting a mean frame from each frame and dividng by the mean
-%       frame
-% 
-%       -MANUAL ROIs is used to define the ROIs manually by hand. Define 
-%       a ROI by clicking around the wanted area. Corners can be adjusted 
-%       afterwards by hovering over it until one sees a circle symbol. 
-%       Simply click and drag to adjust the corner. If you place the cursor 
-%       over the middle, the cursor should change into a cross which allows 
-%       you to shift the selected area. If you are satisfied: double-click.
-%       You can press the ROI button multiple times to define as many ROIs
-%       as you want. In case you want to clear all ROIs and start over,
-%       please use the CLEAR ALL ROIS button
-%       -to remove a ROI or parts of it simply overlap with a new MANUAL ROI
-%       -to define a lot of ROIs use the AUTO ROIs to automatically detect
-%       cells by using principal and independent component analysis
-%       -if you already defined ROIs or you want to use a ROI mask from
-%       a previous data set press IMPORT ROIs
-%       -to show the calcium traces over time for your defined ROIs
-%       use PLOT ROIs, this first deconvolutes the signal and then plots it
-% 
-%       -SAVE VIDEO allows you to save the calcium imaging video as AVI
-%       file in two different ways: Original, meaning you save the
-%       original video with contrast settings, preprocessed and aligned (if
-%       you did those changes), or dF/F, which saves the delta F/F video
-%
-% 
-%       HOW TO ANALYZE THE BEHAVIORAL VIDEO:
-%       -load video by pushing SELECT FOLDER button
-%       IF you worked with the data before, you will be asked if you want
-%       to load the last version
-% 
-%       -crop the video to the area in which the animal is moving by pushing
-%       the CROPPING & DOWNSAMPLING button and by simply clicking and d
-%       ragging the cursor over the desired area. You can adjust the are by 
-%       hovering over the edges and then click and dragging it. If you are 
-%       satisfied with the defined area, right-click, press Copy Position, 
-%       and double-click onto the screen. In the dialog window simply press 
-%       NEXT and FINISH. The function also automatically downsamples the 
-%       cropped video
-% 
-%       -select a color preset from the drop-down window (GREEN, PINK, 
-%       YELLOW, BLUE) or use IMPORT PRESET to use defined threshold presets 
-%       for the respective spot. Adjust the thresholds if needed to extract  
-%       only the desired colored spot from the back of the animal by using  
-%       the HUE, SATURATION, and VALUE THRESHOLD, each LOW or HIGH, or use
-%       SPOT SIZE to adjust the threshold for removing small objects
-% 
-%       -apply the color threshold to all frames by pushing either PREVIEW
-%       ANTERIOR or POSTERIOR SPOT
-% 
-%       -to track the position of the animal push TRACE ANIMAL and it will
-%       track the anterior spot in the specified color and the movement of
-%       the posterior spot in the specified color. 
-%       Additionally it will plot a figure for each ROI you defined, which 
-%       shows a heat map corresponding to the clacium activity during that
-%       frame
-%       -you can also define ROIs and let the program calculate the
-%       percentage of time the animal remained in that ROI, IMPORT ROIs
-%       lets you import previous defined ROIs from the same or other batches
-% 
-%       -BEHAVIORAL DETECTION allows you to define 8 different behaviors,
-%       define shortkeys and give them names. Then it will play the video
-%       from the specified frame of the frame slider and you will be able
-%       to use your shortkeys to indicate your defined behavior of the
-%       animal during that frame. After you push STOP or the video ends, you
-%       will get a plot showing you the different behaviors over time. It
-%       will save the plot under the name mouse_behavior. Furthermore it
-%       will save the MAT file Behavior containing the number of behaviors
-%       you defined (Amount), at which timepoints you defined them during 
-%       the video (Events), the shortkeys you used (Shortkeys), the names 
-%       you gave the behaviors (BehavNames), and at which timepoint the 
-%       behaviors started and ended (barstart, barwidth)
-%
-%
-%       SOURCES USED: threshold.m; SimpleColorDetectionByHue; Mohammed Ali
-%       2016 Paper 'An integrative approach for analyzing hundreds of
-%       neurons in task performing mice using wide-field calcium imaging.',
-%       Image Alignment Toolbox (IAT)...
 %       
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
@@ -714,7 +600,7 @@ handles.text27.TooltipString=d.pn;
 textLabel = sprintf('%d / %d', 1,size(d.imd,3));
 set(handles.text36, 'String', textLabel);
 handles.slider7.Max=size(d.imd,3);
-handles.slider7.SliderStep=[1/size(d.imd,3) 1/size(d.imd,3)*100];
+handles.slider7.SliderStep=[1/size(d.imd,3) 1/size(d.imd,3)*10];
 
 msgbox('Loading Completed.','Success');
 
@@ -4592,13 +4478,13 @@ elseif d.pushed==4
     axes(handles.axes1); %video with ROIs
     singleFrame=d.imd(:,:,round(handles.slider7.Value));
     if d.dF==1 || d.pre==1
-        hh=imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
+        imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);hold on;
     else
-        hh=imshow(singleFrame);hold on;
+        imshow(singleFrame);hold on;
     end
     for k=round(handles.slider7.Value):size(d.imd,3)
-        singleFrame=d.imd(:,:,k);
-        set(hh, 'CData', singleFrame);
+%         singleFrame=d.imd(:,:,k);
+%         set(hh, 'CData', singleFrame);
         for j=1:size(d.ROIsbw,3)
             if sum(sum(d.ROIsbw(:,:,j)))>0
                 B=bwboundaries(d.ROIsbw(:,:,j)); %boundaries of ROIs
@@ -6805,8 +6691,7 @@ if isempty(answer)==1
 end
 if str2num(cell2mat(answer(1,1)))~=str2num(defaultanswer{1,1}) || str2num(cell2mat(answer(12,1)))~=str2num(defaultanswer{1,12}) %if down sampling rates were changed
     msgbox('You have to re-load the video for your settings to have effect!','Attention');
-end
-if str2num(cell2mat(answer(5,1)))~=str2num(defaultanswer{1,5}) || str2num(cell2mat(answer(6,1)))~=str2num(defaultanswer{1,6}) || str2num(cell2mat(answer(7,1)))~=str2num(defaultanswer{1,7}) %if alignment parameters were changed
+elseif str2num(cell2mat(answer(2,1)))~=str2num(defaultanswer{1,2}) || str2num(cell2mat(answer(3,1)))~=str2num(defaultanswer{1,3}) || str2num(cell2mat(answer(4,1)))~=str2num(defaultanswer{1,4}) %if alignment parameters were changed
     if isempty(d.alignCI)==1
     else
         d.imd=d.alignCI;
@@ -6817,13 +6702,16 @@ if str2num(cell2mat(answer(5,1)))~=str2num(defaultanswer{1,5}) || str2num(cell2m
         axes(handles.axes1);imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray);
         msgbox('Alignment reset, you can now align with your new settings!','Attention');
     end
-end
-if str2num(cell2mat(answer(5,1)))~=str2num(defaultanswer{1,5}) || str2num(cell2mat(answer(6,1)))~=str2num(defaultanswer{1,6}) || str2num(cell2mat(answer(7,1)))~=str2num(defaultanswer{1,7}) % if PCA/ICA values were changed
+elseif str2num(cell2mat(answer(5,1)))~=str2num(defaultanswer{1,5}) || str2num(cell2mat(answer(6,1)))~=str2num(defaultanswer{1,6}) || str2num(cell2mat(answer(7,1)))~=str2num(defaultanswer{1,7}) % if PCA/ICA values were changed
     d.ROIv=0; %ROI values are reset
     p.F2=[];  %PCA is reset
     msgbox('You can now repeat "Auto ROIs"!','Attention');
-end
-if str2num(cell2mat(answer(8,1)))~=str2num(defaultanswer{1,8}) || str2num(cell2mat(answer(9,1)))~=str2num(defaultanswer{1,9}) || str2num(cell2mat(answer(10,1)))~=str2num(defaultanswer{1,10}) || str2num(cell2mat(answer(11,1)))~=str2num(defaultanswer{1,11}) %if ROI plotting values were changed
+elseif  str2num(cell2mat(answer(9,1)))~=str2num(defaultanswer{1,9}) || str2num(cell2mat(answer(10,1)))~=str2num(defaultanswer{1,10}) || str2num(cell2mat(answer(11,1)))~=str2num(defaultanswer{1,11}) % if ROI plotting values were changed
+    d.ROIv=0; %ROI value indicator are reset
+    d.ROIs=[]; %ROI values are deleted
+    d.decon=0; %deconvolution is reset
+    msgbox('You can now repeat "Plot ROIs"!','Attention');
+elseif str2num(cell2mat(answer(8,1)))~=str2num(defaultanswer{1,8}) %if spiking threshold was changed
     d.decon=0; %deconvolution is reset
     msgbox('You can now repeat the deconvolution!','Attention');
 end
