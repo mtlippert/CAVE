@@ -2211,7 +2211,7 @@ end
 %load the saved ROI mask, and order of labels
 load([pn fn]);
 d.mask=imresize(ROImask,[size(d.imd,1) size(d.imd,2)]);
-d.ROIsbw=ROIsingles;
+ROIsbw=ROIsingles;
 %plotting ROIs
 singleFrame=d.imd(:,:,round(handles.slider7.Value));
 axes(handles.axes1);
@@ -2221,10 +2221,10 @@ if d.dF==1 || d.pre==1
 else
     imshow(singleFrame); hold on;
 end
-colors=repmat(d.colors,1,ceil(size(d.ROIsbw,3)/8));
+colors=repmat(d.colors,1,ceil(size(ROIsbw,3)/8));
 for k=1:size(d.ROIsbw,3)
     if sum(sum(d.ROIsbw(:,:,k)))>0
-        d.ROIsbw(:,:,k)=imresize(d.ROIsbw(:,:,k),[size(d.imd,1) size(d.imd,2)]);
+        d.ROIsbw(:,:,k)=imresize(ROIsbw(:,:,k),[size(d.imd,1) size(d.imd,2)]);
         B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
         stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
         %drawing ROIs
@@ -2840,6 +2840,41 @@ elseif isempty(d.ROIs)==0 && d.ROIv==0 && d.decon==1
             end
         end
         close(h);
+        
+        %identifying cells that have been segmented into multiple ROIs by
+        %cross-correlation
+        change=0;
+        for m=1:size(d.ROImeans,2)
+            if max(d.ROImeans(:,m))<p.options.chg %deleting ROIs which maximum fluorescence change is smaller than 0.8%
+                change=1;
+                d.ROIsbw(:,:,m)=zeros(size(d.ROIsbw,1),size(d.ROIsbw,2),1);
+            end
+            for n=1:size(d.ROImeans,2)
+                if m~=n
+                    ROIdist=pdist([ROIcenter{1,m};ROIcenter{1,n}]);
+                    if ROIdist<p.options.ROIdist %ROIs in close vicinity to eachother have to be checked for similar Ca signal
+                        ROIcorr=corrcoef(d.ROImeans(:,m),d.ROImeans(:,n));
+                        ROIboth=d.ROIsbw(:,:,m)+d.ROIsbw(:,:,n);
+                        if ROIcorr(1,2)>p.options.sigcorr
+                            change=1;
+                            ROIboth(ROIboth>1)=1;
+                            d.ROIsbw(:,:,m)=ROIboth;
+                            d.ROIsbw(:,:,n)=zeros(size(d.ROIsbw,1),size(d.ROIsbw,2),1);
+                        end
+                    end
+                end
+            end
+        end
+        %determining indices where there are ROIs
+        c=0;
+        ROIindices=[];
+        for j=1:size(d.ROIsbw,3)
+            if sum(sum(d.ROIsbw(:,:,j)))>0
+                c=c+1;
+                ROIindices(c,1)=j;
+            end
+        end
+        d.ROIsbw=d.ROIsbw(:,:,ROIindices);
 
         %saving ROI values
         filename=[d.pn '\' cell2mat(d.name) '_ROIvalues'];
@@ -3087,7 +3122,7 @@ switch choice
             print(h,'-dpng','-r200',path); %-depsc for vector graphic
             close(h);
             
-            %calculating event behaviour if trigger file was loaded
+            %calculating event behavior if trigger file was loaded
             if isempty(d.triggerts)==0 && d.decon==1
                 %plotting mean fluorescence
                 mVal=mean(d.cCaSignal,2);
@@ -3234,7 +3269,7 @@ switch choice
                 path=regexprep(path,'\','/');
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
-                %saving mean event rate with behaviour
+                %saving mean event rate with behavior
                 meanspks=mean(d.spikes,2)*d.framerate;
                 h=figure;
 %                 set(gcf, 'Position', get(0,'Screensize')); % Maximize figure
@@ -3270,9 +3305,9 @@ switch choice
                 catch
                 end
                 
-                %heat map triggered to behaviours
+                %heat map triggered to behaviors
                 % Construct a questdlg with two options
-                choice = questdlg('Would you like to save dF/F heat maps triggered to your behaviours?', ...
+                choice = questdlg('Would you like to save dF/F heat maps triggered to your behaviors?', ...
                     'Attention', ...
                     'YES','NO','YES');
                 % Handle response
@@ -3462,7 +3497,7 @@ switch choice
                 print(h,'-dpng','-r200',path); %-depsc for vector graphic
                 close(h);
                 
-                %calculating event behaviour if trigger file was loaded
+                %calculating event behavior if trigger file was loaded
                 if isempty(d.triggerts)==0 && d.decon==1
                     %plotting mean fluorescence
                     mVal=mean(d.cCaSignal,2);
@@ -4629,7 +4664,7 @@ if sum(tf)>0 && sum(tf2)==0
             set(handles.text28, 'String', titleLabel);
             handles.text28.TooltipString=v.pn;
             if sum(tfb)>0
-                msgbox(cat(2, {'Loading Completed. Your behaviours are:'}, v.name),'Success');
+                msgbox(cat(2, {'Loading Completed. Your behaviors are:'}, v.name),'Success');
             else
                 msgbox(sprintf('Loading Completed.'),'Success');
             end
@@ -4721,7 +4756,7 @@ elseif (sum(tf)==0 && sum(tf2)>0) || (sum(tf)>0 && sum(tf2)>0)
             titleLabel = ['Behavioral video: ' v.fn];
             set(handles.text28, 'String', titleLabel);
             handles.text28.TooltipString=v.pn;
-            msgbox(cat(2, {'Loading Completed. Your behaviours are:'}, v.name),'Success');
+            msgbox(cat(2, {'Loading Completed. Your behaviors are:'}, v.name),'Success');
         case 'NO'
             %function for loading behavioral video
             dframerate=d.framerate; dsize=size(d.imd,3); pn=v.pn; fn=v.fn; dimd=d.imd; decon=d.decon;
@@ -5550,7 +5585,7 @@ filepath=[d.pn '\'];
 if fn==0
     return;
 end
-%checking if a Behaviour file was selected
+%checking if a behavior file was selected
 TF = strncmpi('preset',fn,6);
 if TF==0
     msgbox('Please select a preset*.mat file!','ERROR');
@@ -6107,7 +6142,7 @@ filepath=[d.pn '\'];
 if fn==0
     return;
 end
-%checking if a Behaviour file was selected
+%checking if a behavior file was selected
 TF = strncmpi('tracingROIs',fn,11);
 if TF==0
     msgbox('Please select a tracingROIs.mat file!','ERROR');
@@ -6128,7 +6163,7 @@ msgbox('Loading Complete.','Success');
 %% BEHAVIORAL DETECTION
 
 
-% --- Executes on button press in pushbutton29.         BEHAVIOUR DETECTION
+% --- Executes on button press in pushbutton29.         behavior DETECTION
 function pushbutton29_Callback(~, ~, handles)
 % hObject    handle to pushbutton29 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -6149,7 +6184,7 @@ if v.skdefined==0
     msgbox('Please add a behavior you wish to track first!','ERROR');
     return;
 elseif v.skdefined<2
-    msgbox('You have to track at least two behaviours!','ERROR');
+    msgbox('You have to track at least two behaviors!','ERROR');
     return;
 end
 
@@ -6157,8 +6192,8 @@ if p.help==1
     uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
 end
 
-%tracking of one behaviour
-[Selection,~] = listdlg('PromptString','Which behaviour:',...
+%tracking of one behavior
+[Selection,~] = listdlg('PromptString','Which behavior:',...
                 'SelectionMode','single',...
                 'ListSize',[160 100],...
                 'ListString',v.name);
@@ -6188,7 +6223,7 @@ msgbox('Behavioral detection was reset!');
 
 
 
-% --- Executes on button press in pushbutton46.               ADD BEHAVIOUR
+% --- Executes on button press in pushbutton46.               ADD behavior
 function pushbutton46_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton46 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -6209,12 +6244,12 @@ end
 v.skdefined=v.skdefined+1;
 
 if v.skdefined>8
-    msgbox('You can only track 8 behaviours!','ERROR');
+    msgbox('You can only track 8 behaviors!','ERROR');
     return;
 end
 
-%name of behaviour
-prompt = {'What do you want to call this behaviour? (No spaces)'};
+%name of behavior
+prompt = {'What do you want to call this behavior? (No spaces)'};
 dlg_title = 'Name';
 num_lines = 1;
 answer = inputdlg(prompt,dlg_title,num_lines);
@@ -6226,7 +6261,7 @@ v.name{1,v.skdefined}=cell2mat(answer);
 v.events.(char(v.name{1,v.skdefined})) = zeros(size(v.imd,2),1);
 
 
-% --- Executes on button press in pushbutton47.            REMOVE BEHAVIOUR
+% --- Executes on button press in pushbutton47.            REMOVE behavior
 function pushbutton47_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton47 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -6244,23 +6279,23 @@ elseif v.pushed==0
     return;
 end
 if v.skdefined==0
-    msgbox('You are not tracking any behaviours, thus you cannot remove any!','ERROR');
+    msgbox('You are not tracking any behaviors, thus you cannot remove any!','ERROR');
     return;
 end
 
-%removing of one behaviour
-[Selection,~] = listdlg('PromptString','Which behaviour:',...
+%removing of one behavior
+[Selection,~] = listdlg('PromptString','Which behavior:',...
                 'SelectionMode','single',...
                 'ListSize',[160 100],...
                 'ListString',v.name)
 if isempty(Selection)==1
     return;
 end
-%deleting events corresponding to selected behaviour
+%deleting events corresponding to selected behavior
 v.events.(char(v.name{1,Selection})) = [];
 field=v.name{1,Selection};
 v.events=rmfield(v.events,field);
-%deleting name of selected behaviour
+%deleting name of selected behavior
 v.name{1,Selection}=[];
 namenum=find(~cellfun(@isempty,v.name));
 v.name=v.name(~cellfun('isempty',v.name));
@@ -6268,7 +6303,7 @@ v.name=v.name(~cellfun('isempty',v.name));
 v.skdefined=v.skdefined-1;
 
 
-% --- Executes on button press in pushbutton48.              PLOT BEHAVIOUR
+% --- Executes on button press in pushbutton48.              PLOT behavior
 function pushbutton48_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton48 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -6277,7 +6312,7 @@ global v
 global d
 global p
 
-%finding start and end of behaviours
+%finding start and end of behaviors
 v.amount=length(v.name);
 allbehav=zeros(size(v.events.(char(v.name{1,1}))));
 for m=1:v.amount
@@ -6325,7 +6360,7 @@ tlabel=cell2mat(tlabel);
 tlabel=tlabel./d.framerate;
 set(gca,'XTickLabel',tlabel);
 legend(str);
-title('Behaviour')
+title('behavior')
 hold off;
     
 %saving plot
@@ -6347,7 +6382,7 @@ v.behav=1;
 uiwait(msgbox('Plot and settings saved! You can now plot the behavior with the ROI traces together!'));
 
 
-% --------------------------------------------------------- Behaviour names
+% --------------------------------------------------------- behavior names
 function behav_Callback(hObject, eventdata, handles)
 % hObject    handle to behav (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -6375,14 +6410,14 @@ filepath=[d.pn '\'];
 if fn==0
     return;
 end
-%checking if a Behaviour file was selected
+%checking if a behavior file was selected
 TF = strncmpi('Behavior',fn,8);
 if TF==0
     msgbox('Please select a Behavior_"filename".mat file!','ERROR');
     return;
 end
 
-%load the saved behaviour names and amount
+%load the saved behavior names and amount
 load([pn fn]);
 v.name=BehavNames;
 v.skdefined=Amount;

@@ -34,8 +34,8 @@ Names = [
     'ROIdist     '  % distance threshold D between the center of two ROIs, if smaller, then ROIs will bechecked for similar Ca signals
     'sigcorr     '  % correlation coefficient threshold C of the signal of two ROIs, if smaller, ROIs are assumed to be one cell
     'chg         '  % deleting ROIs which maximum fluorescence change is smaller than 0.8%
-    % Behavioural video
-    'bdsr        '  % downsampling rate for imresize for behavioural video
+    % behavioral video
+    'bdsr        '  % downsampling rate for imresize for behavioral video
     'bsaa        '  % smallest acceptable area for color spot on animal
     'bdistmin    '  % minimum pixel distance D the animal has to move to be considered moving
     'bdistmax    '  % maximum pixel distance D the 'animal' can move to be considered moving, this should prevent calculating with animal misrepresentation
@@ -103,7 +103,7 @@ Values = [
     {8}         %default: 8
     {0.8}       %default: 0.8
     {0.8}       %default: 0.8
-    % Behavioural video
+    % behavioral video
     {0.6}       %default: 0.6
     {25}        %default: 25
     {1}         %default: 1

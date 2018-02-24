@@ -2,7 +2,7 @@ function [imd] = cropBV(imd,cc)
 
 % FUNCTION for cropping the behavioral video.
 %
-% INPUT     imd: behavioural video
+% INPUT     imd: behavioral video
 %           cc: cropping coordinates gathered from the ROI.
 %
 % OUTPUT    imd: cropped video

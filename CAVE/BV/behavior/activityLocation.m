@@ -62,9 +62,23 @@ for j=1:size(d.ROImeans,2)
     string=sprintf('ROI No.%d',j);
     title(string);
     cellactive=imresize(imresize(x(:,:,j),0.25),4); %shirnking the array for bigger heat map blobs and resizing to original size
+    %extract mouse location
+    mousetrack=zeros(size(cellactive,1),size(cellactive,2));
+    for k=1:length(v.traceAplot)
+        if v.Pspot==0
+            mousetrack(round(v.traceAplot(k,2)),round(v.traceAplot(k,1)))=1;
+        else
+            mousetrack(round(v.traceAplot(k,2)),round(v.traceAplot(k,1)))=1;
+            mousetrack(round(v.tracePplot(k,2)),round(v.tracePplot(k,1)))=1;
+        end
+    end
+    SE=strel('disk',4);
+    mousetrack=imdilate(mousetrack,SE);
+    %continue plotting
     colormap(jet);grid=imagesc(cellactive);cb=colorbar;cb.Label.String = 'Relative position distribution';
     set(gcf,'renderer','OpenGL');
     alpha(grid,0.75);
+    set(grid,'AlphaData',mousetrack);
     %display how many percent mouse was registered out of bounds
     OoB=round(100*(n/(n+c)));
     str=sprintf('Cell fires when mouse is out of bounds in %d percent of cases',OoB);
