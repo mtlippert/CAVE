@@ -17,17 +17,46 @@ if p.import==1
             %calculating amount of time the mouse (the head) was in a compartment in percent
             [y,x]=find(p.ROImask(:,:,k)>0);
             cood=[x,y];
-            v.traceAround=round(v.traceAplot);
-            mhead=accumarray(v.traceAround,1);
-            Mhead=imresize(mhead, [size(p.ROImask(:,:,k),1) size(p.ROImask(:,:,k),2)]);
-            Mhead(Mhead<0.1)=0;
-            Mhead(Mhead>0.1)=1;
-            combi=p.ROImask(:,:,k)+Mhead;
-            numpixel=numel(find(combi>1));
-            numpixel=numpixel*((size(mhead,1)/size(p.ROImask(:,:,k),1)+size(mhead,2)/size(p.ROImask(:,:,k),2))/2);
-            perccomp(1,k)=round(numpixel/length(v.traceA)*100,2); %percent in regards to the whole time
-            Compartments.(char(p.name{1,k})) = perccomp(1,k);
+                traceAround=round(v.traceAplot); %coordinates of head of the mouse over time
+                combi=[];
+                for j=1:length(cood)
+                    cood1=find(traceAround(:,1)==cood(j,1));
+                    cood2=find(traceAround(:,2)==cood(j,2));
+                    coodf=ismember(cood1,cood2).*cood1;
+                    coodf=coodf(coodf>0);
+                    combi=[combi;coodf];
+                end
+                numpixel=length(combi);
+                perccomp(1,k)=round(numpixel/length(v.traceA)*100,2); %percent in regards to the whole time
+                %calculating calcium activity within compartment
+                totalspk=sum(d.spikes,2);
+                evrate(1,k)=sum(totalspk(combi))/(length(combi)/d.framerate);
+                Compartments.(char(name{1,k})) = evrate(1,k);
         end
+        %saving image
+        if v.Pspot==1
+            a=figure; image(v.imd(1).cdata); hold on;
+            plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
+            %plotting anterior trace
+            plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA);
+        else
+            a=figure; image(v.imd(1).cdata); hold on;
+            %plotting anterior trace
+            plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA);
+        end
+        for j=1:amount
+            boundary = bwboundaries(ROImask(:,:,j));
+            plot(boundary{1,1}(:,2),boundary{1,1}(:,1),'w','LineWidth',2);
+            stats=regionprops(ROImask(:,:,j), {'Centroid'});
+            c=round(stats.Centroid);
+            text(c(1),c(2),num2str(perccomp(1,j),2),'Color','white','FontSize',14);
+            text(c(1),c(2)-10,num2str(evrate(1,j),2),'Color','green','FontSize',14);
+        end
+        fname=sprintf('arena_ROIs');
+        ffname=[cell2mat(d.name) '_' fname];
+        path=[d.pn '/location/',ffname,'.png'];
+        path=regexprep(path,'\','/');
+        print(a,'-dpng','-r100',path); %-depsc for vector graphic
         %saving table
         T=struct2table(Compartments);
         filename=[d.pn '\location\' cell2mat(d.name) '_compartments.xls'];
@@ -88,14 +117,45 @@ else
                 [y,x]=find(ROI>0);
                 cood=[x,y];
                 traceAround=round(v.traceAplot); %coordinates of head of the mouse over time
-                mhead=accumarray(traceAround,1); %logical image where ones indicate the coordinates of the head of the mouse
-                Mhead=zeros(size(ROI));
-                Mhead(1:size(mhead,1),1:size(mhead,2))=mhead; %resized to the whole size of the frame
-                combi=ROI.*Mhead; %combination of ROI and head positions thus everything above 1 is the head within the ROI
-                numpixel=numel(find(combi>1));
+                combi=[];
+                for j=1:length(cood)
+                    cood1=find(traceAround(:,1)==cood(j,1));
+                    cood2=find(traceAround(:,2)==cood(j,2));
+                    coodf=ismember(cood1,cood2).*cood1;
+                    coodf=coodf(coodf>0);
+                    combi=[combi;coodf];
+                end
+                numpixel=length(combi);
                 perccomp(1,k)=round(numpixel/length(v.traceA)*100,2); %percent in regards to the whole time
-                Compartments.(char(name{1,k})) = perccomp(1,k);
+                %calculating calcium activity within compartment
+                totalspk=sum(d.spikes,2);
+                evrate(1,k)=sum(totalspk(combi))/(length(combi)/d.framerate);
+                Compartments.(char(name{1,k})) = evrate(1,k);
             end
+            %saving image
+            if v.Pspot==1
+                a=figure; image(v.imd(1).cdata); hold on;
+                plot(v.tracePplot(:,1),v.tracePplot(:,2),v.colorP);
+                %plotting anterior trace
+                plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA);
+            else
+                a=figure; image(v.imd(1).cdata); hold on;
+                %plotting anterior trace
+                plot(v.traceAplot(:,1),v.traceAplot(:,2),v.colorA);
+            end
+            for j=1:amount
+                boundary = bwboundaries(ROImask(:,:,j));
+                plot(boundary{1,1}(:,2),boundary{1,1}(:,1),'w','LineWidth',2);
+                stats=regionprops(ROImask(:,:,j), {'Centroid'});
+                c=round(stats.Centroid);
+                text(c(1),c(2),num2str(perccomp(1,j),2),'Color','white','FontSize',14);
+                text(c(1),c(2)-10,num2str(evrate(1,j),2),'Color','green','FontSize',14);
+            end
+            fname=sprintf('arena_ROIs');
+            ffname=[cell2mat(d.name) '_' fname];
+            path=[d.pn '/location/',ffname,'.png'];
+            path=regexprep(path,'\','/');
+            print(a,'-dpng','-r100',path); %-depsc for vector graphic
             %saving table
             T=struct2table(Compartments);
             filename=[d.pn '\location\' cell2mat(d.name) '_compartments.xls'];

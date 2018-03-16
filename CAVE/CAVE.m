@@ -943,7 +943,7 @@ if sum(tf)>0 %if a file is found
         end
         switch choice
             case 'YES'
-
+                d.name=answer;
             case 'NO'
                 return;
         end
@@ -1175,7 +1175,7 @@ if isempty(d.name)==1
             end
             switch choice
                 case 'YES'
-
+                    d.name=answer;
                 case 'NO'
                     return;
             end
@@ -2222,8 +2222,8 @@ else
     imshow(singleFrame); hold on;
 end
 colors=repmat(d.colors,1,ceil(size(ROIsbw,3)/8));
-for k=1:size(d.ROIsbw,3)
-    if sum(sum(d.ROIsbw(:,:,k)))>0
+for k=1:size(ROIsbw,3)
+    if sum(sum(ROIsbw(:,:,k)))>0
         d.ROIsbw(:,:,k)=imresize(ROIsbw(:,:,k),[size(d.imd,1) size(d.imd,2)]);
         B=bwboundaries(d.ROIsbw(:,:,k)); %boundaries of ROIs
         stat = regionprops(d.ROIsbw(:,:,k),'Centroid');
@@ -2428,6 +2428,10 @@ if d.ROIv==0 && isempty(d.ROIs)==1 && d.decon==0
         filename=[cd '\preferences'];
         preferences.nscale=p.nscale;
         save(filename, 'preferences');
+        else
+            if p.help==1
+                uiwait(msgbox('Please remember to change the microscope scale in preferences in case that your microscope has changed!','Attention'));
+            end
     end
     
     %labeling ROIs for every frame of the video
@@ -6028,6 +6032,10 @@ if isempty(p.ascale)==1
     filename=[cd '\preferences'];
     preferences.ascale=p.ascale;
     save(filename, 'preferences');
+else
+    if p.help==1
+        uiwait(msgbox('Please remember to change the arena scale in preferences in case that your setup has changed!','Attention'));
+    end
 end
 
 totalDistIncm=round(totalDistInPx*p.ascale,1);
@@ -6189,7 +6197,7 @@ elseif v.skdefined<2
 end
 
 if p.help==1
-    uiwait(msgbox('Please track behavior by pushing this button only! It will play the behavioral video while you push your self-defined shortkeys. Use the regular STOP button to STOP, but the BEHAVIORAL DETECTION button to continue!','Attention'));
+    uiwait(msgbox('Track behavior by pushing this button in the frame you see the behavior! Please start from the first frame!','Attention'));
 end
 
 %tracking of one behavior

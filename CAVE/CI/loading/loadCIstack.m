@@ -115,7 +115,7 @@ if frames>4500 && Width>100 %if file is bigger than 4500 frames and width is mor
                     return;
                 end
                 close(gcf);
-                singleFrame=imdd(:,:,1); %using new first frame with removed dust
+                singleFrame=double(imdd(:,:,1)); %using new first frame with removed dust
                 singleFrame=singleFrame./max(max(singleFrame));
             end
         case 'No'
