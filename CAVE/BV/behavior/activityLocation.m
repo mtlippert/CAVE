@@ -66,10 +66,10 @@ for j=1:size(d.ROImeans,2)
     mousetrack=zeros(size(cellactive,1),size(cellactive,2));
     for k=1:length(v.traceAplot)
         if v.Pspot==0
-            mousetrack(round(v.traceAplot(k,2)),round(v.traceAplot(k,1)))=1;
+            mousetrack(round(v.traceA(k,2)),round(v.traceA(k,1)))=1;
         else
-            mousetrack(round(v.traceAplot(k,2)),round(v.traceAplot(k,1)))=1;
-            mousetrack(round(v.tracePplot(k,2)),round(v.tracePplot(k,1)))=1;
+            mousetrack(round(v.traceA(k,2)),round(v.traceA(k,1)))=1;
+            mousetrack(round(v.traceP(k,2)),round(v.traceP(k,1)))=1;
         end
     end
     SE=strel('disk',4);

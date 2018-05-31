@@ -5,6 +5,8 @@ function [maskedRGBImage] = spotmask(handles)
 % INPUT     handles: interactive elements of the GUI
 %
 % OUTPUT    maskedRGBImage: color spot mask showing only the defined color
+%
+%adapted from Image Analyst's SimpleColorDetecitonByHue()
 
 global v
 global p
