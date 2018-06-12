@@ -10,6 +10,14 @@ function [x,y] = savespot(x,y,k,thresh,imd)
 % 
 % OUTPUT    x: X-coordinates of the center of the color spot over time.
 %           y: Y-coordinates of the center of the color spot over time.
+%
+%*********************************
+% Title: SimpleColorDetectionByHue
+% Author: Image Analyst
+% Date: 2015
+% Code version: 1.2
+% Availability: https://de.mathworks.com/matlabcentral/fileexchange/28512-simplecolordetectionbyhue--
+%*********************************
 
 % Convert RGB image to HSV
 hsvImage= rgb2hsv(imd);

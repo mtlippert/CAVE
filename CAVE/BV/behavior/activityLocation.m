@@ -15,6 +15,14 @@ function [] = activityLocation(mleft)
 %           VelocityIncms: mean velocity of the mouse in cm/s
 %           percPause: percentage of the time the mouse rested.
 %           percOutside: percentage of the time the mouse was out of view.
+%
+%*********************************
+% Title: drawArrow
+% Author: Matthew Kelly
+% Date: 2016
+% Code version: 1.0
+% Availability: https://de.mathworks.com/matlabcentral/fileexchange/55181-drawarrow
+%*********************************
 
 
 global v

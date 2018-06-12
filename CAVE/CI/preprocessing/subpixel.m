@@ -15,6 +15,14 @@ function [imdC,Bvector] = subpixel(ROI,imgA)
 %OUTPUT     imdC: resulting video after alignment
 %           Bvector: largest values that have been used for transforming
 %           for each direction, these are 4 values
+%
+%*********************************
+% Title: efficient_subpixel_registration
+% Author: Manuel Guizar Sicairos, James R. Fienup
+% Date: 2016
+% Code version: 1.1
+% Availability: https://de.mathworks.com/matlabcentral/fileexchange/18401-efficient-subpixel-image-registration-by-cross-correlation
+%*********************************
 
 global d
 global p

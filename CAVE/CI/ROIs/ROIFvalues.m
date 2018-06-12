@@ -26,6 +26,14 @@ function [ROImeans,cCaSignal,spikes,ts,amp,NoofSpikes,Frequency,Amplitude] = ROI
 %           NoofSpikes: number of spikes per ROI
 %           Frequency: firing rate per ROI
 %           Amplitude: highest amplitude change per ROI
+%
+%*********************************
+% Title: oasisAR2
+% Author: Friedrich J et.al.
+% Date: 2016
+% Code version: 1.0
+% Availability: https://github.com/flatironinstitute/CaImAn-MATLAB/tree/master/deconvolution
+%*********************************
 
 global p
 

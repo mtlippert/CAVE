@@ -2347,6 +2347,21 @@ function pushbutton14_Callback(~, ~, handles)
 % hObject    handle to pushbutton14 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+%*********************************
+% Title: inputsdlg
+% Author: Takeshi Ikuma
+% Date: 2015
+% Code version: 2.3.2
+% Availability: https://de.mathworks.com/matlabcentral/fileexchange/25862-inputsdlg--enhanced-input-dialog-box
+%*********************************
+% Title: subaxis
+% Author: Aslak Grinsted
+% Date: 2014
+% Code version: 1.1
+% Availability: https://de.mathworks.com/matlabcentral/fileexchange/3696-subaxis-subplot
+%*********************************
+
 global d
 global v
 global p

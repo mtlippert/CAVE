@@ -15,6 +15,14 @@ function [imdC,Bvector] = lucasKanade(ROI,imd,tmp)
 %OUTPUT     imdC: resulting video after alignment
 %           Bvector: largest values that have been used for transforming
 %           for each direction, these are 4 values
+%
+%*********************************
+% Title: IAT
+% Author: Georgios Evangelidis
+% Date: 2014
+% Code version: 0.9.2
+% Availability: https://sites.google.com/site/imagealignment/
+%*********************************
 
 global p
 

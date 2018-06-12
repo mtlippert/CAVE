@@ -13,6 +13,14 @@ function [ROIsbw] = pcaica(F,mip,pn,name,handles)
 
 %OUTPUT     ROIsbw: resulting spatial filters each representing an
 %           individual ROI.
+%
+%*********************************
+% Title: pca_ica
+% Author: Brian Moore
+% Date: 2017
+% Code version: 1.2
+% Availability: https://de.mathworks.com/matlabcentral/fileexchange/38300-pca-and-ica-package
+%*********************************
 
 global p
 
