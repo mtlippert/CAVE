@@ -13,7 +13,7 @@ global p
 
 %defining dimensions of video
 h=msgbox('Please wait...');
-frames=size(imfinfo([pn '\' fn]),1);
+frames=length(Files);
 x=imfinfo([pn '\' fn]);
 Width=x(1).Width;
 Height=x(1).Height;
@@ -46,20 +46,20 @@ for k = 1:length(Files)
         imd=[];
         return;
     end
-    if eightBit==false
-        imddou=double(imd);
-        maxVal=max(max(max(imddou,[],2)));
-        h=waitbar(0,'Converting');
-        for j = 1:frames
-            imd(:,:,j)=uint16((imddou(:,:,j)./maxVal).*p.options.bitconv);
-            try
-                waitbar(j/frames,h);
-            catch
-                imd=[];
-                return;
-            end
-        end
-        close(h);
-    end
 end
 close(h);
+if eightBit==false
+    imddou=double(imd);
+    maxVal=max(max(max(imddou,[],2)));
+    h=waitbar(0,'Converting');
+    for j = 1:frames
+        imd(:,:,j)=uint16((imddou(:,:,j)./maxVal).*p.options.bitconv);
+        try
+            waitbar(j/frames,h);
+        catch
+            imd=[];
+            return;
+        end
+    end
+    close(h);
+end
