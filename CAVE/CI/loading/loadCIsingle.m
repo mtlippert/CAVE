@@ -12,15 +12,11 @@ function [imd] = loadCIsingle(pn,fn,Files)
 global p
 
 %defining dimensions of video
-h=msgbox('Please wait...');
+h=msgbox('Pre-allocation...');
 frames=length(Files);
 x=imfinfo([pn '\' fn]);
 Width=x(1).Width;
 Height=x(1).Height;
-try
-    close(h);
-catch
-end
 
 % Check to see if it's an 8-bit image needed later for scaling).
 fullFileName = fullfile([pn '\' fn]);
@@ -32,6 +28,10 @@ if strcmpi(class(Image), 'uint8')
 else
     eightBit = false;
     imd=uint16(zeros(Height,Width,frames)); %video preallocation
+end
+try
+    close(h);
+catch
 end
 
 %putting each frame into variable 'images'

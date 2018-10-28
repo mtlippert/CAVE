@@ -99,7 +99,7 @@ Values = [
     {30}        %default: 30
     % ROI plotting
     {0.7}       %default: 0.7
-    {0.5}       %default: 0.5
+    {2}         %default: 2
     {8}         %default: 8
     {0.8}       %default: 0.8
     {0.8}       %default: 0.8

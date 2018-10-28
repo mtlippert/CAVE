@@ -22,15 +22,11 @@ function [imd,origCI,pre] = loadCIstack(pn,fn)
 global p
 
 %defining dimensions of video
-h=msgbox('Please wait...');
+h=msgbox('Pre-allocation...');
 frames=size(imfinfo([pn '\' fn]),1);
 x=imfinfo([pn '\' fn]);
 Width=x(1).Width;
 Height=x(1).Height;
-try
-    close(h);
-catch
-end
 
 if frames<=4500 || Width<100 % if video has fewer than 4500 frames and fewer than 100 pixels in width
     % Check to see if it's an 8-bit image needed later for scaling).
@@ -56,6 +52,10 @@ else
         eightBit = false;
         imdd=uint16(zeros(round(Height*p.options.dsr),round(Width*p.options.dsr),frames)); %video preallocation as downsampled version
     end
+end
+try
+    close(h);
+catch
 end
 
 if frames>4500 && Width>100 %if file is bigger than 4500 frames and width is more than 100 pixels, the video will be already preprocessed to reduce size

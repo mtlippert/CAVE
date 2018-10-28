@@ -907,56 +907,6 @@ if d.pre==1
     return;
 end
 
-%asking for animal name/session/date
-prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
-dlg_title = 'Name';
-num_lines = 1;
-answer = inputdlg(prompt,dlg_title,num_lines);
-%if cancel was pressed
-if isempty(answer)==1
-    return;
-end
-%check whether another version already exists
-files=dir(d.pn);
-tf=zeros(1,length(dir(d.pn)));
-for k=1:length(dir(d.pn))
-    tf(k)=strcmp('name.mat',files(k).name);
-end
-
-if sum(tf)>0 %if a file is found
-    load([d.pn '\name.mat']);
-    for k=1:size(name,2)
-        tff(k)=strcmp(name{1,k},answer);
-    end
-    if sum(tff)>0
-        %when name already exist as previous version
-        % Construct a questdlg with two options
-        choice = questdlg('This name already exists, do you wish to overwrite it?', ...
-            'Attention', ...
-            'YES','NO','YES');
-        % Handle response
-        if isempty(choice)==1 %window was closed
-            return;
-        end
-        switch choice
-            case 'YES'
-                d.name=answer;
-            case 'NO'
-                return;
-        end
-    else
-        d.name=answer;
-        name{1,size(name,2)+1}=cell2mat(answer);
-        filename=[d.pn '\name'];
-        save(filename, 'name');
-    end
-else    
-    d.name=answer;
-    filename=[d.pn '\name'];
-    name=d.name;
-    save(filename, 'name');
-end
-
 %Downsampling only if Width > 100 pixel
 if size(d.imd,2)>p.options.dsw
     h=msgbox('Downsampling... please wait!');
@@ -1138,56 +1088,54 @@ end
 %alignment, if any was done, thus adjustment of the size of the original CI
 %video
 
-%asking for animal name/session/date if not defined
-if isempty(d.name)==1
-    prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
-    dlg_title = 'Name';
-    num_lines = 1;
-    answer = inputdlg(prompt,dlg_title,num_lines);
-    %if cancel was pressed
-    if isempty(answer)==1
-        return;
+%asking for animal name/session/date
+prompt = {'Enter your preferred name for this session (e.g. animalNo.-date):'};
+dlg_title = 'Name';
+num_lines = 1;
+answer = inputdlg(prompt,dlg_title,num_lines);
+%if cancel was pressed
+if isempty(answer)==1
+    return;
+end
+%check whether another version already exists
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn))
+    tf(k)=strcmp('name.mat',files(k).name);
+end
+
+if sum(tf)>0 %if a file is found
+    load([d.pn '\name.mat']);
+    for k=1:size(name,2)
+        tff(k)=strcmp(name{1,k},answer);
     end
-    %check whether another version already exists
-    files=dir(d.pn);
-    tf=zeros(1,length(dir(d.pn)));
-    for k=1:length(dir(d.pn))
-        tf(k)=strcmp('name.mat',files(k).name);
-    end
-    
-    if sum(tf)>0 %if a file is found
-        load([d.pn '\name.mat']);
-        for k=1:size(name,2)
-            tff(k)=strcmp(name{1,k},answer);
+    if sum(tff)>0
+        %when name already exist as previous version
+        % Construct a questdlg with two options
+        choice = questdlg('This name already exists, do you wish to overwrite it?', ...
+            'Attention', ...
+            'YES','NO','YES');
+        % Handle response
+        if isempty(choice)==1 %window was closed
+            return;
         end
-        if sum(tff)>0
-            %when name already exist as previous version
-            % Construct a questdlg with two options
-            choice = questdlg('This name already exists, do you wish to overwrite it?', ...
-                'Attention', ...
-                'YES','NO','YES');
-            % Handle response
-            if isempty(choice)==1 %window was closed
+        switch choice
+            case 'YES'
+                d.name=answer;
+            case 'NO'
                 return;
-            end
-            switch choice
-                case 'YES'
-                    d.name=answer;
-                case 'NO'
-                    return;
-            end
-        else
-            d.name=answer;
-            name{1,size(name,2)+1}=cell2mat(answer);
-            filename=[d.pn '\name'];
-            save(filename, 'name');
         end
-    else    
+    else
         d.name=answer;
+        name{1,size(name,2)+1}=cell2mat(answer);
         filename=[d.pn '\name'];
-        name=d.name;
         save(filename, 'name');
     end
+else    
+    d.name=answer;
+    filename=[d.pn '\name'];
+    name=d.name;
+    save(filename, 'name');
 end
 
 %function for calculating deltaF/F
@@ -1362,11 +1310,15 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 end
                 %determining indices where there are ROIs
                 c=0;
-                for j=1:size(d.ROIsbw,3)
-                    if sum(sum(d.ROIsbw(:,:,j)))>0
-                        c=c+1;
-                        ROIindices(c,1)=j;
+                if sum(sum(sum(d.ROIsbw(:,:,:))))>0
+                    for j=1:size(d.ROIsbw,3)
+                        if sum(sum(d.ROIsbw(:,:,j)))>0
+                            c=c+1;
+                            ROIindices(c,1)=j;
+                        end
                     end
+                else
+                    ROIindices=[];
                 end
                 d.ROIsbw=d.ROIsbw(:,:,ROIindices);
                 
@@ -1374,7 +1326,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 mask(mask>1)=1;
                 d.mask=mask;
                 %plotting ROIs
-                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
@@ -1391,10 +1343,10 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                     end
                 end
                 hold off;
-                if length(ROIindices)+2==d.bcount
-                    d.bcount=d.bcount-2;
+                if isempty(ROIindices)==1
+                    d.bcount=0;
                 else
-                    d.bcount=d.bcount-1;
+                    d.bcount=length(ROIindices);
                 end
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
@@ -1445,7 +1397,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
                 mask(mask>1)=1;
                 d.mask=mask;
                 %plotting ROIs
-                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
@@ -1541,7 +1493,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
         mask(mask>1)=1;
         d.mask=mask;
         %plotting ROIs
-        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        singleFrame=d.mip;
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
         else
@@ -1603,11 +1555,15 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
         end
         %determining indices where there are ROIs
         c=0;
-        for j=1:size(d.ROIsbw,3)
-            if sum(sum(d.ROIsbw(:,:,j)))>0
-                c=c+1;
-                ROIindices(c,1)=j;
+        if sum(sum(sum(d.ROIsbw(:,:,:))))>0
+            for j=1:size(d.ROIsbw,3)
+                if sum(sum(d.ROIsbw(:,:,j)))>0
+                    c=c+1;
+                    ROIindices(c,1)=j;
+                end
             end
+        else
+            ROIindices=[];
         end
         d.ROIsbw=d.ROIsbw(:,:,ROIindices);
 
@@ -1615,7 +1571,7 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
         mask(mask>1)=1;
         d.mask=mask;
         %plotting ROIs
-        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        singleFrame=d.mip;
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
         else
@@ -1632,10 +1588,10 @@ if d.load==1 || d.auto==1 %if a ROI mask was loaded or automatic ROI detection w
             end
         end
         hold off;
-        if length(ROIindices)+2==d.bcount
-            d.bcount=d.bcount-2;
+        if isempty(ROIindices)==1
+            d.bcount=0;
         else
-            d.bcount=d.bcount-1;
+            d.bcount=length(ROIindices);
         end
         d.pushed=4; %signals that ROIs were selected
         d.roisdefined=1; %signals that ROIs were defined
@@ -1755,11 +1711,15 @@ else
                 end
                 %determining indices where there are ROIs
                 c=0;
-                for j=1:size(d.ROIsbw,3)
-                    if sum(sum(d.ROIsbw(:,:,j)))>0
-                        c=c+1;
-                        ROIindices(c,1)=j;
+                if sum(sum(sum(d.ROIsbw(:,:,:))))>0
+                    for j=1:size(d.ROIsbw,3)
+                        if sum(sum(d.ROIsbw(:,:,j)))>0
+                            c=c+1;
+                            ROIindices(c,1)=j;
+                        end
                     end
+                else
+                    ROIindices=[];
                 end
                 d.ROIsbw=d.ROIsbw(:,:,ROIindices);
                 
@@ -1784,10 +1744,10 @@ else
                     end
                 end
                 hold off;
-                if length(ROIindices)+2==d.bcount
-                    d.bcount=d.bcount-2;
+                if isempty(ROIindices)==1
+                    d.bcount=0;
                 else
-                    d.bcount=d.bcount-1;
+                    d.bcount=length(ROIindices);
                 end
                 d.pushed=4; %signals that ROIs were selected
                 d.roisdefined=1; %signals that ROIs were defined
@@ -1838,7 +1798,7 @@ else
                 mask(mask>1)=1;
                 d.mask=mask;
                 %plotting ROIs
-                singleFrame=d.imd(:,:,round(handles.slider7.Value));
+                singleFrame=d.mip;
                 if d.dF==1 || d.pre==1
                     imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
                 else
@@ -1934,7 +1894,7 @@ else
         mask(mask>1)=1;
         d.mask=mask;
         %plotting ROIs
-        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        singleFrame=d.mip;
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
         else
@@ -1996,11 +1956,15 @@ else
         end
         %determining indices where there are ROIs
         c=0;
-        for j=1:size(d.ROIsbw,3)
-            if sum(sum(d.ROIsbw(:,:,j)))>0
-                c=c+1;
-                ROIindices(c,1)=j;
+        if sum(sum(sum(d.ROIsbw(:,:,:))))>0
+            for j=1:size(d.ROIsbw,3)
+                if sum(sum(d.ROIsbw(:,:,j)))>0
+                    c=c+1;
+                    ROIindices(c,1)=j;
+                end
             end
+        else
+            ROIindices=[];
         end
         d.ROIsbw=d.ROIsbw(:,:,ROIindices);
 
@@ -2008,7 +1972,7 @@ else
         mask(mask>1)=1;
         d.mask=mask;
         %plotting ROIs
-        singleFrame=d.imd(:,:,round(handles.slider7.Value));
+        singleFrame=d.mip;
         if d.dF==1 || d.pre==1
             imagesc(singleFrame,[min(min(singleFrame)),max(max(singleFrame))]); colormap(handles.axes1, gray); hold on;
         else
@@ -2025,10 +1989,10 @@ else
             end
         end
         hold off;
-        if length(ROIindices)+2==d.bcount
-            d.bcount=d.bcount-2;
+        if isempty(ROIindices)==1
+            d.bcount=0;
         else
-            d.bcount=d.bcount-1;
+            d.bcount=length(ROIindices);
         end
         d.pushed=4; %signals that ROIs were selected
         d.roisdefined=1; %signals that ROIs were defined
@@ -3366,21 +3330,20 @@ switch choice
                         
                         mVal=mean(d.cCaSignal,2);
                         for k=1:v.amount
-                            if v.barstart.(char(v.name{1,k}))(1,1)<=p.win(1)
-                                rep=zeros(size(v.barstart.(char(v.name{1,k})),1)-1,sum(p.win)+1);
-                                for i=2:size(v.barstart.(char(v.name{1,k})),1)
-                                    rep(i,:)=mVal(v.barstart.(char(v.name{1,k}))(i,1)-p.win(1):v.barstart.(char(v.name{1,k}))(i,1)+p.win(2));
+                            rep=zeros(size(v.barstart.(char(v.name{1,k})),1),sum(p.win)+1);
+                            lstart=1;
+                            lend=0;
+                            for j=1:size(v.barstart.(char(v.name{1,k})),1)
+                                if v.barstart.(char(v.name{1,k}))(j,1)<=p.win(1)
+                                    rep=zeros(size(rep,1)-1,size(rep,2));
+                                    lstart=lstart+1;
+                                elseif v.barstart.(char(v.name{1,k}))(j,1)>=size(mVal,1)-p.win(2) 
+                                    rep=zeros(size(rep,1)-1,size(rep,2));
+                                    lend=lend+1;
                                 end
-                            elseif v.barstart.(char(v.name{1,k}))(end)>=size(mVal,1)-p.win(2)
-                                rep=zeros(size(v.barstart.(char(v.name{1,k})),1)-1,sum(p.win)+1);
-                                for i=1:size(v.barstart.(char(v.name{1,k})),1)-1
-                                    rep(i,:)=mVal(v.barstart.(char(v.name{1,k}))(i,1)-p.win(1):v.barstart.(char(v.name{1,k}))(i,1)+p.win(2));
-                                end
-                            else
-                                rep=zeros(size(v.barstart.(char(v.name{1,k})),1),sum(p.win)+1);
-                                for i=1:size(v.barstart.(char(v.name{1,k})),1)
-                                    rep(i,:)=mVal(v.barstart.(char(v.name{1,k}))(i,1)-p.win(1):v.barstart.(char(v.name{1,k}))(i,1)+p.win(2));
-                                end
+                            end
+                            for i=lstart:size(v.barstart.(char(v.name{1,k})),1)-lend
+                                rep(i,:)=mVal(v.barstart.(char(v.name{1,k}))(i,1)-p.win(1):v.barstart.(char(v.name{1,k}))(i,1)+p.win(2));
                             end
                             h=figure;subplot(3,1,[1,2]);
                             imagesc(rep),c=colorbar;hold on;
@@ -3390,13 +3353,13 @@ switch choice
                             plot([a a],[0 size(rep,1)+0.5],'w','LineWidth',2);
                             title(['Fluorescence traces of ',char(v.name{1,k})]);
                             ylabel('Trial number');
-                            c.Label.String='dF/F in %';
+                            c.Label.String='dF/F [%]';
                             ticlabel=get(gca,'XTickLabel');
                             for j=1:length(ticlabel)
                                 ticlabel{j,1}=str2num(ticlabel{j,1});
                             end
                             ticlabel=cell2mat(ticlabel);
-                            ticlabel=ticlabel./d.framerate;
+                            ticlabel=ticlabel./d.framerate-p.win(1)/d.framerate;
                             set(gca,'XTickLabel',ticlabel);
                             hold off;
                             stderr=std(rep);
@@ -3410,6 +3373,7 @@ switch choice
                             ylimit=get(gca,'YLim');
                             plot([a a],ylimit,'Color',[0.08,0.17,0.55],'LineWidth',2);
                             xlabel('time [s]');
+                            ylabel('Averaged Ca activity');
                             ticlabel=get(gca,'XTickLabel');
                             for j=1:length(ticlabel)
                                 ticlabel{j,1}=str2num(ticlabel{j,1});

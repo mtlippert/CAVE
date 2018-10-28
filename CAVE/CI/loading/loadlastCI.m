@@ -10,7 +10,6 @@ function [] = loadlastCI
 global d
 global p
 
-%loading delta F/F video
 h=msgbox('Loading... please wait!');
 load([d.pn '\name']); %load name
 %if more than one version
@@ -39,17 +38,29 @@ else
     end
 end
 
-load([d.pn '\' cell2mat(d.name) 'dFvid']);
-d.imd=deltaFimd;
-close(h);
-d.pushed=1; %signals that CI video was loaded
-d.pre=1; %signals that the video was preprocessed
-d.dF=1; %signals that delta F/F calculation was performed
-%loading MIP
-MaxIntensProj = max(d.imd, [], 3);
-stdIm = std(d.imd,0,3);
-d.mip=MaxIntensProj./stdIm;
-figure,imagesc(d.mip),title('Maximum Intensity Projection');
+%loading delta F/F video
+%check whether dF/F had been saved before
+files=dir(d.pn);
+tf=zeros(1,length(dir(d.pn)));
+for k=1:length(dir(d.pn))
+    tf(k)=strcmp([cell2mat(d.name) 'dFvid'],files(k).name);
+end
+if sum(tf)>0 %if a file is found
+    load([d.pn '\' cell2mat(d.name) 'dFvid']);
+    d.imd=deltaFimd;
+    close(h);
+    d.pushed=1; %signals that CI video was loaded
+    d.pre=1; %signals that the video was preprocessed
+    d.dF=1; %signals that delta F/F calculation was performed
+    %loading MIP
+    MaxIntensProj = max(d.imd, [], 3);
+    stdIm = std(d.imd,0,3);
+    d.mip=MaxIntensProj./stdIm;
+    figure,imagesc(d.mip),title('Maximum Intensity Projection');
+else
+    return;
+end
+
 %loading PCA
 %check whether PCA values had been saved before
 files=dir(d.pn);
@@ -61,6 +72,7 @@ if sum(tf)>0 %if a file is found
     load([d.pn '\' cell2mat(d.name) 'PCA.mat']);
     p.F2=PCAF2; %mask with all the ROIs
 end
+
 %loading ROI mask
 %check whether ROI mask had been saved before
 files=dir(d.pn);
@@ -81,6 +93,7 @@ else
     d.ROIsbw=zeros(size(d.imd,1),size(d.imd,2));
     d.ROIs=[];
 end
+
 %loading ROI values
 %check whether ROI values had been saved before
 files=dir(d.pn);
@@ -96,6 +109,7 @@ else
     d.ROIv=0; %signals that ROI values have not been loaded
     d.ROIs=[];
 end
+
 %loading scale for neuropil subtraction
 %check whether scale had been saved before
 files=dir(d.pn);
@@ -109,6 +123,7 @@ if sum(tf)>0
 else
     d.nscale=[];
 end
+
 %loading calcium signal
 %check whether calcium signal had been saved before
 files=dir([d.pn '\traces']);
