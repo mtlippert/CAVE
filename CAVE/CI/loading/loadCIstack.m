@@ -65,7 +65,7 @@ if frames>4500 && Width>100 %if file is bigger than 4500 frames and width is mor
         % Read in image into an array.
         imdp = imread(fullFileName,k);
         %Downsampling
-        imdd(:,:,k)=imresize(imdp,p.options.dsr);
+        imdd(:,:,k)=imresize(imdp,[size(imdd,1) size(imdd,2)]);
         try
             waitbar(k/frames,h);
         catch

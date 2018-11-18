@@ -3720,7 +3720,7 @@ if d.dF==0 %saving video if it was not processed further
     origCIconv=origCIdou./max(max(max(origCIdou)));
 
     filename=[d.pn '\' cell2mat(d.name)];
-    vid = VideoWriter(filename,'Grayscale AVI');
+    vid = VideoWriter(filename,'Uncompressed AVI');
     vid.FrameRate=d.framerate;
     nframes=size(d.imd,3);
     open(vid);

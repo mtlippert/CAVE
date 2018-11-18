@@ -24,7 +24,7 @@ function [ROIsbw] = pcaica(F,mip,pn,name,handles)
 
 global p
 
-h=msgbox('Please wait...');
+h=msgbox('Please wait for principal component analysis...');
 if isempty(p.F2)==1
     %reshaping to two dimensional array: pixel x time
     F1=reshape(F,size(F,1)*size(F,2),size(F,3));
